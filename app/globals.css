@@ -102,8 +102,11 @@
   .step-wave { display: none; }
   @keyframes waveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   .step > .num, .step > .label { position: relative; z-index: 3; }
-  .step:hover:not(.locked) { background: #e6e9ed; }
+  .step:hover:not(.locked):not(.not-clickable) { background: #e6e9ed; }
   .step.locked { cursor: not-allowed; opacity: 0.55; }
+  /* On the final "All Set" step every step is frozen: no pointer, no hover
+     shift — but completed steps keep their full "done" styling (not dimmed). */
+  .step.not-clickable { cursor: default; }
   .step .num {
     width: auto; height: auto;
     border-radius: 0;
@@ -123,7 +126,7 @@
   }
   .step.done .num { background: transparent; color: #0f7a6e; }
   .step.done .label { color: #0f7a6e; }
-  .step.done:hover:not(.locked) { background: #c4ebe6; }
+  .step.done:hover:not(.locked):not(.not-clickable) { background: #c4ebe6; }
   .step.active {
     color: #054b44;
     background: #46D8CC;
@@ -316,8 +319,20 @@
     text-align: left;
     width: 100%;
     user-select: none;
+    cursor: pointer;
     transition: background .15s ease, border-color .15s ease, color .15s ease;
   }
+  .pc-side-item:hover:not(:disabled):not(.active) {
+    border-color: color-mix(in oklab, var(--accent) 55%, var(--line-strong));
+    color: var(--ink);
+  }
+  .pc-side-item:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  /* The current sub-step is disabled (no-op self-navigation) but must still
+     read as the active step, not a dimmed one. */
+  .pc-side-item.active:disabled { opacity: 1; }
   .pc-side-item.active {
     background: #46D8CC;
     border-color: transparent;
@@ -547,6 +562,13 @@
     font-size: 15px;
     line-height: 1;
     color: var(--accent);
+  }
+  /* Invalid input (e.g. a malformed invite email) — flag the field border. */
+  .field.field-error input,
+  .field.field-error select,
+  .field.field-error textarea {
+    border-color: var(--danger);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent);
   }
 
   /* Group divider (matches step h2 size) */
@@ -789,6 +811,22 @@
   /* Select Module: warning under the Save & Next button when nothing picked */
   .module-nav { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
   .module-require { font-size: 12.5px; color: #d92d20; max-width: 320px; text-align: right; line-height: 1.45; }
+  /* Passive "you still need to do X" reminder — informational, NOT an error. */
+  .step-reminder {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    max-width: 340px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    text-align: left;
+    color: var(--accent-ink);
+    background: var(--accent-soft);
+    border: 1px solid color-mix(in oklab, var(--accent-ink) 18%, transparent);
+  }
+  .step-reminder svg { flex-shrink: 0; }
 
   /* All Set mascot video */
   .mascot-video-wrap {
@@ -1000,10 +1038,16 @@
   .invite-row-card { display: flex; align-items: center; gap: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; transition: border-color .15s ease; }
   .invite-row-card:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
   .invite-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #00CBC6 0%, #00D5BF 100%); color: #fff; font-weight: 700; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; }
-  .invite-meta { flex: 1; min-width: 0; }
-  .invite-name { font-weight: 600; font-size: 14.5px; color: var(--ink); }
-  .invite-email { font-size: 13px; color: var(--muted); margin-top: 2px; }
-  .invite-role { font-size: 12.5px; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); padding: 5px 11px; border-radius: 999px; }
+  /* Clickable meta block: reset native button chrome, keep it left-aligned. */
+  .invite-meta { flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; cursor: pointer; }
+  /* Truncate long names/emails so they can't push into the role pill and overlap. */
+  .invite-name { font-weight: 600; font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .invite-email { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Expanded: drop the ellipsis and wrap the full address onto multiple lines. */
+  .invite-meta.is-expanded .invite-name,
+  .invite-meta.is-expanded .invite-email { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+  /* Keep the role pill at its natural size — never let flex squeeze it. */
+  .invite-role { flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); padding: 5px 11px; border-radius: 999px; }
 
   /* Invite sent toast */
   .invite-toast {
@@ -1092,6 +1136,19 @@
   .mselect-value.placeholder { color: var(--muted); }
   .mselect-caret { display: grid; place-items: center; color: var(--muted); transition: transform .25s ease, color .2s ease; }
   .mselect.open .mselect-caret { transform: rotate(180deg); color: var(--accent); }
+  .mselect-clear {
+    flex: 0 0 auto;
+    display: grid; place-items: center;
+    width: 22px; height: 22px;
+    padding: 0; margin: 0;
+    border: 0; border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .mselect-clear:hover { background: color-mix(in oklab, var(--line-strong) 45%, transparent); color: var(--ink); }
+  .mselect-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .mselect.disabled { opacity: 0.55; pointer-events: none; }
 
   .mselect-menu {
@@ -1429,6 +1486,46 @@
   .pill-radio { display: flex; gap: 6px; flex-wrap: wrap; }
   .pill-radio button { background: var(--bg); border: 1px solid var(--line-strong); padding: 8px 14px; border-radius: 999px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
   .pill-radio button.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
+
+  /* Top-pinned, centered, dismissible error banner (Bootstrap alert-danger look). */
+  .flash-message {
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 50%;
+    max-width: 640px;
+    z-index: 1000;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    text-align: center;
+
+    color: #842029;
+    background: #f8d7da;
+    border: 1px solid #f5c2c7;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+  .flash-close {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .flash-close:hover { background: rgba(0, 0, 0, 0.08); }
+  @media (min-width: 1200px) { .flash-message { width: 30%; } }
+  @media (max-width: 768px)  { .flash-message { width: 90%; top: 1rem; } }
 
   /* Responsive */
   @media (max-width: 760px) {

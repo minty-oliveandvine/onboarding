@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import Icon from './Icon';
 import NavMenu from './NavMenu';
 import {
@@ -35,6 +36,34 @@ const STORAGE_KEY = 'minty_onboarding_session';
 // writes move to `minty_onboarding_session:<id>` and the bare draft is cleared.
 const sessionKey = (entityId) => (entityId ? `${STORAGE_KEY}:${entityId}` : STORAGE_KEY);
 
+// On a plain refresh the URL carries no entity_id, so we can't look up the
+// per-entity session key directly. Scan localStorage for every
+// `minty_onboarding_session:<id>` blob and return the most recently saved one
+// (by `savedAt`). This is what makes an ordinary refresh restore progress
+// instead of resetting to the empty initial state.
+const findLatestSession = () => {
+  if (typeof window === 'undefined') return null;
+  let best = null;
+  try {
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith(`${STORAGE_KEY}:`)) continue;
+      let blob = null;
+      try {
+        blob = JSON.parse(window.localStorage.getItem(key) || 'null');
+      } catch {
+        continue;
+      }
+      if (!blob || !blob.state) continue;
+      const ts = typeof blob.savedAt === 'number' ? blob.savedAt : 0;
+      if (!best || ts > best.savedAt) best = { ...blob, savedAt: ts };
+    }
+  } catch {
+    return null;
+  }
+  return best;
+};
+
 // No signature verification — client-side cache invalidation only.
 function readJwtClaims(token) {
   if (!token) return null;
@@ -58,12 +87,38 @@ const BACKEND_TO_FE_MODULE = { PETTY_CASH: 'pettyCash', BILL: 'bills' };
 // Xero → petty-cash → bills/invite) than the FE flow (1 Basic, 2 Module,
 // 3 Invite, 4 Accounting/Xero, …), so we recompute against the FE order here
 // instead of trusting it as a raw index. We resume the user on the LAST step
-// they saved — the page they were on when they clicked "Save and Next" — rather
-// than the step after it. So we walk the FE steps in order and return the last
-// complete one. We only consider steps 1–4, because the resume payload doesn't
-// carry petty-cash / bill detail, so we can't judge those later steps; never
-// resume deeper than "Connect to Accounting" (4) and let per-step GETs refill.
-function deriveResumeStep(s) {
+// they saved — the page they were on when they clicked "Save and Next" / "Save
+// and Exit" — rather than the step after it.
+//
+// Backend contract: resume on the persisted `savedStep` (the FE step id the
+// user was on when they hit Save and Next / Save and Exit).
+//
+// If savedStep > 4 but the DB says Xero isn't connected, we still LAND the user
+// on their saved step but flag `needsXero` — the caller shows a pop-up nudging
+// them back to step 4 "Connect to Accounting", since that connection gates every
+// later step. (We used to silently force step 4; now the user keeps their place
+// and is told why they must reconnect first.)
+//
+// `savedStep` may be null (never persisted — e.g. a session that predates this
+// field, or that never reached a Save). In that case we have no recorded
+// position, so we fall back to deriving one from the payload's own data
+// (entity / modules / invites / xero.connected), which only judges steps 1–4.
+//
+// Returns { step, needsXero }.
+function deriveResumeStep(s, savedStep) {
+  const xeroConnected = !!(s.xero && s.xero.connected);
+  const saved = Number(savedStep);
+
+  // Honour the backend's recorded step when present and in range.
+  if (Number.isFinite(saved) && saved >= 1 && saved <= 9) {
+    // Deeper than the accounting step requires a live Xero connection. Without
+    // it, keep the user on their saved step but flag that Xero is needed so the
+    // caller can prompt them back to step 4.
+    if (saved > 4 && !xeroConnected) return { step: saved, needsXero: true };
+    return { step: saved, needsXero: false };
+  }
+
+  // No persisted step → derive from the data we do have (steps 1–4 only).
   // "Saved" per step. Invite (3) is optional, so isStepComplete always passes
   // it — but for resume we only count it as saved when invites were actually
   // added, otherwise saving at Module Selection would skip the user onto Invite.
@@ -71,11 +126,6 @@ function deriveResumeStep(s) {
     if (id === 3) return Array.isArray(s.invites) && s.invites.length > 0;
     return isStepComplete(id, s);
   };
-  // "Add later" with no invites: the user deferred inviting but wants to return.
-  // Resume on Invite (3) and don't let a later saved step (e.g. Xero) win.
-  if (s.inviteDeferred && !(Array.isArray(s.invites) && s.invites.length > 0)) {
-    return isStepComplete(1, s) && isStepComplete(2, s) ? 3 : isStepComplete(1, s) ? 2 : 1;
-  }
   let lastSaved = 1; // Basic Info is always the entry point.
   for (const id of [1, 2, 3, 4]) {
     if (isSaved(id)) {
@@ -88,7 +138,9 @@ function deriveResumeStep(s) {
       break; // a required step isn't saved → land on the last saved one.
     }
   }
-  return lastSaved;
+  // The derived fallback only judges steps 1–4, so it can never land past the
+  // Xero gate — no need to flag needsXero here.
+  return { step: lastSaved, needsXero: false };
 }
 
 const STEPS = [
@@ -194,10 +246,6 @@ const initialState = () => ({
     dedupe: true,
   },
   invites: [],
-  // Set when the user clicks "Add later" on the Invite step with no invites
-  // added — they advance now but want to come back to invite people. On resume
-  // (and only while invites is still empty) this lands them back on Invite.
-  inviteDeferred: false,
 });
 
 // Validation rules for completion gate
@@ -284,15 +332,25 @@ function Stepper({ current, onClick, maxReached, displaySteps }) {
         const status = isDone ? 'done' : isActive ? 'active' : 'todo';
         const firstId = d.ids[0];
         const reachable = firstId <= maxReached;
+        // Once on "All Set" (9), onboarding is finished — no step is clickable
+        // anymore, but completed steps keep their "done" look (not the lock).
+        const clickable = reachable && current !== 9;
         const hasSubs = !!d.subs;
         const showSubs = hasSubs && (isActive || hoverPettyCash);
+        // For a grouped tile (e.g. Petty Cash = steps 5,6,7), land on the
+        // sub-step the user was actually on rather than always the first: the
+        // current sub-step if we're inside the group, otherwise the furthest
+        // reached sub-step (clamped to the group), falling back to firstId.
+        const targetId = d.ids.includes(current)
+          ? current
+          : (d.ids.filter((i) => i <= maxReached).pop() ?? firstId);
         return (
           <div
             key={d.ids[0]}
             data-step-key={d.ids[0]}
             data-pulse={pulseId}
-            className={'step ' + status + (reachable ? '' : ' locked') + (hasSubs ? ' has-subs' : '')}
-            onClick={() => reachable && onClick(firstId)}
+            className={'step ' + status + (reachable ? '' : ' locked') + (clickable ? '' : ' not-clickable') + (hasSubs ? ' has-subs' : '')}
+            onClick={() => clickable && onClick(targetId)}
             onMouseEnter={() => hasSubs && setHoverPettyCash(true)}
             onMouseLeave={() => hasSubs && setHoverPettyCash(false)}
             title={reachable ? undefined : 'Complete the previous steps first'}
@@ -347,6 +405,24 @@ export default function OnboardingApp() {
   // Module 2 profile handoff URL (no entity context) passed in by Module 1.
   const [profileUrl, setProfileUrl] = useState('');
   const [accountOptions, setAccountOptions] = useState({ bank: [], cashSale: [], director: [], discrepancy: [], expense: [], contacts: [], bill: [] });
+  // Set on resume when the user landed past step 4 but Xero isn't connected in
+  // the DB — drives the "connect to accounting first" pop-up.
+  const [needsXeroPrompt, setNeedsXeroPrompt] = useState(false);
+  // Why the needs-Xero pop-up is showing: 'not-connected' (the entity isn't
+  // connected in the DB) or 'expired' (the /state re-check came back 401 — the
+  // session lapsed, typically after ~30 min past step 4). Drives the modal copy.
+  const [xeroPromptReason, setXeroPromptReason] = useState('not-connected');
+  // Set when the Xero OAuth round-trip returns `xero=mismatch` — the user logged
+  // in with a Xero account whose email differs from the onboarding initiator's,
+  // so the backend refused to connect the entity. Holds the email they MUST use
+  // (the initiator's, from the `expected` param) so the Accounting step can show
+  // a specific "use the account for X" message. Empty string = no mismatch.
+  const [xeroMismatch, setXeroMismatch] = useState('');
+  // Guard the portal for SSR — document.body isn't there during server render.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const activeIds = useMemo(() => getActiveStepIds(state.modules), [state.modules]);
   const displaySteps = useMemo(() => getDisplaySteps(state.modules), [state.modules]);
@@ -364,13 +440,31 @@ export default function OnboardingApp() {
   };
 
   const set = (patch) => setState((prev) => ({ ...prev, ...patch }));
+
+  // Persist the FE step the user is now on as the resume position. Written on
+  // every advance (Save & Next) and on Save & Exit, so resume lands on the
+  // furthest step reached — this is what lets the Xero gate fire its pop-up when
+  // saved_step > 4 but Xero isn't connected. Best-effort: never block the UI.
+  const persistSavedStep = (step) => {
+    if (!token || !state.entity.id) return;
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    try {
+      fetch(`${base}/api/onboarding/saved-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ entity_id: state.entity.id, saved_step: step }),
+      }).catch(() => {});
+    } catch {
+      /* best-effort — ignore */
+    }
+  };
+
   const next = () => {
     if (!isStepComplete(current, state)) return;
-    setCurrent((c) => {
-      const n = nextActiveId(c);
-      setMaxReached((m) => Math.max(m, n));
-      return n;
-    });
+    const n = nextActiveId(current);
+    setCurrent(n);
+    setMaxReached((m) => Math.max(m, n));
+    persistSavedStep(n);
   };
   // Dev-only skip: advances without validation (will be removed at the end)
   const skip = () => {
@@ -383,6 +477,9 @@ export default function OnboardingApp() {
   const back = () => setCurrent((c) => prevActiveId(c));
   const goto = (id) => {
     if (!activeIds.includes(id)) return;
+    // Onboarding is finished on the "All Set" step (9) — lock the stepper so the
+    // user can't jump back into earlier steps once they've reached it.
+    if (current === 9) return;
     if (id > maxReached) return;
     // Block forward jumps from a step that isn't complete (e.g. sub-step "Account Code" from "Sales")
     if (id > current && !isStepComplete(current, state)) {
@@ -438,7 +535,7 @@ export default function OnboardingApp() {
       const key = sessionKey(state.entity.id);
       window.localStorage.setItem(
         key,
-        JSON.stringify({ current, maxReached, state, token, profileUrl, user }),
+        JSON.stringify({ current, maxReached, state, token, profileUrl, user, savedAt: Date.now() }),
       );
       // Once an id exists, the pre-id draft under the bare key is obsolete —
       // drop it so it can't be replayed by a later fresh load.
@@ -472,20 +569,19 @@ export default function OnboardingApp() {
       const modules = (Array.isArray(payload.modules) ? payload.modules : [])
         .map((code) => BACKEND_TO_FE_MODULE[code])
         .filter(Boolean);
-      // The backend /state payload doesn't carry the "Add later" deferral, so
-      // recover it from this entity's own cached session. It only matters while
-      // the user is still on the same device/browser, which is the normal
-      // re-entry case; the server's invites list stays authoritative.
-      let cachedDeferred = false;
-      try {
-        const cached = JSON.parse(window.localStorage.getItem(sessionKey(payload.entity_id)) || 'null');
-        cachedDeferred = !!(cached && cached.state && cached.state.inviteDeferred);
-      } catch {
-        /* ignore corrupt storage */
-      }
       // Build the FE-shaped state once so the wizard and the resume-step
       // derivation see exactly the same data (deriveResumeStep/isStepComplete
       // read the FE `state` shape, not the raw backend payload).
+      // Rehydrate the petty-cash Sales Setting (step 5) from the backend so a
+      // cold resume doesn't show it blank. `sales_methods.{electronic,delivery}`
+      // mirror the POST /sales-methods payload. The beginning petty-cash amount
+      // lives in the draft's `opening_balance.opening_balance` (the inner field);
+      // `opening_balance.cash_addition` is now forced to 0 by the backend and
+      // must NOT be used. `opening_balance` (the object) is null when no draft
+      // exists yet.
+      const sm = payload.sales_methods || {};
+      const ob = payload.opening_balance || {};
+      const obAmount = ob.opening_balance;
       let nextState;
       setState((prev) => {
         nextState = {
@@ -503,18 +599,33 @@ export default function OnboardingApp() {
             ? { connected: true, org: payload.xero.org || prev.xero.org }
             : prev.xero,
           invites: Array.isArray(payload.invites) ? payload.invites : prev.invites,
-          inviteDeferred: cachedDeferred,
+          pettyCash: {
+            ...prev.pettyCash,
+            ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),
+            ...(Array.isArray(sm.delivery) ? { deliveryMethods: sm.delivery } : {}),
+            ...(ob.opening_date ? { openingDate: ob.opening_date } : {}),
+            ...(obAmount !== undefined && obAmount !== null ? { openingBalance: String(obAmount) } : {}),
+          },
         };
         return nextState;
       });
-      // Land on the FE step derived from saved data — the first step whose data
-      // isn't complete. We do NOT use the backend's current_step as a forward
-      // floor: its index space differs and a stale/higher value would shove the
-      // user past an incomplete step (the bug where resume jumped straight to
-      // "Connect to Accounting"). current_step/max_reached only raise the
-      // ceiling so already-reached steps stay unlocked in the stepper.
-      const derived = deriveResumeStep(nextState);
-      const landing = Math.max(derived, 1);
+      // Seed the "last persisted" snapshot from the resumed entity so a revisit
+      // to Step 1 that changes nothing stays a no-op (no needless PUT). Uses the
+      // same fields nextState landed on, falling back to FE display defaults.
+      savedEntityRef.current = {
+        entity_name: nextState.entity.name,
+        country: nextState.entity.country,
+        currency: nextState.entity.currency,
+      };
+      // Land on the FE step the backend persisted (`payload.saved_step`), with
+      // the Xero gate applied — deriveResumeStep handles the contract, including
+      // the null-saved_step fallback. We do NOT use the backend's `current_step`
+      // as a forward floor: its index space differs and a stale/higher value
+      // would shove the user past an incomplete step (the bug where resume
+      // jumped straight to "Connect to Accounting"). current_step/max_reached
+      // only raise the ceiling so already-reached steps stay unlocked.
+      const derived = deriveResumeStep(nextState, payload.saved_step);
+      const landing = Math.max(derived.step, 1);
       const ceiling = Math.max(
         landing,
         Number(payload.current_step) || 0,
@@ -522,6 +633,12 @@ export default function OnboardingApp() {
       );
       setCurrent(landing);
       setMaxReached(ceiling);
+      // Resumed past the Xero gate without a live connection — prompt the user
+      // back to step 4 (they keep their place; the pop-up routes them).
+      if (derived.needsXero) {
+        setXeroPromptReason('not-connected');
+        setNeedsXeroPrompt(true);
+      }
       return;
     }
 
@@ -584,6 +701,15 @@ export default function OnboardingApp() {
       });
       // The Xero tenant/org name reported back by Xero (real connected entity).
       const xeroOrg = (p.get('org') || '').trim();
+      // Wrong-account block: the backend refused to connect because the Xero
+      // login email didn't match the onboarding initiator. `expected` carries
+      // the email the user must log in with (URL-encoded). Record it so the
+      // Accounting step can message it; connection state stays false below.
+      if (xeroParam === 'mismatch') {
+        setXeroMismatch((p.get('expected') || '').trim() || 'unknown');
+      } else {
+        setXeroMismatch('');
+      }
       if (resumed) {
         if (resumed.token) setToken(resumed.token);
         if (resumed.profileUrl) setProfileUrl(resumed.profileUrl);
@@ -611,6 +737,7 @@ export default function OnboardingApp() {
         url.searchParams.delete('xero');
         url.searchParams.delete('step');
         url.searchParams.delete('org');
+        url.searchParams.delete('expected');
         window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       } catch {
         /* ignore */
@@ -663,6 +790,11 @@ export default function OnboardingApp() {
       } catch {
         /* ignore corrupt storage */
       }
+      // No pre-id draft under the bare key? Once an entity exists the session
+      // moves to `minty_onboarding_session:<id>` (and the bare key is cleared),
+      // so an ordinary refresh — which has no entity_id in the URL — must fall
+      // back to the most recent per-entity session or it resets to zero.
+      if (!saved) saved = findLatestSession();
     }
     if (saved) {
       const savedClaims = readJwtClaims(saved.token);
@@ -716,6 +848,9 @@ export default function OnboardingApp() {
   // Accounting step. When run standalone (no entity created), it simulates a
   // connection so the prototype still works.
   const connectXero = () => {
+    // Starting a fresh attempt clears any prior wrong-account banner so a retry
+    // doesn't show a stale "use the account for X" message.
+    setXeroMismatch('');
     const today = new Date().toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
@@ -750,7 +885,7 @@ export default function OnboardingApp() {
   // prototype still works.
   const disconnectXero = async () => {
     if (!token || !state.entity.id) {
-      set({ xero: { connected: false, org: '' } });
+      set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     }
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
@@ -762,34 +897,195 @@ export default function OnboardingApp() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || 'Failed to disconnect from Xero. Please try again.' };
-      set({ xero: { connected: false, org: '' } });
+      set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     } catch {
       return { ok: false, error: 'Could not reach the server. Please try again.' };
     }
   };
 
-  // Create the entity in Module 1 (Step 1). Token-authenticated; no cookies.
-  // When launched standalone (no token), it no-ops so the prototype still runs.
+  // Re-validate the Xero connection against the backend (same DB-backed
+  // GET /api/onboarding/state that resumeFromServer reads), but lightweight:
+  // it reads ONLY xero.connected and reconciles that, without touching the
+  // current step or other in-session state. Used on an ordinary refresh, where
+  // we rehydrate from localStorage — which can carry a stale
+  // `xero.connected: true` from before a *different* user (e.g. the invitee)
+  // disconnected the entity from Xero on their own session. localStorage is
+  // per-browser, so the inviter's cache never sees that revocation; only the
+  // backend knows. Best-effort: a network/auth failure leaves the cached state
+  // untouched so a transient blip can't wipe a real connection. Returns the
+  // backend's connected boolean, the string 'expired' when the session token
+  // was rejected (401 — the caller nudges the user to reconnect), or null if
+  // unknown.
+  const verifyXeroConnection = async () => {
+    if (!token || !state.entity.id) return null;
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    try {
+      const res = await fetch(
+        `${base}/api/onboarding/state?entity_id=${encodeURIComponent(state.entity.id)}`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      // 401 → the session token lapsed (typically ~30 min past step 4). Surface
+      // it distinctly so the caller can show the "reconnect" prompt rather than
+      // silently swallowing it as a transient blip.
+      if (res.status === 401) return 'expired';
+      if (!res.ok) return null;
+      const payload = await res.json().catch(() => null);
+      if (!payload) return null;
+      const connected = !!(payload.xero && payload.xero.connected);
+      setState((prev) => {
+        if (!!prev.xero.connected === connected) {
+          // Still matches: only refresh the org label if the backend has one.
+          return connected && payload.xero.org && payload.xero.org !== prev.xero.org
+            ? { ...prev, xero: { ...prev.xero, org: payload.xero.org } }
+            : prev;
+        }
+        // Connection state changed under us — reconcile to the backend.
+        return connected
+          ? { ...prev, xero: { ...prev.xero, connected: true, org: payload.xero.org || prev.xero.org } }
+          : { ...prev, xero: { ...prev.xero, connected: false, org: '' } };
+      });
+      return connected;
+    } catch {
+      return null; // transient failure → keep cached state
+    }
+  };
+
+  // Step 4 and every step after it depend on a live Xero connection, so each
+  // time we land on a step 4+ we re-check the backend (localStorage can be
+  // stale — see verifyXeroConnection). This catches a disconnect that happened
+  // on a *different* session (e.g. the invitee revoked Xero) whether it landed
+  // before this page loaded or while the user is mid-onboarding. If the
+  // connection was revoked, the fn flips local state to "Not connected"; when
+  // the user is *past* step 4 we also nudge them back via the existing
+  // needs-Xero prompt (the same modal cold resume uses, see needsXeroPrompt).
+  //
+  // Kept cheap so per-landing re-checks don't drag: (1) an in-flight latch so
+  // overlapping landings never fire a second concurrent /state fetch; (2) the
+  // fetch is background-only — never awaited by render, so it can't block
+  // paint; (3) verifyXeroConnection returns the SAME state object when nothing
+  // changed, so the common "still connected" case triggers no re-render.
+  const verifyingXeroRef = useRef(false);
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    if (current < 4) return;
+    if (!token || !state.entity.id) return;
+    if (verifyingXeroRef.current) return; // a check is already running
+    verifyingXeroRef.current = true;
+    let cancelled = false;
+    (async () => {
+      try {
+        const connected = await verifyXeroConnection();
+        if (cancelled) return;
+        if (current > 4) {
+          if (connected === 'expired') {
+            // Session lapsed under us — nudge the user to reconnect.
+            setXeroPromptReason('expired');
+            setNeedsXeroPrompt(true);
+          } else if (connected === false) {
+            setXeroPromptReason('not-connected');
+            setNeedsXeroPrompt(true);
+          }
+        }
+      } finally {
+        verifyingXeroRef.current = false;
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, token, state.entity.id]);
+
+  // Snapshot of the entity fields as they were last persisted to the backend,
+  // so a revisit can tell whether the user actually changed anything (and skip
+  // the network round-trip if not).
+  const savedEntityRef = useRef(null);
+
+  // Create the entity in Module 1 (Step 1), or update it in place when the user
+  // goes back and edits an already-created entity. Token-authenticated; no
+  // cookies. When launched standalone (no token), it no-ops so the prototype
+  // still runs.
   const submitEntity = async () => {
-    if (state.entity.id) return { ok: true }; // already created (revisiting step)
     if (!token) return { ok: true }; // standalone / no Module 1 handoff
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    const payload = {
+      entity_name: state.entity.name,
+      country: state.entity.country,
+      currency: state.entity.currency,
+    };
+
+    // --- Revisit: entity already exists, so this is an EDIT, not a create. ---
+    if (state.entity.id) {
+      // If nothing changed since the last persist, there's nothing to save —
+      // keep the old no-op behaviour and just advance.
+      const prev = savedEntityRef.current;
+      const unchanged =
+        prev &&
+        prev.entity_name === payload.entity_name &&
+        prev.country === payload.country &&
+        prev.currency === payload.currency;
+      if (unchanged) return { ok: true };
+
+      try {
+        // Revisiting Step 1 overwrites the entity in place via
+        // PUT /api/onboarding/entity/{entity_id} (same fields as create) — it
+        // never creates a new entity. Returns { entity_id, name } on success,
+        // 409 on a name collision with a *different* entity. Accepts the same
+        // field aliases as /create (entity_name|name, country|country_code,
+        // currency|currency_code); we send the canonical names.
+        const res = await fetch(`${base}/api/onboarding/entity/${encodeURIComponent(state.entity.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const backendMsg = (data.error || data.message || '').toString();
+          if (res.status === 409) {
+            return {
+              ok: false,
+              duplicate: true,
+              error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
+            };
+          }
+          return { ok: false, error: backendMsg || 'Failed to update entity. Please try again.' };
+        }
+        savedEntityRef.current = { ...payload };
+        return { ok: true };
+      } catch {
+        return { ok: false, error: 'Could not reach the server. Please try again.' };
+      }
+    }
+
+    // --- First time through: create the entity. ---
     try {
       const res = await fetch(`${base}/api/onboarding/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          entity_name: state.entity.name,
-          country: state.entity.country,
-          currency: state.entity.currency,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to create entity. Please try again.' };
+      if (!res.ok) {
+        // The backend returns 409 only for a name collision (uniqueness is
+        // GLOBAL across all users — see /api/onboarding/create). Key off the
+        // status, not the message: the body is {"error": "Entity name already
+        // exist"} with no machine code, and the wording could change. A 400 is
+        // a different validation failure (e.g. empty name), so pass it through.
+        const backendMsg = (data.error || data.message || '').toString();
+        if (res.status === 409) {
+          return {
+            ok: false,
+            duplicate: true,
+            error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
+          };
+        }
+        return { ok: false, error: backendMsg || 'Failed to create entity. Please try again.' };
+      }
       if (data.entity_id) {
         setState((prev) => ({ ...prev, entity: { ...prev.entity, id: data.entity_id } }));
       }
+      savedEntityRef.current = { ...payload };
       return { ok: true };
     } catch {
       return { ok: false, error: 'Could not reach the server. Please try again.' };
@@ -852,7 +1148,9 @@ export default function OnboardingApp() {
         body: JSON.stringify({
           entity_id: state.entity.id,
           opening_date: p.openingDate,
-          cash_addition: p.openingBalance,
+          // Beginning petty-cash amount lives in opening_balance now (cash_addition
+          // is forced to 0 by the backend); send it here so save and resume agree.
+          opening_balance: p.openingBalance,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -865,7 +1163,7 @@ export default function OnboardingApp() {
 
   const accountLoadedRef = useRef(false);
   useEffect(() => {
-    if ((current !== 5 && current !== 6) || accountLoadedRef.current) return;
+    if ((current !== 5 && current !== 6 && current !== 7) || accountLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     accountLoadedRef.current = true;
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
@@ -1021,7 +1319,7 @@ export default function OnboardingApp() {
 
   const billLoadedRef = useRef(false);
   useEffect(() => {
-    if (current !== 7 || billLoadedRef.current) return;
+    if (current !== 8 || billLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     billLoadedRef.current = true;
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
@@ -1084,7 +1382,18 @@ export default function OnboardingApp() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: data.error || 'Failed to send invitation. Please try again.' };
-      return { ok: true, invitation: data.invitation };
+      // The invitation row can be created even when the email itself fails to
+      // go out (Brevo/SMTP error) — the backend signals that with
+      // email_sent: false. Pass it through so the UI can warn instead of
+      // showing a false "Invitation sent" success.
+      //
+      // Backends disagree on where email_sent lives: some put it at the top
+      // level ({ email_sent, invitation }), others nest it inside the
+      // invitation ({ invitation: { email_sent } }). Check both; only treat it
+      // as a failure when an explicit `false` is present in either spot.
+      const emailSentFlag =
+        data.email_sent ?? (data.invitation && data.invitation.email_sent);
+      return { ok: true, invitation: data.invitation, emailSent: emailSentFlag !== false };
     } catch {
       return { ok: false, error: 'Could not reach the server. Please try again.' };
     }
@@ -1145,13 +1454,9 @@ export default function OnboardingApp() {
   }, [current, token, state.entity.id]);
 
   // Commits the deferred opening balance (when petty cash was the
-  // selection) then redirects to the right module's landing page —
-  // petty cash lands on the opening page for the user's selected
-  // opening date, not the entity dashboard.
-  // Bill-only users skip the opening-balance commit and go straight to
-  // Module 2's Bills home via Module 1's /entity/<id>/bills handoff
-  // (which mints the JWT and forwards). Returns { ok, redirect } so
-  // All Set can show errors / stay put.
+  // selection), finalizes onboarding, then redirects to the entity list.
+  // Bill-only users skip the opening-balance commit. Returns { ok, redirect }
+  // so All Set can show errors / stay put.
   const finishOnboarding = async () => {
     // Onboarding done — drop this entity's saved session (and any bare draft).
     try {
@@ -1175,10 +1480,7 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
     } catch { /* ignore */ }
-    const dest = chosen === 'bills'
-      ? `${base}/entity/${state.entity.id}/bills`
-      : `${base}/report/opening?entity_id=${encodeURIComponent(state.entity.id)}&transaction_date=${encodeURIComponent(state.pettyCash.openingDate)}&from_onboarding=1`;
-    window.location.href = dest;
+    window.location.href = `${base}/entity`;
     return { ok: true, redirect: true };
   };
 
@@ -1194,6 +1496,20 @@ export default function OnboardingApp() {
       /* best-effort — never block the exit on a save failure */
     }
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    // Record the FE step the user is leaving from so a later resume can land
+    // them right back here (see deriveResumeStep). Best-effort: a failure here
+    // must never block the exit, and resume falls back to the derived step.
+    if (token && state.entity.id) {
+      try {
+        await fetch(`${base}/api/onboarding/saved-step`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ entity_id: state.entity.id, saved_step: current }),
+        });
+      } catch {
+        /* best-effort — ignore and exit anyway */
+      }
+    }
     window.location.href = `${base}/entity`;
   };
 
@@ -1238,7 +1554,12 @@ export default function OnboardingApp() {
     r.style.setProperty('--accent-hover', ACCENT_DEFAULTS.accent);
   }, []);
 
-  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, submitSalesMethods, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit };
+  // The last content step (immediately before "All Set", step 9) shows a
+  // "Complete" button instead of "Save & Next". Which step that is depends on
+  // the selected modules: Bills (8) when bills is on, otherwise Others (7).
+  const isLastContentStep = current === activeIds[activeIds.length - 2];
+
+  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
 
   return (
     <>
@@ -1273,18 +1594,30 @@ export default function OnboardingApp() {
         {(current === 5 || current === 6 || current === 7) && (
           <aside className="pc-side-menu" aria-label="Petty Cash sub-steps">
             <div className="pc-side-title">Petty Cash Settings</div>
-            <div className={'pc-side-item' + (current === 5 ? ' active' : '') + (current > 5 ? ' done' : '')}>
-              <span className="substep-circle">{current > 5 ? <Icon.CheckSm /> : '1'}</span>
-              <span className="substep-label">Sales</span>
-            </div>
-            <div className={'pc-side-item' + (current === 6 ? ' active' : '') + (current > 6 ? ' done' : '')}>
-              <span className="substep-circle">{current > 6 ? <Icon.CheckSm /> : '2'}</span>
-              <span className="substep-label">Account Code</span>
-            </div>
-            <div className={'pc-side-item' + (current === 7 ? ' active' : '') + (current > 7 ? ' done' : '')}>
-              <span className="substep-circle">{current > 7 ? <Icon.CheckSm /> : '3'}</span>
-              <span className="substep-label">Others</span>
-            </div>
+            {[
+              { id: 5, num: '1', label: 'Sales' },
+              { id: 6, num: '2', label: 'Account Code' },
+              { id: 7, num: '3', label: 'Others' },
+            ].map(({ id, num, label }) => {
+              // A sub-step is reachable once the user has been there. Forward
+              // jumps to an incomplete step are still blocked inside goto(), so
+              // clicking a not-yet-eligible item is a safe no-op; we disable it
+              // here too so the cursor/affordance matches.
+              const reachable = id <= maxReached;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={'pc-side-item' + (current === id ? ' active' : '') + (current > id ? ' done' : '')}
+                  onClick={() => goto(id)}
+                  disabled={!reachable || current === id}
+                  aria-current={current === id ? 'step' : undefined}
+                >
+                  <span className="substep-circle">{current > id ? <Icon.CheckSm /> : num}</span>
+                  <span className="substep-label">{label}</span>
+                </button>
+              );
+            })}
           </aside>
         )}
         {current === 1 && <StepCreateEntity {...stepProps} />}
@@ -1297,6 +1630,66 @@ export default function OnboardingApp() {
         {current === 8 && <StepBills {...stepProps} />}
         {current === 9 && <StepAllSet {...stepProps} />}
       </main>
+
+      {needsXeroPrompt && mounted && ReactDOM.createPortal(
+        <div
+          className="skip-modal-overlay"
+          role="presentation"
+          onClick={() => setNeedsXeroPrompt(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+            background: 'rgba(15, 23, 27, 0.45)',
+          }}
+        >
+          <div
+            className="skip-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="xero-prompt-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#f1f3f4',
+              border: '1px solid var(--line)',
+              borderRadius: 'var(--radius)',
+              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.22)',
+              padding: '26px 26px 22px',
+              maxWidth: 440,
+              width: '100%',
+            }}
+          >
+            <p id="xero-prompt-title" className="skip-modal-lead">
+              {xeroPromptReason === 'expired'
+                ? 'Your session has timed out.'
+                : 'Connect to your accounting system first.'}
+            </p>
+            <p className="skip-modal-body" style={{ marginBottom: 32 }}>
+              {xeroPromptReason === 'expired'
+                ? 'It has been more than 30 minutes, so your connection to Xero has expired. Please go back to the “Connect to Accounting System” step and reconnect to continue your setup.'
+                : 'You’re not connected to Xero yet. Please go back to the “Connect to Accounting System” step and connect before continuing your setup.'}
+            </p>
+            <div className="skip-modal-actions" style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setNeedsXeroPrompt(false);
+                  setMaxReached((m) => Math.max(m, 4));
+                  setCurrent(4);
+                }}
+              >
+                {xeroPromptReason === 'expired' ? 'Reconnect to Xero' : 'Go to Connect step'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }

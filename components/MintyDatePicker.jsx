@@ -28,9 +28,10 @@ function dpSameDay(a, b) {
   return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export default function MintyDatePicker({ value, onChange, placeholder = 'Select a date', minDate }) {
+export default function MintyDatePicker({ value, onChange, placeholder = 'Select a date', minDate, maxDate }) {
   const selected = dpParse(value);
   const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const isToday = dpSameDay(selected, today);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(selected || today);
@@ -39,6 +40,16 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
   const minD = minDate ? new Date(minDate) : null;
   const isBeforeMin = (d) => minD && d < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
   const canStepPrev = !minD || new Date(view.getFullYear(), view.getMonth(), 1) > new Date(minD.getFullYear(), minD.getMonth(), 1);
+
+  // maxDate caps how far forward the user can go — e.g. the server's "today" in
+  // Hong Kong time — so future dates cannot be selected. Parse 'YYYY-MM-DD' via
+  // dpParse (local midnight) to avoid the UTC shift of new Date('YYYY-MM-DD').
+  const maxD = maxDate ? (typeof maxDate === 'string' ? dpParse(maxDate) : new Date(maxDate)) : null;
+  const maxDay = maxD ? new Date(maxD.getFullYear(), maxD.getMonth(), maxD.getDate()) : null;
+  const isAfterMax = (d) => maxDay && d > maxDay;
+  const canStepNext = !maxDay || new Date(view.getFullYear(), view.getMonth(), 1) < new Date(maxDay.getFullYear(), maxDay.getMonth(), 1);
+  // The "Today" shortcut must stay within the cap (browser clock may be ahead).
+  const effectiveToday = maxDay && todayMid > maxDay ? maxDay : todayMid;
 
   useEffect(() => {
     if (!open) return;
@@ -67,10 +78,11 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
 
   const stepMonth = (dir) => {
     if (dir < 0 && !canStepPrev) return;
+    if (dir > 0 && !canStepNext) return;
     setView(new Date(year, month + dir, 1));
   };
   const pick = (d) => {
-    if (isBeforeMin(d)) return;
+    if (isBeforeMin(d) || isAfterMax(d)) return;
     onChange(dpFormat(d));
     setOpen(false);
   };
@@ -98,7 +110,7 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
             <div className="mdp-title">
               {DP_MONTHS[month]} {year}
             </div>
-            <button type="button" className="mdp-nav" onClick={() => stepMonth(1)} aria-label="Next month">
+            <button type="button" className="mdp-nav" onClick={() => stepMonth(1)} aria-label="Next month" disabled={!canStepNext}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 6l6 6-6 6" />
               </svg>
@@ -119,9 +131,9 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
                 <button
                   key={i}
                   type="button"
-                  className={'mdp-cell' + (dpSameDay(d, selected) ? ' selected' : '') + (dpSameDay(d, today) ? ' today' : '') + (isBeforeMin(d) ? ' disabled' : '')}
+                  className={'mdp-cell' + (dpSameDay(d, selected) ? ' selected' : '') + (dpSameDay(d, today) ? ' today' : '') + (isBeforeMin(d) || isAfterMax(d) ? ' disabled' : '')}
                   onClick={() => pick(d)}
-                  disabled={isBeforeMin(d)}
+                  disabled={isBeforeMin(d) || isAfterMax(d)}
                 >
                   {d.getDate()}
                 </button>
@@ -129,7 +141,7 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
             )}
           </div>
           <div className="mdp-foot">
-            <button type="button" className="mdp-today-btn" onClick={() => pick(today)}>
+            <button type="button" className="mdp-today-btn" onClick={() => pick(effectiveToday)}>
               Today
             </button>
             {selected && (

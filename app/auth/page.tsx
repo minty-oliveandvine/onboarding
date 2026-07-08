@@ -2,22 +2,69 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  savePendingInvite,
+  readPendingInvite,
+  clearPendingInvite,
+} from "../../lib/pendingInvite";
 
-const FLASK_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+// Same Flask backend as the onboarding API (/api/onboarding/*, /auth/email/*,
+// /xero_auth all live there), so use the same env var the rest of the app uses
+// — NEXT_PUBLIC_MODULE1_API_URL. NEXT_PUBLIC_API_URL is kept only as a
+// backward-compatible fallback for builds that still set the old var; without
+// this, an unset NEXT_PUBLIC_API_URL silently fell back to localhost and broke
+// the Xero/OTP buttons in deployed environments.
+const FLASK_BASE =
+  process.env.NEXT_PUBLIC_MODULE1_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:5001";
 
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const inviteToken = searchParams.get("invite") || "";
-  const prefilledEmail = searchParams.get("email") || "";
+  const urlInviteToken = searchParams.get("invite") || "";
+  const urlEmail = searchParams.get("email") || "";
   const signupMode = searchParams.get("mode") === "signup";
   const prefilledFirstName = searchParams.get("fn") || "";
   const prefilledLastName = searchParams.get("ln") || "";
+  // Set by the backend when it bounces a wrong-account user back here after a
+  // forced logout (?error=wrong_account). The Flask flash explaining why can't
+  // cross origins to this page, so we reconstruct the message from the params.
+  const bouncedWrongAccount = searchParams.get("error") === "wrong_account";
+
+  // After a Xero logout/login hop, Xero redirects to the *bare* /auth (its
+  // registered redirect URI), so invite/email may be missing from the URL. We
+  // recover them from the pending invite we stashed before the hop. The URL is
+  // always authoritative when present (non-Xero users still carry params);
+  // storage only fills the gap when the URL has nothing.
+  const [recovered, setRecovered] = useState<{
+    invite: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+  } | null>(null);
+  useEffect(() => {
+    if (urlInviteToken) return; // URL wins — nothing to recover.
+    const pending = readPendingInvite(Date.now());
+    if (pending) {
+      setRecovered({
+        invite: pending.invite,
+        email: pending.email,
+        firstName: pending.firstName,
+        lastName: pending.lastName,
+      });
+    }
+  }, [urlInviteToken]);
+
+  const inviteToken = urlInviteToken || recovered?.invite || "";
+  const prefilledEmail = urlEmail || recovered?.email || "";
+  const recoveredFirstName = prefilledFirstName || recovered?.firstName || "";
+  const recoveredLastName = prefilledLastName || recovered?.lastName || "";
   const [email, setEmail] = useState(prefilledEmail);
   // Self-serve signup collects the name up front (the User model requires a
   // first/last name). In login/invite mode these stay as the prefilled values.
-  const [firstName, setFirstName] = useState(prefilledFirstName);
-  const [lastName, setLastName] = useState(prefilledLastName);
+  const [firstName, setFirstName] = useState(recoveredFirstName);
+  const [lastName, setLastName] = useState(recoveredLastName);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -25,10 +72,25 @@ function AuthContent() {
   const canContinue = emailValid && namesValid && !sending;
 
   const emailLocked = Boolean(inviteToken && prefilledEmail);
+  // Show the "sign in as <email>" notice whenever someone arrives from an
+  // invite with both the token and the target email — this covers a fresh
+  // invite click and the wrong-account bounce-back (the backend re-sends the
+  // same invite+email params after forcing a logout).
+  const showInviteNotice = Boolean(inviteToken && prefilledEmail);
 
+  // Recovered values (and URL params) can resolve after the initial mount —
+  // the recovery effect runs post-render — so sync them into the editable
+  // fields when they appear. Only overwrite when there's a value, so a user's
+  // own typing isn't clobbered by an empty recovered field.
   useEffect(() => {
     if (prefilledEmail) setEmail(prefilledEmail);
   }, [prefilledEmail]);
+  useEffect(() => {
+    if (recoveredFirstName) setFirstName(recoveredFirstName);
+  }, [recoveredFirstName]);
+  useEffect(() => {
+    if (recoveredLastName) setLastName(recoveredLastName);
+  }, [recoveredLastName]);
 
   const onContinue = async () => {
     if (!emailValid || sending) return;
@@ -51,6 +113,9 @@ function AuthContent() {
       qs.set("email", email);
       if (firstName) qs.set("fn", firstName);
       if (lastName) qs.set("ln", lastName);
+      // The invite now travels in the /auth/confirm URL, so the storage
+      // fallback has done its job — clear it so it can't resurface later.
+      clearPendingInvite();
       router.push(`/auth/confirm?${qs.toString()}`);
     } catch {
       setError("Network error — is the Flask server running?");
@@ -81,6 +146,23 @@ function AuthContent() {
                 : "Start your journey with us today."}
             </p>
           </div>
+
+          {showInviteNotice && (
+            <div className="auth-invite-notice" role="status">
+              {bouncedWrongAccount ? (
+                <>
+                  You&apos;re signed in with a different account. This invitation
+                  was sent to <strong>{prefilledEmail}</strong> — please sign in
+                  with that account to accept it.
+                </>
+              ) : (
+                <>
+                  This invitation was sent to <strong>{prefilledEmail}</strong>.
+                  Please sign in with that account to accept it.
+                </>
+              )}
+            </div>
+          )}
 
           <div className="form-stack auth-form">
             {signupMode && (
@@ -153,6 +235,19 @@ function AuthContent() {
                 // an OTP and bounces back to /auth/confirm after the OAuth
                 // round-trip succeeds. Forward the invite token so invited
                 // users who choose Xero don't lose their invite.
+                //
+                // On an invite mismatch, Xero logs the user out and returns to
+                // the *bare* /auth (no query params). Stash the pending invite
+                // first so we can recover it on that param-less return.
+                if (inviteToken) {
+                  savePendingInvite({
+                    invite: inviteToken,
+                    email: prefilledEmail,
+                    firstName,
+                    lastName,
+                    ts: Date.now(),
+                  });
+                }
                 const xqs = new URLSearchParams();
                 if (inviteToken) xqs.set("invite", inviteToken);
                 const suffix = xqs.toString() ? `?${xqs.toString()}` : "";
@@ -220,6 +315,19 @@ function AuthContent() {
           font-size: 13px;
           text-align: center;
           margin-top: -6px;
+        }
+        .auth-invite-notice {
+          font-size: 13.5px;
+          line-height: 1.5;
+          color: var(--ink-2);
+          background: var(--accent-soft);
+          border: 1px solid color-mix(in oklab, var(--accent) 30%, var(--line));
+          border-radius: var(--radius);
+          padding: 12px 14px;
+        }
+        .auth-invite-notice strong {
+          color: var(--ink);
+          font-weight: 600;
         }
         .auth-divider {
           display: flex;

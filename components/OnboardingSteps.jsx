@@ -7,7 +7,78 @@ import Icon from './Icon';
 import MintySelect from './MintySelect';
 import MintyDatePicker from './MintyDatePicker';
 import Confetti from './Confetti';
+import ErrorBanner from './ErrorBanner';
 import { COUNTRY_OPTIONS, CURRENCY_OPTIONS } from '@/lib/entityOptions';
+
+// --- Opening balance formatting helpers ---
+// The stored value (state.pettyCash.openingBalance) is always a plain numeric
+// string (e.g. "1234.5") so the submit payload stays clean. Display adds commas
+// every three digits with two decimal places (e.g. "1,234.50"); the placeholder
+// shows "0.00" when the field is empty.
+
+// Maximum allowed opening balance: 99 billion.
+const OPENING_BALANCE_MAX = 99000000000;
+
+// Compare a numeric string against OPENING_BALANCE_MAX without going through
+// Number() (which loses precision past ~15 digits). Returns true if raw > max.
+function exceedsBalanceMax(raw) {
+  const intPart = (raw.split('.')[0] || '').replace(/^0+(?=\d)/, '') || '0';
+  const maxStr = String(OPENING_BALANCE_MAX);
+  if (intPart.length !== maxStr.length) return intPart.length > maxStr.length;
+  // Same digit count: any nonzero fractional part pushes it over an equal integer.
+  if (intPart > maxStr) return true;
+  if (intPart < maxStr) return false;
+  const decPart = raw.split('.')[1] || '';
+  return /[1-9]/.test(decPart);
+}
+
+// Strip everything except digits and a single decimal point from user input,
+// returning the plain numeric string to store. Values above OPENING_BALANCE_MAX
+// are clamped to the cap so the balance can never exceed 99 billion.
+function parseBalanceInput(value) {
+  if (value === undefined || value === null) return '';
+  let cleaned = String(value).replace(/[^\d.]/g, '');
+  const firstDot = cleaned.indexOf('.');
+  if (firstDot !== -1) {
+    // Keep only the first decimal point; drop any later ones, and cap the
+    // fractional part at two digits so no third decimal place can be typed.
+    const intPart = cleaned.slice(0, firstDot);
+    const decPart = cleaned.slice(firstDot + 1).replace(/\./g, '').slice(0, 2);
+    cleaned = `${intPart}.${decPart}`;
+  }
+  if (cleaned === '' || cleaned === '.') return cleaned;
+  if (exceedsBalanceMax(cleaned)) {
+    // Over the cap: clamp to the max, keeping a trailing "." if mid-typing.
+    return String(OPENING_BALANCE_MAX) + (cleaned.endsWith('.') ? '.' : '');
+  }
+  return cleaned;
+}
+
+// Add grouping commas to the integer part while the user types, preserving a
+// trailing "." or partial decimals so typing isn't disrupted.
+function formatBalanceDisplay(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return '';
+  const raw = parseBalanceInput(value);
+  if (raw === '') return '';
+  const [intPart, decPart] = raw.split('.');
+  const groupedInt = (intPart || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  if (raw.indexOf('.') === -1) return groupedInt;
+  return `${groupedInt || '0'}.${decPart}`;
+}
+
+// On blur, normalize the decimals to exactly two places (e.g. "1234" -> "1234.00").
+// Done as a pure string operation — routing large values through Number()/toFixed()
+// loses precision past ~15 digits and can collapse the amount, so we never do that.
+function normalizeBalanceDecimals(value) {
+  const raw = parseBalanceInput(value);
+  if (raw === '' || raw === '.') return '';
+  let [intPart = '', decPart = ''] = raw.split('.');
+  // Strip leading zeros from the integer part but keep a single leading 0
+  // (so ".5" / "0.5" / "00" normalize to "0.50" / "0.50" / "0.00").
+  intPart = intPart.replace(/^0+(?=\d)/, '') || '0';
+  decPart = (decPart + '00').slice(0, 2); // pad/truncate to exactly two places
+  return `${intPart}.${decPart}`;
+}
 
 // --- Reusable bits ---
 export function Switch({ on, onChange }) {
@@ -64,18 +135,23 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
   const emailOk = s.email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email);
   const phoneDigits = s.phone.replace(/\D/g, '');
   const phoneOk = phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
-  const canNext = s.name.trim().length > 1 && phoneOk && emailOk;
+  const canNext = s.name.trim().length > 0 && phoneOk && emailOk;
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  // Set when the backend rejects the name as already-taken, so we can flag the
+  // Entity Name field and clear the flag as soon as the user edits the name.
+  const [nameTaken, setNameTaken] = useState(false);
 
   const handleNext = async () => {
     if (!canNext || saving) return;
     setSaveError('');
+    setNameTaken(false);
     if (typeof submitEntity === 'function') {
       setSaving(true);
       const result = await submitEntity();
       setSaving(false);
       if (!result?.ok) {
+        if (result?.duplicate) setNameTaken(true);
         setSaveError(result?.error || 'Failed to create entity. Please try again.');
         return;
       }
@@ -89,15 +165,36 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
   };
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head">
         <img src="/assets/basic-info-cat.png" alt="" className="basic-info-cat" />
         <h2>Basic Information</h2>
         <p>Let&apos;s start by creating your first entity. It only takes a minute.</p>
       </div>
       <div className="form-stack">
-        <div className="field">
+        <div className={'field' + (nameTaken ? ' field-error' : '')}>
           <label>Entity Name</label>
-          <input type="text" name="organization" autoComplete="organization" placeholder="Please enter your company name" value={s.name} onChange={(e) => upd('name', e.target.value)} />
+          <input
+            type="text"
+            name="organization"
+            autoComplete="organization"
+            placeholder="Please enter your company name"
+            value={s.name}
+            aria-invalid={nameTaken}
+            onChange={(e) => {
+              // Editing the name clears the duplicate state entirely — both the
+              // field flag/message and the top banner — so neither lingers while
+              // the user is typing a new name.
+              if (nameTaken) {
+                setNameTaken(false);
+                setSaveError('');
+              }
+              upd('name', e.target.value);
+            }}
+          />
+          {nameTaken && (
+            <div className="field-required" role="alert">This entity name is already taken. Please choose a different name.</div>
+          )}
         </div>
         <div className="field">
           <label>Country</label>
@@ -117,11 +214,6 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
         </div>
       </div>
       <div className="cta-stack">
-        {saveError && (
-          <div className="module-require" role="alert" style={{ textAlign: 'center' }}>
-            {saveError}
-          </div>
-        )}
         <button className="btn btn-primary btn-block btn-jelly" disabled={!canNext || saving} onClick={handleNext}>
           {saving ? 'Saving…' : 'Save & Next'}
         </button>
@@ -213,6 +305,7 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
 
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head">
         <h2 className="module-title">
           Choose a module <FreeTrialPill heading ripple label="Beta Version" />
@@ -277,9 +370,11 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
             {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
           {sel.length === 0 && (
-            <div className="module-require">You must pick a module to continue with your registration process.</div>
+            <div className="step-reminder" role="note">
+              <Icon.Info />
+              Pick a module to continue with your registration.
+            </div>
           )}
-          {saveError && <div className="module-require">{saveError}</div>}
         </div>
       </div>
     </>
@@ -287,12 +382,19 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
 }
 
 // --- Step 3: Connect to Xero ---
-export function StepConnectXero({ state, set, next, back, skip, connectXero, disconnectXero, saveAndExit }) {
+export function StepConnectXero({ state, set, next, back, skip, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, saveAndExit }) {
   const connected = state.xero.connected;
   const lastConnected = state.xero.lastConnected || '07 May 2026';
   const xeroEntity = state.xero.org || state.entity.name || 'Olive & Vine Inc';
   const [disconnecting, setDisconnecting] = useState(false);
   const [disconnectError, setDisconnectError] = useState('');
+  // Wrong-account block from the OAuth round-trip: `xeroMismatch` holds the
+  // email the user must log in with. Build a specific, actionable message.
+  const mismatchMessage = xeroMismatch
+    ? (xeroMismatch === 'unknown'
+        ? 'You connected with the wrong Xero account. Please use the Xero account tied to your onboarding email.'
+        : `You connected with the wrong Xero account. Please log in to Xero with ${xeroMismatch}.`)
+    : '';
 
   const handleDisconnect = async () => {
     if (disconnecting || typeof disconnectXero !== 'function') return;
@@ -306,6 +408,11 @@ export function StepConnectXero({ state, set, next, back, skip, connectXero, dis
   };
   return (
     <>
+      <ErrorBanner message={disconnectError} onClose={() => setDisconnectError('')} />
+      <ErrorBanner
+        message={mismatchMessage}
+        onClose={() => typeof clearXeroMismatch === 'function' && clearXeroMismatch()}
+      />
       <div className="page-head" style={{ textAlign: 'center', maxWidth: 'none', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30, display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
           <img src="/xero-logo.webp" alt="Xero" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
@@ -385,7 +492,6 @@ export function StepConnectXero({ state, set, next, back, skip, connectXero, dis
             >
               {disconnecting ? 'Disconnecting…' : <><Icon.Link /> Disconnect from Xero</>}
             </button>
-            {disconnectError && <div className="module-require" style={{ marginTop: 8 }}>{disconnectError}</div>}
           </>
         )}
         {!connected && (
@@ -409,7 +515,10 @@ export function StepConnectXero({ state, set, next, back, skip, connectXero, dis
             Save &amp; Next <Icon.Arrow />
           </button>
           {!connected && (
-            <div className="module-require">You must connect to Xero to continue.</div>
+            <div className="step-reminder" role="note">
+              <Icon.Info />
+              Connect to Xero to continue.
+            </div>
           )}
         </div>
       </div>
@@ -658,6 +767,7 @@ function PCSection({ title, fields, cardRef }) {
             options={f.options}
             placeholder="Select an option"
             searchable
+            clearable
             onCreate={f.onAddNew}
             createNoun="contact"
           />
@@ -668,8 +778,20 @@ function PCSection({ title, fields, cardRef }) {
   );
 }
 
-export function StepSalesSetting({ state, set, next, back, skip, submitSalesMethods, fetchExistingSalesMethods, saveAndExit }) {
-  const stepSubmit = submitSalesMethods;
+export function StepSalesSetting({ state, set, next, back, skip, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }) {
+  // Save everything on this step: sales methods AND the opening balance/date.
+  // submitOpeningBalance no-ops when the balance is empty, so a blank balance
+  // never blocks Save & Next / Save & Exit — we persist whatever's filled in.
+  // finishOnboarding re-submits the opening balance later; that's idempotent.
+  const stepSubmit = async () => {
+    const methodsResult = await submitSalesMethods();
+    if (!methodsResult?.ok) return methodsResult;
+    if (typeof submitOpeningBalance === 'function') {
+      const balanceResult = await submitOpeningBalance();
+      if (!balanceResult?.ok) return balanceResult;
+    }
+    return { ok: true };
+  };
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
   const balanceRef = useRef(null);
@@ -677,6 +799,36 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const balanceEmpty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
+
+  // Server-authoritative "today" in Hong Kong time — caps the opening date so a
+  // future date can't be selected. Falls back to an HK date derived in the
+  // browser if the server call fails (the raw browser timezone isn't trusted).
+  const dateRef = useRef(null);
+  const [serverToday, setServerToday] = useState('');
+  const [showDateError, setShowDateError] = useState(false);
+  const hkTodayFallback = (() => {
+    try {
+      return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Hong_Kong' }).format(new Date());
+    } catch {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+  })();
+  const openingMaxDate = serverToday || hkTodayFallback;
+  const dateIsFuture = !!p.openingDate && p.openingDate > openingMaxDate;
+  useEffect(() => {
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    let cancelled = false;
+    fetch(`${base}/api/onboarding/server-time`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && d && d.today) setServerToday(d.today);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const onBlocked = () => {
@@ -706,16 +858,23 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
       return;
     }
     setShowBalanceError(false);
+    if (dateIsFuture) {
+      setShowDateError(true);
+      requestAnimationFrame(() => {
+        if (dateRef.current) dateRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      return;
+    }
+    setShowDateError(false);
     if (saving) return;
-    // Opening balance/date is NOT saved here — it commits on the final "All Set"
-    // step so revisiting to change it doesn't seed a draft prematurely.
+    // Save everything on this step (sales methods + opening balance/date).
     if (typeof submitSalesMethods === 'function') {
       setSaveError('');
       setSaving(true);
-      const methodsResult = await submitSalesMethods();
+      const result = await stepSubmit();
       setSaving(false);
-      if (!methodsResult?.ok) {
-        setSaveError(methodsResult?.error || 'Failed to save. Please try again.');
+      if (!result?.ok) {
+        setSaveError(result?.error || 'Failed to save. Please try again.');
         return;
       }
     }
@@ -761,13 +920,14 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
         electronicMethods: electronic,
         deliveryMethods: delivery,
         expenseCodes: { all: true, selected: {} },
-        openingDate: todayIso,
+        openingDate: openingMaxDate || todayIso,
       },
     });
     setAutoFilling(false);
   };
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="autofill-row">
         <button
           type="button"
@@ -815,15 +975,20 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
           <div className="pc-section-sub">Set the starting point so future movements reconcile correctly.</div>
         </div>
         <div className={'pc-card' + (showBalanceError && balanceEmpty ? ' is-error' : '')} ref={balanceRef}>
-          <div className="pc-field">
+          <div className={'pc-field' + (showDateError && dateIsFuture ? ' field-error' : '')} ref={dateRef}>
             <div className="pc-sub">
               Choose the first date that you wish to use <span className="pc-hint">(prefilled with today&apos;s date — click to choose another)</span>
             </div>
             <MintyDatePicker
               value={p.openingDate || ''}
-              onChange={(v) => upd('openingDate', v)}
+              onChange={(v) => {
+                upd('openingDate', v);
+                setShowDateError(false);
+              }}
               placeholder="Select a date"
+              maxDate={openingMaxDate}
             />
+            {showDateError && dateIsFuture && <div className="field-required">You can&apos;t select a future date</div>}
           </div>
           <div className={'pc-field' + (showBalanceError && balanceEmpty ? ' field-error' : '')}>
             <div className="pc-sub">Choose the beginning petty cash balance of the day</div>
@@ -831,14 +996,18 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
               <div className="input-prefix">
                 <div className="prefix">{currencyCode(state.entity.currency)}</div>
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
+                  type="text"
+                  inputMode="decimal"
                   placeholder="0.00"
-                  value={p.openingBalance ?? ''}
+                  value={formatBalanceDisplay(p.openingBalance)}
                   onChange={(e) => {
-                    upd('openingBalance', e.target.value);
-                    if (e.target.value.trim() !== '') setShowBalanceError(false);
+                    const raw = parseBalanceInput(e.target.value);
+                    upd('openingBalance', raw);
+                    if (raw.trim() !== '') setShowBalanceError(false);
+                  }}
+                  onBlur={(e) => {
+                    const raw = parseBalanceInput(e.target.value);
+                    if (raw.trim() !== '') upd('openingBalance', normalizeBalanceDecimals(raw));
                   }}
                 />
               </div>
@@ -857,7 +1026,6 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
           <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
             {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
-          {saveError && <div className="module-require">{saveError}</div>}
         </div>
       </div>
     </>
@@ -927,6 +1095,7 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
 
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Account Code Setting</h2>
         <p style={{ marginTop: 6 }}>Map each cash flow to the right account in your ledger — these settings need manual input from you.</p>
@@ -952,7 +1121,12 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
               label: (
                 <>
                   Select Bank account in Xero that will record petty cash movement. You may need to first add a bank account in Xero.{' '}
-                  <a href="#" className="pc-link">
+                  <a
+                    href="https://my.xero.com/"
+                    className="pc-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     (Link)
                   </a>
                 </>
@@ -1045,14 +1219,13 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
           <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
             {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
-          {saveError && <div className="module-require">{saveError}</div>}
         </div>
       </div>
     </>
   );
 }
 
-export function StepOthers({ state, set, next, back, skip, accountOptions, submitContacts, createContact, saveAndExit }) {
+export function StepOthers({ state, set, next, back, skip, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }) {
   const stepSubmit = submitContacts;
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
@@ -1099,6 +1272,7 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
 
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 22 }}>
         <h2 style={{ fontSize: 30 }}>Contact Setup</h2>
         <p style={{ marginTop: 6 }}>Choose the Xero contacts used for the director&apos;s account, cash sales, and cash discrepancy.</p>
@@ -1158,9 +1332,8 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
         <div className="step-actions">
           <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
           <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
+            {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
-          {saveError && <div className="module-require">{saveError}</div>}
         </div>
       </div>
     </>
@@ -1233,7 +1406,7 @@ function BillAccountCodesCard({ codes, value, onChange, labels }) {
   );
 }
 
-export function StepBills({ state, set, next, back, skip, accountOptions, submitBills, saveAndExit }) {
+export function StepBills({ state, set, next, back, skip, accountOptions, submitBills, saveAndExit, isLastContentStep }) {
   const stepSubmit = submitBills;
   const b = state.bills;
   const upd = (k, v) => set({ bills: { ...b, [k]: v } });
@@ -1262,6 +1435,7 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
 
   return (
     <>
+      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Bill Settings</h2>
         <p style={{ marginTop: 6 }}>Choose account code for expenses that will incur with supporting documents.</p>
@@ -1283,9 +1457,8 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
         <div className="step-actions">
           <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
           <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
+            {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
-          {saveError && <div className="module-require">{saveError}</div>}
         </div>
       </div>
     </>
@@ -1304,6 +1477,9 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   const [form, setForm] = useState({ first: '', last: '', email: '', role: '' });
   const [toast, setToast] = useState(null);
   const [error, setError] = useState('');
+  // Rows whose long name/email is expanded (wrapped) instead of truncated.
+  const [expandedRows, setExpandedRows] = useState({});
+  const toggleExpanded = (key) => setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   // Confirmation modal nudging the user to invite an accountant — the later
   // steps need expertise. Shown automatically on arrival at the Invite step
   // (right after Save & Next on Select Module) and again on "Skip for now".
@@ -1317,19 +1493,38 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     setMounted(true);
   }, []);
   const setF = (k, v) => setForm({ ...form, [k]: v });
+  // Show the "invalid email" hint only once the user has interacted with the
+  // field, so a pristine empty form doesn't start out shouting an error.
+  const [emailTouched, setEmailTouched] = useState(false);
 
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-  const canSend = form.first.trim() && form.last.trim() && emailOk && form.role && !sending;
+  const emailInvalid = emailTouched && form.email.trim() !== '' && !emailOk;
+  // Don't gate the button on email format — let the user click Send and get an
+  // explicit banner explaining why, instead of a silently-disabled button.
+  const canSend = form.first.trim() && form.last.trim() && form.email.trim() && form.role && !sending;
 
   const send = async () => {
     if (!canSend) return;
     setError('');
+    if (!emailOk) {
+      setEmailTouched(true);
+      setError('Please enter a valid email address (e.g. user@domain.com).');
+      return;
+    }
     setSending(true);
     const sentEmail = form.email.trim();
     const result = await submitInvite({ email: sentEmail, role: roleToValue(form.role) });
     setSending(false);
     if (!result.ok) {
       setError(result.error || 'Failed to send invitation.');
+      return;
+    }
+    // If the backend couldn't actually send the email (Brevo/SMTP failure →
+    // email_sent: false), treat the invite as failed: surface an error and do
+    // NOT add it to the pending list — the invitee received nothing. The form
+    // is left filled so the user can retry without re-typing.
+    if (result.emailSent === false) {
+      setError(`The invitation email to ${sentEmail} could not be sent. Please try again or contact support.`);
       return;
     }
     const inv = result.invitation || {};
@@ -1339,6 +1534,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     ];
     set({ invites: nextList });
     setForm({ first: '', last: '', email: '', role: '' });
+    setEmailTouched(false);
     setToast({ id: Date.now(), email: sentEmail });
   };
 
@@ -1350,6 +1546,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 
   const cancel = () => {
     setForm({ first: '', last: '', email: '', role: '' });
+    setEmailTouched(false);
     setError('');
   };
   const removeRow = async (i) => {
@@ -1367,6 +1564,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 
   return (
     <>
+      <ErrorBanner message={error} onClose={() => setError('')} />
       <div className="page-head" style={{ textAlign: 'center', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>User Invite</h2>
         <p style={{ marginTop: 6 }}>
@@ -1420,8 +1618,15 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
             <label>
               Email Address<span className="req">*</span>
             </label>
-            <div className="field">
-              <input type="email" placeholder="Enter email address" value={form.email} onChange={(e) => setF('email', e.target.value)} />
+            <div className={'field' + (emailInvalid ? ' field-error' : '')}>
+              <input
+                type="email"
+                placeholder="Enter email address"
+                value={form.email}
+                onChange={(e) => setF('email', e.target.value)}
+                onBlur={() => setEmailTouched(true)}
+                aria-invalid={emailInvalid}
+              />
             </div>
           </div>
           <div className="invite-field">
@@ -1430,12 +1635,6 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
             </label>
             <MintySelect value={form.role} onChange={(v) => setF('role', v)} options={ROLES} placeholder="Select a role" />
           </div>
-
-          {error && (
-            <div className="invite-error" role="alert" style={{ color: '#c0392b', fontSize: 13, marginTop: 4 }}>
-              {error}
-            </div>
-          )}
 
           <div className="invite-actions">
             <button type="button" className="btn btn-ghost btn-cancel" onClick={cancel}>
@@ -1455,13 +1654,20 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
               const initials = hasName
                 ? `${(u.first[0] || '').toUpperCase()}${(u.last[0] || '').toUpperCase()}`
                 : (u.email[0] || '').toUpperCase();
+              const rowKey = u.id || u.email || i;
+              const expanded = !!expandedRows[rowKey];
               return (
-                <div className="invite-row-card" key={u.id || u.email || i}>
+                <div className="invite-row-card" key={rowKey}>
                   <div className="invite-avatar">{initials}</div>
-                  <div className="invite-meta">
+                  <button
+                    type="button"
+                    className={'invite-meta' + (expanded ? ' is-expanded' : '')}
+                    onClick={() => toggleExpanded(rowKey)}
+                    title={expanded ? 'Click to collapse' : 'Click to show full address'}
+                  >
                     <div className="invite-name">{hasName ? `${u.first} ${u.last}`.trim() : u.email}</div>
                     {hasName && <div className="invite-email">{u.email}</div>}
-                  </div>
+                  </button>
                   <span className="invite-role">{roleLabel(u.role)}</span>
                   <button type="button" className="icon-x" onClick={() => removeRow(i)} aria-label="Remove">
                     <Icon.Close />
@@ -1482,10 +1688,9 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
           <button
             className="btn btn-primary"
             onClick={() => {
-              // "Continue" (invites added) advances normally and clears any
-              // earlier deferral. "Add later" (no invites) flags the deferral so
-              // resume returns to this Invite step, then advances now.
-              set({ inviteDeferred: list.length === 0 });
+              // Both "Continue" (invites added) and "Add later" (no invites)
+              // just advance — "Add later" means "keep going", so resume never
+              // pins the user back to Invite.
               next();
             }}
           >
@@ -1570,6 +1775,7 @@ export function StepAllSet({ state, set, restart, finishOnboarding }) {
 
   return (
     <>
+      <ErrorBanner message={error} onClose={() => setError('')} />
       <Confetti count={42} />
       <div className="celebrate">
         <div className="check-circle">
@@ -1587,9 +1793,8 @@ export function StepAllSet({ state, set, restart, finishOnboarding }) {
 
       <div className="conf-actions" style={{ flexDirection: 'column', alignItems: 'center', gap: 10 }}>
         <button className="btn btn-primary" onClick={onContinue} disabled={finishing}>
-          {finishing ? 'Saving…' : <>Continue with Minty <Icon.Arrow /></>}
+          {finishing ? 'Saving…' : <>Go to entity list <Icon.Arrow /></>}
         </button>
-        {error && <div className="module-require">{error}</div>}
       </div>
     </>
   );
