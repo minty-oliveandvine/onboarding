@@ -118,7 +118,7 @@ function AuthContent() {
       clearPendingInvite();
       router.push(`/auth/confirm?${qs.toString()}`);
     } catch {
-      setError("Network error — is the Flask server running?");
+      setError("Could not reach the server. Please try again.");
       setSending(false);
     }
   };

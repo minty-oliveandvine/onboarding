@@ -92,8 +92,11 @@ function ConfirmContent() {
       // Server lockout (5 wrong attempts → 15-min lockout). Authoritative and
       // survives refresh/new session — lock the whole form and show the message.
       if (res.status === 429) {
+        // The lockout is announced by the confirm-status line below, so only a
+        // backend-supplied message goes in the banner — otherwise the user would
+        // read the same sentence twice.
         setLocked(true);
-        setError(data.message || "Too many attempts. Please try again later.");
+        if (data.message) setError(data.message);
         setVerifying(false);
         return;
       }
@@ -113,7 +116,7 @@ function ConfirmContent() {
           : FLASK_BASE;
       window.location.href = target;
     } catch {
-      setError("Network error — is the Flask server running?");
+      setError("Could not reach the server. Please try again.");
       setVerifying(false);
     }
   };
@@ -133,7 +136,7 @@ function ConfirmContent() {
       // 429s. Keep the form locked and show the too-many-attempts message.
       if (res.status === 429) {
         setLocked(true);
-        setError(data.message || "Too many attempts. Please try again later.");
+        if (data.message) setError(data.message);
         setResending(false);
         return;
       }
@@ -153,7 +156,7 @@ function ConfirmContent() {
       setResending(false);
       inputsRef.current[0]?.focus();
     } catch {
-      setError("Network error — is the Flask server running?");
+      setError("Could not reach the server. Please try again.");
       setResending(false);
     }
   };
@@ -255,6 +258,8 @@ function ConfirmContent() {
               </span>
             ) : noAttempts ? (
               <span className="confirm-status-warn">No attempts left — please resend the code.</span>
+            ) : expired ? (
+              <span className="confirm-status-warn">This code has expired — please resend the code.</span>
             ) : attemptsLeft < MAX_ATTEMPTS ? (
               <>
                 {attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} remaining

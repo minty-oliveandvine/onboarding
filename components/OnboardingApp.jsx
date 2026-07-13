@@ -896,11 +896,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to disconnect from Xero. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't disconnect from Xero. Give it another try?" };
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1049,12 +1049,12 @@ export default function OnboardingApp() {
               error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
             };
           }
-          return { ok: false, error: backendMsg || 'Failed to update entity. Please try again.' };
+          return { ok: false, error: backendMsg || "I couldn't save your entity. Give it another try?" };
         }
         savedEntityRef.current = { ...payload };
         return { ok: true };
       } catch {
-        return { ok: false, error: 'Could not reach the server. Please try again.' };
+        return { ok: false, error: "I couldn't reach the server. Give it another try?" };
       }
     }
 
@@ -1080,7 +1080,7 @@ export default function OnboardingApp() {
             error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
           };
         }
-        return { ok: false, error: backendMsg || 'Failed to create entity. Please try again.' };
+        return { ok: false, error: backendMsg || "I couldn't create your entity. Give it another try?" };
       }
       if (data.entity_id) {
         setState((prev) => ({ ...prev, entity: { ...prev.entity, id: data.entity_id } }));
@@ -1088,7 +1088,7 @@ export default function OnboardingApp() {
       savedEntityRef.current = { ...payload };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1098,7 +1098,7 @@ export default function OnboardingApp() {
     const moduleCodes = (state.modules || [])
       .map((id) => FE_TO_BACKEND_MODULE[id])
       .filter(Boolean);
-    if (moduleCodes.length === 0) return { ok: false, error: 'Pick at least one module.' };
+    if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to work with." };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(`${base}/api/onboarding/modules`, {
@@ -1107,10 +1107,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, modules: moduleCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save module selection. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your module choice. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1128,10 +1128,10 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save sales methods. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your sales methods. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1154,10 +1154,10 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save opening balance. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your opening balance. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1245,10 +1245,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, expense_codes: selectedCodes, mapping }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save account codes. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your account codes. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1272,10 +1272,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, contacts }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save contacts. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your contacts. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1285,7 +1285,7 @@ export default function OnboardingApp() {
   // returned so the caller can select it in the relevant role dropdown.
   const createContact = async (name) => {
     const trimmed = (name || '').trim();
-    if (!trimmed) return { ok: false, error: 'Enter a contact name.' };
+    if (!trimmed) return { ok: false, error: 'Who should I put down as the contact?' };
     if (!token || !state.entity.id) {
       // Standalone / no Module 1 handoff: fake an option so the prototype works.
       const option = { id: `local-${trimmed}`, label: trimmed };
@@ -1305,7 +1305,7 @@ export default function OnboardingApp() {
         // route the user back to the Xero step.
         return {
           ok: false,
-          error: data.error || 'Failed to create contact. Please try again.',
+          error: data.error || "I couldn't create that contact. Give it another try?",
           notConnected: res.status === 409 || data.connected === false,
         };
       }
@@ -1313,7 +1313,7 @@ export default function OnboardingApp() {
       setAccountOptions((prev) => ({ ...prev, contacts: [...(prev.contacts || []), option] }));
       return { ok: true, option };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1363,10 +1363,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, selected_codes: selectedCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save bill account codes. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't save your bill account codes. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1381,7 +1381,7 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, email, role }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to send invitation. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't send that invitation. Give it another try?" };
       // The invitation row can be created even when the email itself fails to
       // go out (Brevo/SMTP error) — the backend signals that with
       // email_sent: false. Pass it through so the UI can warn instead of
@@ -1395,7 +1395,7 @@ export default function OnboardingApp() {
         data.email_sent ?? (data.invitation && data.invitation.email_sent);
       return { ok: true, invitation: data.invitation, emailSent: emailSentFlag !== false };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 
@@ -1409,10 +1409,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ invitation_id: invitationId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to cancel invitation.' };
+      if (!res.ok) return { ok: false, error: data.error || "I couldn't cancel that invitation. Give it another try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "I couldn't reach the server. Give it another try?" };
     }
   };
 

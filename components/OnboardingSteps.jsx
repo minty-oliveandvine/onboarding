@@ -7,7 +7,7 @@ import Icon from './Icon';
 import MintySelect from './MintySelect';
 import MintyDatePicker from './MintyDatePicker';
 import Confetti from './Confetti';
-import ErrorBanner from './ErrorBanner';
+import { useToast } from './Toast';
 import { COUNTRY_OPTIONS, CURRENCY_OPTIONS } from '@/lib/entityOptions';
 
 // --- Opening balance formatting helpers ---
@@ -137,22 +137,24 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
   const phoneOk = phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
   const canNext = s.name.trim().length > 0 && phoneOk && emailOk;
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
   // Set when the backend rejects the name as already-taken, so we can flag the
   // Entity Name field and clear the flag as soon as the user edits the name.
   const [nameTaken, setNameTaken] = useState(false);
 
   const handleNext = async () => {
     if (!canNext || saving) return;
-    setSaveError('');
     setNameTaken(false);
     if (typeof submitEntity === 'function') {
       setSaving(true);
       const result = await submitEntity();
       setSaving(false);
       if (!result?.ok) {
+        // A duplicate name is announced by the inline field message, which points
+        // at the field the user has to change. Raising the toast too would say the
+        // same thing twice, so only non-duplicate failures get one.
         if (result?.duplicate) setNameTaken(true);
-        setSaveError(result?.error || 'Failed to create entity. Please try again.');
+        else toast.error(result.error);
         return;
       }
     }
@@ -165,7 +167,6 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
   };
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head">
         <img src="/assets/basic-info-cat.png" alt="" className="basic-info-cat" />
         <h2>Basic Information</h2>
@@ -182,13 +183,10 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
             value={s.name}
             aria-invalid={nameTaken}
             onChange={(e) => {
-              // Editing the name clears the duplicate state entirely — both the
-              // field flag/message and the top banner — so neither lingers while
-              // the user is typing a new name.
-              if (nameTaken) {
-                setNameTaken(false);
-                setSaveError('');
-              }
+              // Editing the name clears the duplicate field flag so it doesn't
+              // linger while the user types a new name. The toast dismisses
+              // itself, so there's nothing to clear there.
+              if (nameTaken) setNameTaken(false);
               upd('name', e.target.value);
             }}
           />
@@ -206,7 +204,7 @@ export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAnd
         </div>
         <div className="field">
           <label>Contact Phone <span className="field-optional">(optional)</span></label>
-          <input type="tel" name="tel" autoComplete="tel" inputMode="numeric" maxLength={11} pattern="[0-9]{8,11}" title="Phone number must be 8-11 digits" placeholder="Please enter your contact phone number" value={s.phone} onChange={(e) => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 11))} />
+          <input type="tel" name="tel" autoComplete="tel" inputMode="numeric" maxLength={11} pattern="[0-9]{8,11}" placeholder="Please enter your contact phone number" value={s.phone} onChange={(e) => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 11))} />
         </div>
         <div className="field">
           <label>Business Email <span className="field-optional">(optional)</span></label>
@@ -286,17 +284,16 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
     set({ modules: next });
   };
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
 
   const handleNext = async () => {
     if (sel.length === 0 || saving) return;
-    setSaveError('');
     if (typeof submitModule === 'function') {
       setSaving(true);
       const result = await submitModule();
       setSaving(false);
       if (!result?.ok) {
-        setSaveError(result?.error || 'Failed to save module selection. Please try again.');
+        toast.error(result.error);
         return;
       }
     }
@@ -305,7 +302,6 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
 
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head">
         <h2 className="module-title">
           Choose a module <FreeTrialPill heading ripple label="Beta Version" />
@@ -387,32 +383,35 @@ export function StepConnectXero({ state, set, next, back, skip, connectXero, dis
   const lastConnected = state.xero.lastConnected || '07 May 2026';
   const xeroEntity = state.xero.org || state.entity.name || 'Olive & Vine Inc';
   const [disconnecting, setDisconnecting] = useState(false);
-  const [disconnectError, setDisconnectError] = useState('');
+  const toast = useToast();
+
   // Wrong-account block from the OAuth round-trip: `xeroMismatch` holds the
-  // email the user must log in with. Build a specific, actionable message.
-  const mismatchMessage = xeroMismatch
-    ? (xeroMismatch === 'unknown'
-        ? 'You connected with the wrong Xero account. Please use the Xero account tied to your onboarding email.'
-        : `You connected with the wrong Xero account. Please log in to Xero with ${xeroMismatch}.`)
-    : '';
+  // email the user must log in with. This arrives via redirect (query param)
+  // rather than a submit, so raise it from an effect — the toast is fire-and-
+  // forget, so consume the mismatch immediately to stop it re-firing on every
+  // re-render. This is the direct analogue of the Flask partial draining
+  // get_flashed_messages() on page load.
+  useEffect(() => {
+    if (!xeroMismatch) return;
+    toast.error(
+      xeroMismatch === 'unknown'
+        ? "That's a different Xero account from the one you started with. Sign in with the Xero account tied to your onboarding email and I'll connect it."
+        : `That's a different Xero account from the one you started with. Sign in to Xero with ${xeroMismatch} and I'll connect it.`
+    );
+    if (typeof clearXeroMismatch === 'function') clearXeroMismatch();
+  }, [xeroMismatch, clearXeroMismatch, toast]);
 
   const handleDisconnect = async () => {
     if (disconnecting || typeof disconnectXero !== 'function') return;
-    setDisconnectError('');
     setDisconnecting(true);
     const result = await disconnectXero();
     setDisconnecting(false);
     if (!result?.ok) {
-      setDisconnectError(result?.error || 'Failed to disconnect from Xero. Please try again.');
+      toast.error(result.error);
     }
   };
   return (
     <>
-      <ErrorBanner message={disconnectError} onClose={() => setDisconnectError('')} />
-      <ErrorBanner
-        message={mismatchMessage}
-        onClose={() => typeof clearXeroMismatch === 'function' && clearXeroMismatch()}
-      />
       <div className="page-head" style={{ textAlign: 'center', maxWidth: 'none', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30, display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
           <img src="/xero-logo.webp" alt="Xero" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
@@ -797,7 +796,7 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
   const balanceRef = useRef(null);
   const [showBalanceError, setShowBalanceError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
   const balanceEmpty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
 
   // Server-authoritative "today" in Hong Kong time — caps the opening date so a
@@ -869,12 +868,11 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
     if (saving) return;
     // Save everything on this step (sales methods + opening balance/date).
     if (typeof submitSalesMethods === 'function') {
-      setSaveError('');
       setSaving(true);
       const result = await stepSubmit();
       setSaving(false);
       if (!result?.ok) {
-        setSaveError(result?.error || 'Failed to save. Please try again.');
+        toast.error(result.error);
         return;
       }
     }
@@ -927,7 +925,6 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
   };
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="autofill-row">
         <button
           type="button"
@@ -1037,7 +1034,7 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
 
   const pcAccountRef = useRef(null);
@@ -1081,12 +1078,11 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
     }
     setShowErrors(false);
     if (typeof submitAccountCodes === 'function') {
-      setSaveError('');
       setSaving(true);
       const result = await submitAccountCodes();
       setSaving(false);
       if (!result?.ok) {
-        setSaveError(result?.error || 'Failed to save. Please try again.');
+        toast.error(result.error);
         return;
       }
     }
@@ -1095,7 +1091,6 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
 
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Account Code Setting</h2>
         <p style={{ marginTop: 6 }}>Map each cash flow to the right account in your ledger — these settings need manual input from you.</p>
@@ -1230,7 +1225,7 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
 
   const directorContactRef = useRef(null);
@@ -1258,12 +1253,11 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
     }
     setShowErrors(false);
     if (typeof submitContacts === 'function') {
-      setSaveError('');
       setSaving(true);
       const result = await submitContacts();
       setSaving(false);
       if (!result?.ok) {
-        setSaveError(result?.error || 'Failed to save. Please try again.');
+        toast.error(result.error);
         return;
       }
     }
@@ -1272,7 +1266,6 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
 
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 22 }}>
         <h2 style={{ fontSize: 30 }}>Contact Setup</h2>
         <p style={{ marginTop: 6 }}>Choose the Xero contacts used for the director&apos;s account, cash sales, and cash discrepancy.</p>
@@ -1399,7 +1392,8 @@ function BillAccountCodesCard({ codes, value, onChange, labels }) {
               <MintCheck checked={isOn(code)} onChange={() => toggle(code)} ariaLabel={code} />
             </li>
           ))}
-          {filtered.length === 0 && <li className="acc-empty">No matching account code</li>}
+          {codes.length === 0 && <li className="acc-empty">Connect to Xero to load account codes</li>}
+          {codes.length > 0 && filtered.length === 0 && <li className="acc-empty">No matching account code</li>}
         </ul>
       </div>
     </div>
@@ -1411,7 +1405,7 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
   const b = state.bills;
   const upd = (k, v) => set({ bills: { ...b, [k]: v } });
   const [saving, setSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
+  const toast = useToast();
 
   const billCodes = ((accountOptions || {}).bill || []).map((e) => e.code);
   const billLabels = Object.fromEntries(
@@ -1421,12 +1415,11 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
   const tryNext = async () => {
     if (saving) return;
     if (typeof submitBills === 'function') {
-      setSaveError('');
       setSaving(true);
       const result = await submitBills();
       setSaving(false);
       if (!result?.ok) {
-        setSaveError(result?.error || 'Failed to save. Please try again.');
+        toast.error(result.error);
         return;
       }
     }
@@ -1435,7 +1428,6 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
 
   return (
     <>
-      <ErrorBanner message={saveError} onClose={() => setSaveError('')} />
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Bill Settings</h2>
         <p style={{ marginTop: 6 }}>Choose account code for expenses that will incur with supporting documents.</p>
@@ -1475,8 +1467,7 @@ const roleLabel = (value) => (value || '').replace(/_/g, ' ').replace(/\b\w/g, (
 export function StepInvite({ state, set, next, back, submitInvite, cancelInvite, saveAndExit }) {
   const list = state.invites.filter((x) => x.email && x.email.includes('@'));
   const [form, setForm] = useState({ first: '', last: '', email: '', role: '' });
-  const [toast, setToast] = useState(null);
-  const [error, setError] = useState('');
+  const notify = useToast();
   // Rows whose long name/email is expanded (wrapped) instead of truncated.
   const [expandedRows, setExpandedRows] = useState({});
   const toggleExpanded = (key) => setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -1500,15 +1491,14 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const emailInvalid = emailTouched && form.email.trim() !== '' && !emailOk;
   // Don't gate the button on email format — let the user click Send and get an
-  // explicit banner explaining why, instead of a silently-disabled button.
+  // explicit toast explaining why, instead of a silently-disabled button.
   const canSend = form.first.trim() && form.last.trim() && form.email.trim() && form.role && !sending;
 
   const send = async () => {
     if (!canSend) return;
-    setError('');
     if (!emailOk) {
       setEmailTouched(true);
-      setError('Please enter a valid email address (e.g. user@domain.com).');
+      notify.error("That doesn't look like an email to me. Try something like user@domain.com?");
       return;
     }
     setSending(true);
@@ -1516,7 +1506,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     const result = await submitInvite({ email: sentEmail, role: roleToValue(form.role) });
     setSending(false);
     if (!result.ok) {
-      setError(result.error || 'Failed to send invitation.');
+      notify.error(result.error);
       return;
     }
     // If the backend couldn't actually send the email (Brevo/SMTP failure →
@@ -1524,7 +1514,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     // NOT add it to the pending list — the invitee received nothing. The form
     // is left filled so the user can retry without re-typing.
     if (result.emailSent === false) {
-      setError(`The invitation email to ${sentEmail} could not be sent. Please try again or contact support.`);
+      notify.error(`I couldn't get the invitation email to ${sentEmail}. Give it another try, or reach out to support?`);
       return;
     }
     const inv = result.invitation || {};
@@ -1535,27 +1525,19 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     set({ invites: nextList });
     setForm({ first: '', last: '', email: '', role: '' });
     setEmailTouched(false);
-    setToast({ id: Date.now(), email: sentEmail });
+    notify.success(`Invitation sent to ${sentEmail}.`);
   };
-
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(null), 5200);
-    return () => clearTimeout(t);
-  }, [toast]);
 
   const cancel = () => {
     setForm({ first: '', last: '', email: '', role: '' });
     setEmailTouched(false);
-    setError('');
   };
   const removeRow = async (i) => {
     const target = list[i];
-    setError('');
     if (target?.id) {
       const result = await cancelInvite(target.id);
       if (!result.ok) {
-        setError(result.error || 'Failed to cancel invitation.');
+        notify.error(result.error);
         return;
       }
     }
@@ -1564,30 +1546,12 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 
   return (
     <>
-      <ErrorBanner message={error} onClose={() => setError('')} />
       <div className="page-head" style={{ textAlign: 'center', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>User Invite</h2>
         <p style={{ marginTop: 6 }}>
           Heads up — users can be added or removed any time from <b>Settings → Users</b>.
         </p>
       </div>
-
-      {toast && (
-        <div className="invite-toast" key={toast.id} role="status">
-          <div className="invite-toast-icon">
-            <Icon.Check />
-          </div>
-          <div className="invite-toast-body">
-            <div className="invite-toast-title">Invitation sent</div>
-            <div className="invite-toast-sub">
-              Please check the email address or invitation link sent to <b>{toast.email}</b>.
-            </div>
-          </div>
-          <button type="button" className="invite-toast-close" onClick={() => setToast(null)} aria-label="Dismiss">
-            <Icon.Close />
-          </button>
-        </div>
-      )}
 
       <div className="invite-grid">
         <div className="invite-card">
@@ -1757,16 +1721,15 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 // --- Step 9: All Set ---
 export function StepAllSet({ state, set, restart, finishOnboarding }) {
   const [finishing, setFinishing] = useState(false);
-  const [error, setError] = useState('');
+  const toast = useToast();
 
   const onContinue = async () => {
     if (finishing) return;
     if (typeof finishOnboarding !== 'function') return;
-    setError('');
     setFinishing(true);
     const result = await finishOnboarding();
     if (!result?.ok) {
-      setError(result?.error || 'Could not save your setup. Please try again.');
+      toast.error(result.error);
       setFinishing(false);
     } else if (!result.redirect) {
       setFinishing(false);
@@ -1775,7 +1738,6 @@ export function StepAllSet({ state, set, restart, finishOnboarding }) {
 
   return (
     <>
-      <ErrorBanner message={error} onClose={() => setError('')} />
       <Confetti count={42} />
       <div className="celebrate">
         <div className="check-circle">
