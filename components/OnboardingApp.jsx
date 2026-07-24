@@ -15,6 +15,7 @@ import {
   StepInvite,
   StepAllSet,
 } from './OnboardingSteps';
+import { toAmountString } from '@/lib/amount';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -418,6 +419,12 @@ export default function OnboardingApp() {
   // (the initiator's, from the `expected` param) so the Accounting step can show
   // a specific "use the account for X" message. Empty string = no mismatch.
   const [xeroMismatch, setXeroMismatch] = useState('');
+  // Set when the Xero OAuth round-trip returns `xero=conflict` — the chosen Xero
+  // org is already linked to a different entity, so the backend refused to
+  // connect this one. Holds that entity's name (from the `conflict_entity`
+  // param) so the Accounting step can name what to disconnect first. Empty
+  // string = no conflict.
+  const [xeroConflict, setXeroConflict] = useState('');
   // Guard the portal for SSR — document.body isn't there during server render.
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -710,6 +717,20 @@ export default function OnboardingApp() {
       } else {
         setXeroMismatch('');
       }
+      // One-org-one-entity block: the org the user picked is already linked to
+      // another entity. `conflict_entity` names it (URL-encoded; searchParams
+      // decodes) so the step can say which one to disconnect first. It can be
+      // absent in edge cases, so fall back to 'unknown' and render generic copy.
+      if (xeroParam === 'conflict') {
+        setXeroConflict((p.get('conflict_entity') || '').trim() || 'unknown');
+      } else {
+        setXeroConflict('');
+      }
+      // A blocked attempt (mismatch/conflict) leaves the entity unconnected
+      // backend-side. Force disconnected rather than restoring the stashed
+      // state, which would wrongly show "connected" for a user who was already
+      // linked to one org and tried to switch to a conflicting one.
+      const blocked = xeroParam === 'mismatch' || xeroParam === 'conflict';
       if (resumed) {
         if (resumed.token) setToken(resumed.token);
         if (resumed.profileUrl) setProfileUrl(resumed.profileUrl);
@@ -720,9 +741,13 @@ export default function OnboardingApp() {
           xero:
             xeroParam === 'connected'
               ? { connected: true, org: xeroOrg, lastConnected: today }
-              : (resumed.state && resumed.state.xero) || prev.xero,
+              : blocked
+                ? { ...((resumed.state && resumed.state.xero) || prev.xero), connected: false, org: '' }
+                : (resumed.state && resumed.state.xero) || prev.xero,
         }));
         setMaxReached((m) => Math.max(m, resumed.maxReached || 4, 4));
+      } else if (blocked) {
+        setState((prev) => ({ ...prev, xero: { ...prev.xero, connected: false, org: '' } }));
       } else if (xeroParam === 'connected') {
         setState((prev) => ({
           ...prev,
@@ -738,6 +763,8 @@ export default function OnboardingApp() {
         url.searchParams.delete('step');
         url.searchParams.delete('org');
         url.searchParams.delete('expected');
+        url.searchParams.delete('conflict');
+        url.searchParams.delete('conflict_entity');
         window.history.replaceState({}, '', url.pathname + url.search + url.hash);
       } catch {
         /* ignore */
@@ -896,11 +923,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to disconnect from Xero. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "That didn't quite work—let's try disconnecting again." };
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1046,15 +1073,15 @@ export default function OnboardingApp() {
             return {
               ok: false,
               duplicate: true,
-              error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
+              error: `Oh, “${state.entity.name.trim()}” is taken already! Do you have another name in mind?`,
             };
           }
-          return { ok: false, error: backendMsg || 'Failed to update entity. Please try again.' };
+          return { ok: false, error: backendMsg || "Something got stuck saving that! Want to try again?" };
         }
         savedEntityRef.current = { ...payload };
         return { ok: true };
       } catch {
-        return { ok: false, error: 'Could not reach the server. Please try again.' };
+        return { ok: false, error: "My connection timed out—let's try that again." };
       }
     }
 
@@ -1077,10 +1104,10 @@ export default function OnboardingApp() {
           return {
             ok: false,
             duplicate: true,
-            error: `An entity named “${state.entity.name.trim()}” already exists. Please choose a different name.`,
+            error: `Oh, “${state.entity.name.trim()}” is taken already! Do you have another name in mind?`,
           };
         }
-        return { ok: false, error: backendMsg || 'Failed to create entity. Please try again.' };
+        return { ok: false, error: backendMsg || "That didn't quite work—let's try creating it again." };
       }
       if (data.entity_id) {
         setState((prev) => ({ ...prev, entity: { ...prev.entity, id: data.entity_id } }));
@@ -1088,7 +1115,7 @@ export default function OnboardingApp() {
       savedEntityRef.current = { ...payload };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1098,7 +1125,7 @@ export default function OnboardingApp() {
     const moduleCodes = (state.modules || [])
       .map((id) => FE_TO_BACKEND_MODULE[id])
       .filter(Boolean);
-    if (moduleCodes.length === 0) return { ok: false, error: 'Pick at least one module.' };
+    if (moduleCodes.length === 0) return { ok: false, error: "I need at least one module to get started." };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(`${base}/api/onboarding/modules`, {
@@ -1107,10 +1134,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, modules: moduleCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save module selection. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck! Want to try that again?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1128,10 +1155,10 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save sales methods. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those! Want to try again?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1150,14 +1177,16 @@ export default function OnboardingApp() {
           opening_date: p.openingDate,
           // Beginning petty-cash amount lives in opening_balance now (cash_addition
           // is forced to 0 by the backend); send it here so save and resume agree.
-          opening_balance: p.openingBalance,
+          // Normalized to an exact 2dp decimal string so the payload doesn't depend
+          // on whether the user blurred the field before saving.
+          opening_balance: toAmountString(p.openingBalance),
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save opening balance. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving that balance! One more try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1245,10 +1274,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, expense_codes: selectedCodes, mapping }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save account codes. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those codes! One more try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1272,10 +1301,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, contacts }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save contacts. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those contacts! One more try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1285,7 +1314,7 @@ export default function OnboardingApp() {
   // returned so the caller can select it in the relevant role dropdown.
   const createContact = async (name) => {
     const trimmed = (name || '').trim();
-    if (!trimmed) return { ok: false, error: 'Enter a contact name.' };
+    if (!trimmed) return { ok: false, error: 'Who should I put down as the contact?' };
     if (!token || !state.entity.id) {
       // Standalone / no Module 1 handoff: fake an option so the prototype works.
       const option = { id: `local-${trimmed}`, label: trimmed };
@@ -1305,7 +1334,7 @@ export default function OnboardingApp() {
         // route the user back to the Xero step.
         return {
           ok: false,
-          error: data.error || 'Failed to create contact. Please try again.',
+          error: data.error || "That didn't quite work—let's try adding them again.",
           notConnected: res.status === 409 || data.connected === false,
         };
       }
@@ -1313,7 +1342,7 @@ export default function OnboardingApp() {
       setAccountOptions((prev) => ({ ...prev, contacts: [...(prev.contacts || []), option] }));
       return { ok: true, option };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1363,25 +1392,25 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, selected_codes: selectedCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to save bill account codes. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those codes! One more try?" };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
-  const submitInvite = async ({ email, role }) => {
+  const submitInvite = async ({ email, role, first_name, last_name }) => {
     // Standalone prototype (no Module 1 handoff): keep the invite local-only.
-    if (!token || !state.entity.id) return { ok: true, invitation: { email, role } };
+    if (!token || !state.entity.id) return { ok: true, invitation: { email, role, first_name, last_name } };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(`${base}/api/onboarding/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ entity_id: state.entity.id, email, role }),
+        body: JSON.stringify({ entity_id: state.entity.id, email, role, first_name, last_name }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to send invitation. Please try again.' };
+      if (!res.ok) return { ok: false, error: data.error || "That invite didn't go through! Want to try again?" };
       // The invitation row can be created even when the email itself fails to
       // go out (Brevo/SMTP error) — the backend signals that with
       // email_sent: false. Pass it through so the UI can warn instead of
@@ -1395,7 +1424,7 @@ export default function OnboardingApp() {
         data.email_sent ?? (data.invitation && data.invitation.email_sent);
       return { ok: true, invitation: data.invitation, emailSent: emailSentFlag !== false };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1409,10 +1438,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ invitation_id: invitationId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || 'Failed to cancel invitation.' };
+      if (!res.ok) return { ok: false, error: data.error || "That didn't quite work—let's try cancelling again." };
       return { ok: true };
     } catch {
-      return { ok: false, error: 'Could not reach the server. Please try again.' };
+      return { ok: false, error: "My connection timed out—let's try that again." };
     }
   };
 
@@ -1559,7 +1588,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
 
   return (
     <>
