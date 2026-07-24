@@ -19,17 +19,25 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   const inputRef = useRef(null);
   const createRef = useRef(null);
 
+  // Options are either plain strings (value === label) or { value, label }
+  // objects — e.g. registry rows where the uuid is submitted but the name is
+  // shown. Normalize once so the rest of the component only sees objects.
+  const items = useMemo(
+    () => (options || []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)),
+    [options]
+  );
+
   const filtered = useMemo(() => {
-    if (!searchable || query === null || query.trim() === '') return options;
+    if (!searchable || query === null || query.trim() === '') return items;
     const q = query.trim().toLowerCase();
-    return options.filter((o) => o.toLowerCase().includes(q));
-  }, [searchable, query, options]);
+    return items.filter((o) => o.label.toLowerCase().includes(q));
+  }, [searchable, query, items]);
 
   // The typed-but-not-yet-a-contact name. Show the "+ Add '<name>'" row whenever
   // a create handler exists, the user has typed something, and it isn't already
   // an exact (case-insensitive) match of an existing option.
   const typed = (query || '').trim();
-  const exactMatch = typed !== '' && options.some((o) => o.toLowerCase() === typed.toLowerCase());
+  const exactMatch = typed !== '' && items.some((o) => o.label.toLowerCase() === typed.toLowerCase());
   const canCreate = !!onCreate && searchable && typed !== '' && !exactMatch;
 
   const close = () => {
@@ -39,7 +47,7 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
     setCreateError('');
   };
   const choose = (opt) => {
-    onChange(opt);
+    onChange(opt.value);
     close();
   };
   // Clear the current selection (persisted as an empty value on the next save).
@@ -71,7 +79,7 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
     const result = await onCreate(name);
     setCreateBusy(false);
     if (!result?.ok) {
-      setCreateError(result?.error || `Failed to create ${createNoun}. Please try again.`);
+      setCreateError(result?.error || `That didn't quite work—let's try adding that ${createNoun} again.`);
       return;
     }
     // Select the freshly created option (label) and close everything.
@@ -116,10 +124,20 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   }, [open, activeIdx, filtered, canCreate, creating, typed]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (open) setActiveIdx(Math.max(0, filtered.indexOf(value)));
+    if (open) setActiveIdx(Math.max(0, filtered.findIndex((o) => o.value === value)));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const display = value || placeholder;
+  // Show the selected option's label (uuid values render as their name);
+  // fall back to the raw value for free-text/legacy selections — but never
+  // render a bare uuid: while the registry options are still loading there is
+  // no label yet, so show the placeholder instead of flashing the id.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const selectedLabel = useMemo(() => {
+    const match = items.find((o) => o.value === value);
+    if (match) return match.label;
+    return UUID_RE.test(value || '') ? '' : value;
+  }, [items, value]); // eslint-disable-line react-hooks/exhaustive-deps
+  const display = selectedLabel || placeholder;
   const hasValue = !!value;
 
   return (
@@ -136,8 +154,8 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
           <input
             ref={inputRef}
             type="text"
-            className={'mselect-input' + (hasValue || query !== null ? '' : ' placeholder')}
-            value={query === null ? (value || '') : query}
+            className={'mselect-input' + (selectedLabel || query !== null ? '' : ' placeholder')}
+            value={query === null ? (selectedLabel || '') : query}
             placeholder={placeholder}
             disabled={disabled}
             autoComplete="off"
@@ -179,7 +197,7 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
           aria-haspopup="listbox"
           aria-expanded={open}
         >
-          <span className={'mselect-value' + (hasValue ? '' : ' placeholder')}>{display}</span>
+          <span className={'mselect-value' + (selectedLabel ? '' : ' placeholder')}>{display}</span>
           {clearable && hasValue && !disabled && (
             <span
               role="button"
@@ -211,18 +229,18 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
             <div className="mselect-empty">{onCreate ? 'No Xero contact found' : 'No matches'}</div>
           )}
           {filtered.map((opt, i) => {
-            const selected = opt === value;
+            const selected = opt.value === value;
             const active = i === activeIdx;
             return (
               <div
-                key={`${opt}-${i}`}
+                key={`${opt.value}-${i}`}
                 role="option"
                 aria-selected={selected}
                 className={'mselect-opt' + (selected ? ' selected' : '') + (active ? ' active' : '')}
                 onMouseEnter={() => setActiveIdx(i)}
                 onClick={() => choose(opt)}
               >
-                <span className="mselect-opt-label">{opt}</span>
+                <span className="mselect-opt-label">{opt.label}</span>
                 {selected && (
                   <span className="mselect-opt-check" aria-hidden>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">

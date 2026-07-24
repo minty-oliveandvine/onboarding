@@ -85,21 +85,6 @@ export default function VerifyPage() {
             Verify Now
           </button>
 
-          <div className="auth-notice security-alert">
-            <span className="auth-notice-icon" aria-hidden="true">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="11" width="16" height="10" rx="2" />
-                <path d="M8 11V8a4 4 0 0 1 7.5-2" />
-              </svg>
-            </span>
-            <div className="auth-notice-body">
-              <div className="auth-notice-title">Security Alert</div>
-              <p>
-                This code was requested from a new device in Hongkong. If this
-                wasn&apos;t you, please secure your account immediately.
-              </p>
-            </div>
-          </div>
         </div>
       </main>
 

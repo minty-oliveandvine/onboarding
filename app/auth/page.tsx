@@ -104,7 +104,7 @@ function AuthContent() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.status === "error") {
-        setError(data.message || "Could not send a code. Please try again.");
+        setError(data.message || "Something got stuck sending that code! Want to try again?");
         setSending(false);
         return;
       }
@@ -118,7 +118,7 @@ function AuthContent() {
       clearPendingInvite();
       router.push(`/auth/confirm?${qs.toString()}`);
     } catch {
-      setError("Network error — is the Flask server running?");
+      setError("My connection timed out—let's try that again.");
       setSending(false);
     }
   };
