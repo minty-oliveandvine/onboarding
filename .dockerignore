@@ -1,0 +1,39 @@
+# Docker reads .dockerignore only from the build context root (the repo root).
+# Keep the build context small and avoid leaking local/build artifacts.
+
+# Dependencies (reinstalled inside the image via `npm ci`)
+node_modules
+
+# Next.js build output & caches
+.next
+out
+build
+
+# Env files — never bake secrets into the image; they're injected at runtime.
+.env
+.env.*
+!.env.example
+
+# VCS & tooling
+.git
+.gitignore
+.gitattributes
+
+# OS / editor cruft
+.DS_Store
+*.pem
+
+# Logs & debug output
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Docker files themselves
+docker
+
+# Vercel
+.vercel

@@ -1,0 +1,31 @@
+services:
+  onboarding-frontend:
+    build:
+      # Build context is the repo root so the Dockerfile can see package.json
+      # and the lockfile. The Dockerfile itself lives in ./docker.
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      # host:container — dev server runs on 3001 (distinct from billing FE 3000).
+      - "3001:3001"
+    environment:
+      # Backend URLs the frontend calls. These MUST come from the environment
+      # (never hardcoded) so the orchestrator can inject shared values later.
+      # Primary base URL used across the app:
+      - NEXT_PUBLIC_MODULE1_API_URL=${NEXT_PUBLIC_MODULE1_API_URL}
+      # Legacy fallback still read by the auth pages:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      # Improves file-watching reliability for hot-reload inside containers.
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Bind-mount the repo source for hot-reload during development.
+      - ..:/app
+      # Keep the container's node_modules (from `npm ci`) instead of shadowing
+      # it with the host's — an anonymous volume masks the bind mount here.
+      - /app/node_modules
+      # Don't leak the host's build cache into the container.
+      - /app/.next
+    # Load NEXT_PUBLIC_* (and any future shared values) from docker/.env.
+    env_file:
+      - .env
