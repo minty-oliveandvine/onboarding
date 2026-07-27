@@ -57,8 +57,32 @@ export function SaveExitLink({ saveAndExit, submitFn, disabled = false, classNam
   );
 }
 
+// Back / Save & Exit / Save & Next footer shared by the Account Code, Others,
+// Bills and Sales sub-steps. `isLastContentStep` is only passed by the steps
+// that can be last — when it is undefined the ternary falls through to
+// "Save & Next", which is exactly what those steps rendered before.
+//
+// StepSelectModule deliberately does NOT use this: its primary button has
+// different disabled logic and an extra sibling hint, so sharing would mean
+// parameterizing more than it saves.
+function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep }) {
+  return (
+    <div className="step-nav">
+      <button className="btn btn-ghost" onClick={back}>
+        <Icon.ArrowLeft /> Back
+      </button>
+      <div className="step-actions">
+        <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
+        <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
+          {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // --- Step 1: Create Entity ---
-export function StepCreateEntity({ state, set, next, skip, submitEntity, saveAndExit }) {
+export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }) {
   const s = state.entity;
   const upd = (k, v) => set({ entity: { ...s, [k]: v } });
   // Phone and email are optional — but if the user does type something, it must
@@ -243,7 +267,7 @@ function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }
   );
 }
 
-export function StepSelectModule({ state, set, next, back, skip, submitModule, saveAndExit }) {
+export function StepSelectModule({ state, set, next, back, submitModule, saveAndExit }) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
   // Multi-select toggle: clicking a card adds or removes it from the
   // selection. Continue is gated on sel.length > 0 so users must pick at
@@ -347,7 +371,7 @@ export function StepSelectModule({ state, set, next, back, skip, submitModule, s
 }
 
 // --- Step 3: Connect to Xero ---
-export function StepConnectXero({ state, set, next, back, skip, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, xeroConflict, clearXeroConflict, saveAndExit }) {
+export function StepConnectXero({ state, next, back, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, xeroConflict, clearXeroConflict, saveAndExit }) {
   const connected = state.xero.connected;
   const lastConnected = state.xero.lastConnected || '07 May 2026';
   const xeroEntity = state.xero.org || state.entity.name || 'Olive & Vine Inc';
@@ -532,7 +556,6 @@ const currencyCode = (c, registry = []) => {
 };
 
 function MethodList({ title, methods, placeholder = 'Enter method name', onAdd, onChange, autoFilled = false }) {
-  const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [dragIdx, setDragIdx] = useState(null);
@@ -555,7 +578,7 @@ function MethodList({ title, methods, placeholder = 'Enter method name', onAdd, 
       e.dataTransfer.effectAllowed = 'move';
       try {
         e.dataTransfer.setData('text/plain', String(i));
-      } catch (_) {}
+      } catch {}
     }
   };
   const onDragOver = (i) => (e) => {
@@ -683,7 +706,26 @@ function MintCheck({ checked, onChange, ariaLabel }) {
   );
 }
 
-function AccountCodesCard({ codes, value, onChange, labels }) {
+// Shared account-code picker for the Account Code and Bill steps.
+//
+// The two steps differ in three ways, each kept as a prop rather than
+// normalized away, because each is observable behavior:
+//   - `header`      Bill renders a title/subtitle block above the list.
+//   - `searchLabels` Account matches the typed query against the full
+//                    "CODE · Name" label; Bill matches the raw code only.
+//   - `labelAria`   Account's checkbox aria-label is the full label; Bill's
+//                    is the bare code.
+// `bodyStyle` carries the two steps' differing padding/display.
+function AccountCodesCard({
+  codes,
+  value,
+  onChange,
+  labels,
+  header = null,
+  searchLabels = true,
+  labelAria = true,
+  bodyStyle = { padding: 20 },
+}) {
   const [q, setQ] = useState('');
   const sel = value.selected || {};
   const isAll = value.all !== false;
@@ -714,10 +756,12 @@ function AccountCodesCard({ codes, value, onChange, labels }) {
       onChange({ all: true, selected: {} });
     }
   };
-  const filtered = codes.filter((c) => labelOf(c).toLowerCase().includes(q.trim().toLowerCase()));
+  const searchTextOf = (code) => (searchLabels ? labelOf(code) : code);
+  const filtered = codes.filter((c) => searchTextOf(c).toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="method-card acc-card open">
-      <div className="method-body" style={{ padding: 20 }}>
+      {header}
+      <div className="method-body" style={bodyStyle}>
         <div className="acc-search">
           <input type="text" placeholder="Search account code" value={q} onChange={(e) => setQ(e.target.value)} />
           <span className="acc-search-icon">
@@ -735,7 +779,11 @@ function AccountCodesCard({ codes, value, onChange, labels }) {
           {filtered.map((code) => (
             <li className="acc-row" key={code}>
               <span className="acc-name">{labelOf(code)}</span>
-              <MintCheck checked={isOn(code)} onChange={() => toggle(code)} ariaLabel={labelOf(code)} />
+              <MintCheck
+                checked={isOn(code)}
+                onChange={() => toggle(code)}
+                ariaLabel={labelAria ? labelOf(code) : code}
+              />
             </li>
           ))}
           {codes.length === 0 && <li className="acc-empty">Connect to Xero to load account codes</li>}
@@ -771,7 +819,7 @@ function PCSection({ title, fields, cardRef }) {
   );
 }
 
-export function StepSalesSetting({ state, set, next, back, skip, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }) {
+export function StepSalesSetting({ state, set, next, back, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }) {
   // Save everything on this step: sales methods AND the opening balance/date.
   // submitOpeningBalance no-ops when the balance is empty, so a blank balance
   // never blocks Save & Next / Save & Exit — we persist whatever's filled in.
@@ -1017,22 +1065,18 @@ export function StepSalesSetting({ state, set, next, back, skip, submitSalesMeth
         </div>
       </div>
 
-      <div className="step-nav">
-        <button className="btn btn-ghost" onClick={back}>
-          <Icon.ArrowLeft /> Back
-        </button>
-        <div className="step-actions">
-          <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
-          <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
-          </button>
-        </div>
-      </div>
+      <StepNav
+        back={back}
+        saveAndExit={saveAndExit}
+        stepSubmit={stepSubmit}
+        tryNext={tryNext}
+        saving={saving}
+      />
     </>
   );
 }
 
-export function StepAccountCode({ state, set, next, back, skip, accountOptions, submitAccountCodes, saveAndExit }) {
+export function StepAccountCode({ state, set, next, back, accountOptions, submitAccountCodes, saveAndExit }) {
   const stepSubmit = submitAccountCodes;
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
@@ -1208,22 +1252,18 @@ export function StepAccountCode({ state, set, next, back, skip, accountOptions, 
         />
       </div>
 
-      <div className="step-nav">
-        <button className="btn btn-ghost" onClick={back}>
-          <Icon.ArrowLeft /> Back
-        </button>
-        <div className="step-actions">
-          <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
-          <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
-          </button>
-        </div>
-      </div>
+      <StepNav
+        back={back}
+        saveAndExit={saveAndExit}
+        stepSubmit={stepSubmit}
+        tryNext={tryNext}
+        saving={saving}
+      />
     </>
   );
 }
 
-export function StepOthers({ state, set, next, back, skip, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }) {
+export function StepOthers({ state, set, next, back, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }) {
   const stepSubmit = submitContacts;
   const p = state.pettyCash;
   const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
@@ -1321,89 +1361,21 @@ export function StepOthers({ state, set, next, back, skip, accountOptions, submi
         />
       </div>
 
-      <div className="step-nav">
-        <button className="btn btn-ghost" onClick={back}>
-          <Icon.ArrowLeft /> Back
-        </button>
-        <div className="step-actions">
-          <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
-          <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
-          </button>
-        </div>
-      </div>
+      <StepNav
+        back={back}
+        saveAndExit={saveAndExit}
+        stepSubmit={stepSubmit}
+        tryNext={tryNext}
+        saving={saving}
+        isLastContentStep={isLastContentStep}
+      />
     </>
   );
 }
 
 // --- Step 7: Bill Settings ---
-function BillAccountCodesCard({ codes, value, onChange, labels }) {
-  const [q, setQ] = useState('');
-  const sel = value.selected || {};
-  const isAll = value.all !== false;
-  const isOn = (code) => (isAll ? sel[code] !== false : sel[code] === true);
-  const allOn = codes.length > 0 && codes.every((c) => isOn(c));
-  const labelOf = (code) => (labels && labels[code]) || code;
-  const toggle = (code) => {
-    if (isAll) {
-      const next = {};
-      codes.forEach((c) => {
-        next[c] = true;
-      });
-      next[code] = false;
-      onChange({ all: false, selected: next });
-      return;
-    }
-    onChange({ all: false, selected: { ...sel, [code]: !isOn(code) } });
-  };
-  const toggleAll = () => {
-    if (allOn) {
-      const off = {};
-      codes.forEach((c) => {
-        off[c] = false;
-      });
-      onChange({ all: false, selected: off });
-    } else {
-      onChange({ all: true, selected: {} });
-    }
-  };
-  const filtered = codes.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
-  return (
-    <div className="method-card acc-card open">
-      <div className="method-head method-head-static" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
-        <div className="method-title">Bill Account Code</div>
-        <div className="acc-sub">Only selected account code will appear when adding a bill in Bill.</div>
-      </div>
-      <div className="method-body" style={{ display: 'block' }}>
-        <div className="acc-search">
-          <input type="text" placeholder="Search account code" value={q} onChange={(e) => setQ(e.target.value)} />
-          <span className="acc-search-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M20 20l-3.5-3.5" />
-            </svg>
-          </span>
-        </div>
-        <div className="acc-allrow">
-          <span className="acc-all-label">{allOn ? 'Deselect all' : 'Select all'}</span>
-          <MintCheck checked={allOn} onChange={toggleAll} ariaLabel="Select all" />
-        </div>
-        <ul className="acc-list">
-          {filtered.map((code) => (
-            <li className="acc-row" key={code}>
-              <span className="acc-name">{labelOf(code)}</span>
-              <MintCheck checked={isOn(code)} onChange={() => toggle(code)} ariaLabel={code} />
-            </li>
-          ))}
-          {codes.length === 0 && <li className="acc-empty">Connect to Xero to load account codes</li>}
-          {codes.length > 0 && filtered.length === 0 && <li className="acc-empty">No matching account code</li>}
-        </ul>
-      </div>
-    </div>
-  );
-}
 
-export function StepBills({ state, set, next, back, skip, accountOptions, submitBills, saveAndExit, isLastContentStep }) {
+export function StepBills({ state, set, next, back, accountOptions, submitBills, saveAndExit, isLastContentStep }) {
   const stepSubmit = submitBills;
   const b = state.bills;
   const upd = (k, v) => set({ bills: { ...b, [k]: v } });
@@ -1437,25 +1409,33 @@ export function StepBills({ state, set, next, back, skip, accountOptions, submit
       </div>
 
       <div className="pc-stack">
-        <BillAccountCodesCard
+        <AccountCodesCard
           codes={billCodes}
           labels={billLabels}
           value={b.billCodes || { all: true, selected: {} }}
           onChange={(v) => upd('billCodes', v)}
+          // Bill searches the raw code and labels its checkboxes with the bare
+          // code, unlike the Account Code step which uses the full label.
+          searchLabels={false}
+          labelAria={false}
+          bodyStyle={{ display: 'block' }}
+          header={
+            <div className="method-head method-head-static" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
+              <div className="method-title">Bill Account Code</div>
+              <div className="acc-sub">Only selected account code will appear when adding a bill in Bill.</div>
+            </div>
+          }
         />
       </div>
 
-      <div className="step-nav">
-        <button className="btn btn-ghost" onClick={back}>
-          <Icon.ArrowLeft /> Back
-        </button>
-        <div className="step-actions">
-          <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
-          <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-            {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
-          </button>
-        </div>
-      </div>
+      <StepNav
+        back={back}
+        saveAndExit={saveAndExit}
+        stepSubmit={stepSubmit}
+        tryNext={tryNext}
+        saving={saving}
+        isLastContentStep={isLastContentStep}
+      />
     </>
   );
 }
@@ -1727,7 +1707,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 }
 
 // --- Step 9: All Set ---
-export function StepAllSet({ state, set, restart, finishOnboarding }) {
+export function StepAllSet({ state, finishOnboarding }) {
   const [finishing, setFinishing] = useState(false);
   const toast = useToast();
 

@@ -7,17 +7,8 @@ import {
   readPendingInvite,
   clearPendingInvite,
 } from "../../lib/pendingInvite";
-
-// Same Flask backend as the onboarding API (/api/onboarding/*, /auth/email/*,
-// /xero_auth all live there), so use the same env var the rest of the app uses
-// — NEXT_PUBLIC_MODULE1_API_URL. NEXT_PUBLIC_API_URL is kept only as a
-// backward-compatible fallback for builds that still set the old var; without
-// this, an unset NEXT_PUBLIC_API_URL silently fell back to localhost and broke
-// the Xero/OTP buttons in deployed environments.
-const FLASK_BASE =
-  process.env.NEXT_PUBLIC_MODULE1_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5001";
+import AuthTopbar from "@/components/AuthTopbar";
+import { FLASK_BASE } from "@/lib/flaskBase";
 
 function AuthContent() {
   const router = useRouter();
@@ -125,16 +116,7 @@ function AuthContent() {
 
   return (
     <>
-      <div className="topbar" data-screen-label="Top bar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <img className="brand-mark-img" src="/assets/minty-logo.png" alt="Minty" />
-            <span>Minty</span>
-          </div>
-          <h1></h1>
-          <div className="right" />
-        </div>
-      </div>
+      <AuthTopbar />
 
       <main className="auth-page">
         <div className="auth-card">
@@ -401,27 +383,12 @@ function AuthContent() {
   );
 }
 
-// useSearchParams forces a Suspense boundary at build time. The fallback is
-// the bare topbar so the page header is visible during the (very short)
-// hydration window — searchParams resolve client-side immediately on mount.
-function AuthFallback() {
-  return (
-    <div className="topbar" data-screen-label="Top bar">
-      <div className="topbar-inner">
-        <div className="brand">
-          <img className="brand-mark-img" src="/assets/minty-logo.png" alt="Minty" />
-          <span>Minty</span>
-        </div>
-        <h1></h1>
-        <div className="right" />
-      </div>
-    </div>
-  );
-}
-
 export default function AuthPage() {
+  // useSearchParams forces a Suspense boundary at build time. The fallback is
+  // the bare topbar so the page header is visible during the (very short)
+  // hydration window — searchParams resolve client-side immediately on mount.
   return (
-    <Suspense fallback={<AuthFallback />}>
+    <Suspense fallback={<AuthTopbar />}>
       <AuthContent />
     </Suspense>
   );

@@ -473,14 +473,6 @@ export default function OnboardingApp() {
     setMaxReached((m) => Math.max(m, n));
     persistSavedStep(n);
   };
-  // Dev-only skip: advances without validation (will be removed at the end)
-  const skip = () => {
-    setCurrent((c) => {
-      const n = nextActiveId(c);
-      setMaxReached((m) => Math.max(m, n));
-      return n;
-    });
-  };
   const back = () => setCurrent((c) => prevActiveId(c));
   const goto = (id) => {
     if (!activeIds.includes(id)) return;
@@ -1588,7 +1580,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
 
   return (
     <>

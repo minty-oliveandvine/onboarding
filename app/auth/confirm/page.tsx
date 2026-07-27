@@ -2,15 +2,9 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import AuthTopbar from "@/components/AuthTopbar";
+import { FLASK_BASE } from "@/lib/flaskBase";
 
-// Same Flask backend as the onboarding API — use NEXT_PUBLIC_MODULE1_API_URL
-// (what the rest of the app uses), falling back to the legacy NEXT_PUBLIC_API_URL
-// so existing builds keep working. Avoids the silent localhost fallback that
-// broke the OTP request/verify calls when NEXT_PUBLIC_API_URL was unset.
-const FLASK_BASE =
-  process.env.NEXT_PUBLIC_MODULE1_API_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5001";
 const RESEND_COOLDOWN_SECONDS = 60;
 const CODE_TTL_SECONDS = 60;
 // Display hint only — NOT a security control. The backend enforces the real
@@ -178,16 +172,7 @@ function ConfirmContent() {
 
   return (
     <>
-      <div className="topbar" data-screen-label="Top bar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <img className="brand-mark-img" src="/assets/minty-logo.png" alt="Minty" />
-            <span>Minty</span>
-          </div>
-          <h1></h1>
-          <div className="right" />
-        </div>
-      </div>
+      <AuthTopbar />
 
       <main className="confirm-page">
         <div className="confirm-card">
@@ -393,11 +378,6 @@ function ConfirmContent() {
           text-align: center;
           font-variant-numeric: tabular-nums;
         }
-        .confirm-status-time {
-          color: var(--ink);
-          font-weight: 600;
-          font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-        }
         .confirm-status-warn {
           color: var(--danger);
           font-weight: 600;
@@ -408,11 +388,6 @@ function ConfirmContent() {
           text-align: center;
           font-size: 14px;
           color: var(--muted);
-        }
-        .confirm-expired {
-          margin: 8px 0 0;
-          text-align: center;
-          font-size: 14px;
         }
         .auth-link {
           color: var(--accent-ink);
@@ -438,24 +413,9 @@ function ConfirmContent() {
   );
 }
 
-function ConfirmFallback() {
-  return (
-    <div className="topbar" data-screen-label="Top bar">
-      <div className="topbar-inner">
-        <div className="brand">
-          <img className="brand-mark-img" src="/assets/minty-logo.png" alt="Minty" />
-          <span>Minty</span>
-        </div>
-        <h1></h1>
-        <div className="right" />
-      </div>
-    </div>
-  );
-}
-
 export default function ConfirmPage() {
   return (
-    <Suspense fallback={<ConfirmFallback />}>
+    <Suspense fallback={<AuthTopbar />}>
       <ConfirmContent />
     </Suspense>
   );
