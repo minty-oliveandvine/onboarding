@@ -1,8 +1,14 @@
 # Code Cleanse Notes
 
 Branch: `code-cleanse` (off `Minty-Onboarding`, baseline commit `d9f8877`).
-Started 2026-07-27. Resume-safe: this file plus `.cleanse-baseline/` is enough
-to pick the work up in a fresh session.
+Started 2026-07-27. Resume-safe: this file records everything needed to pick the
+work up in a fresh session.
+
+The cleanse originally kept a `.cleanse-baseline/` folder of recorded gate
+output. It was **deleted after the cleanse finished** (256 KB of scaffolding,
+250 KB of which was a raw eslint JSON dump). Everything load-bearing from it is
+inlined into this file — see "Pre-cleanse baseline (recorded before any
+changes)" below.
 
 **Status: ALL THREE SUBFOLDERS COMPLETE (`lib/`, `app/`, `components/`) and
 COMMITTED as `ef213b3` on branch `code-cleanse`. Not pushed.**
@@ -39,7 +45,8 @@ equivalence harness (details per subfolder below).
 
 ## Step 0 — Survey (done)
 
-Full detail in [`.cleanse-baseline/BASELINE.md`](.cleanse-baseline/BASELINE.md).
+Pre-cleanse baseline detail is inlined below (the `.cleanse-baseline/` folder it
+originally lived in has been deleted).
 
 ### The headline: this is a JS repo with no tests
 
@@ -66,12 +73,49 @@ rm -rf .next && npx next build     # HARD gate: must stay green (baseline: PASSE
 npx eslint .                       # must not exceed baseline: 46 problems (15 err, 31 warn)
 ```
 
-Baseline lint messages are recorded machine-diffably in
-`.cleanse-baseline/eslint-baseline.tsv`. Diff on `(file, rule)` pairs and
-per-rule counts, not line numbers — those shift as code is edited.
-The 46 pre-existing lint problems are **not** to be fixed here (separate work).
+Diff on `(file, rule)` pairs and per-rule counts, not line numbers — those shift
+as code is edited. The 46 pre-existing lint problems are **not** to be fixed
+here (separate work).
 
 Build route list is also part of the baseline — no route may appear or vanish.
+
+#### Pre-cleanse baseline (recorded before any changes, commit `d9f8877`)
+
+`next build`: **PASSES**, 7 routes — `/`, `/_not-found`, `/auth`,
+`/auth/confirm`, `/auth/verify`, `/icon.png` (+ `(Static)` marker).
+
+`npx eslint .`: **46 problems (15 errors, 31 warnings)**, by `(file, rule)`:
+
+| count | file | rule |
+|---|---|---|
+| 13 | components/OnboardingSteps.jsx | @typescript-eslint/no-unused-vars |
+| 5 | components/OnboardingSteps.jsx | @next/next/no-img-element |
+| 4 | app/auth/page.tsx | react-hooks/set-state-in-effect |
+| 3 | app/auth/page.tsx | @next/next/no-img-element |
+| 2 | components/Toast.jsx | react-hooks/refs |
+| 2 | components/OnboardingSteps.jsx | react-hooks/set-state-in-effect |
+| 2 | components/OnboardingApp.jsx | react-hooks/set-state-in-effect |
+| 2 | components/MintySelect.jsx | @typescript-eslint/no-unused-expressions |
+| 2 | components/Confetti.jsx | react-hooks/purity |
+| 2 | app/layout.tsx | @next/next/no-page-custom-font |
+| 2 | app/auth/confirm/page.tsx | @next/next/no-img-element |
+| 1 | components/Toast.jsx | react-hooks/set-state-in-effect |
+| 1 | components/OnboardingApp.jsx | @typescript-eslint/no-unused-expressions |
+| 1 | components/OnboardingApp.jsx | @next/next/no-img-element |
+| 1 | components/NavMenu.jsx | react-hooks/set-state-in-effect |
+| 1 | components/MintySelect.jsx | react-hooks/set-state-in-effect |
+| 1 | components/MintySelect.jsx | jsx-a11y/role-supports-aria-props |
+| 1 | app/auth/verify/page.tsx | @next/next/no-img-element |
+
+`no-undef` over `app components lib`: **3** (all pre-existing `React`-global
+artifacts of forcing the rule on without TS/JSX globals).
+
+To regenerate an equivalent machine-diffable baseline in a future session:
+
+```
+npx eslint . -f json > /tmp/base.json
+node -e 'const j=require("/tmp/base.json");const r=[];for(const f of j)for(const m of f.messages)r.push([f.filePath.replace(process.cwd()+"/",""),m.ruleId].join("\t"));r.sort();console.log(r.join("\n"))'
+```
 
 ### Inventory — 7,477 LOC, 21 source files
 

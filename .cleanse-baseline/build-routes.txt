@@ -1,8 +1,0 @@
-Route (app)
-┌ ○ /
-├ ○ /_not-found
-├ ○ /auth
-├ ○ /auth/confirm
-├ ○ /auth/verify
-└ ○ /icon.png
-○  (Static)  prerendered as static content
