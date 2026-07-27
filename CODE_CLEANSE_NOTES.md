@@ -4,8 +4,36 @@ Branch: `code-cleanse` (off `Minty-Onboarding`, baseline commit `d9f8877`).
 Started 2026-07-27. Resume-safe: this file plus `.cleanse-baseline/` is enough
 to pick the work up in a fresh session.
 
-**Status: ALL THREE SUBFOLDERS COMPLETE (`lib/`, `app/`, `components/`),
-verified, uncommitted. Awaiting review.**
+**Status: ALL THREE SUBFOLDERS COMPLETE (`lib/`, `app/`, `components/`) and
+COMMITTED as `ef213b3` on branch `code-cleanse`. Not pushed.**
+
+Note: `ef213b3` is titled "/lib and /app code-cleasing" but actually contains
+**all three** subfolders, `components/` included.
+
+### Final result vs baseline
+
+| gate | baseline | after |
+|---|---|---|
+| `next build` | passes | **passes** |
+| routes | 7 | **6** (intentional: `/auth/verify` deleted) |
+| eslint total | 46 (15 err, 31 warn) | **29 (15 err, 14 warn)** |
+| eslint errors | 15 | **15 — unchanged, all pre-existing** |
+| `no-undef` | 3 | **2** |
+
+Source lines: **-484 / +136**. No test suite existed, so no test could regress;
+every merge was instead proven with an SSR render-diff or a runtime
+equivalence harness (details per subfolder below).
+
+### Remaining optional work
+
+1. **`restart` in `OnboardingApp`** — unwired feature logic, left in place
+   pending your decision (see the `components/` section).
+2. **`.otp-row-empty`** — class applied in `confirm/page.tsx` with no rule
+   defined (see the `app/` section).
+3. **Prettier** — still not configured; the "formatter" step was a no-op in all
+   three subfolders. If ever added, run it as its own commit, and keep the two
+   1.7k-line component files out of any commit carrying logic changes.
+4. **The 15 pre-existing eslint errors** — untouched by design, separate work.
 
 ---
 
@@ -243,6 +271,98 @@ brand markup, but with a real `<h1>Getting Started</h1>` and an avatar button
 in `.right`. It was deliberately **not** merged into `AuthTopbar` — that would
 mean pushing title/children/right-slot props through, and it belongs to the
 `components/` pass, not this one. Flagging so it isn't missed.
+
+---
+
+## Subfolder 3 — `components/` — DONE (uncommitted)
+
+Net: **-92 lines** across `OnboardingSteps.jsx` and `OnboardingApp.jsx`.
+No opinionated reformatter was run on either 1.7k-line file, per the rule about
+burying logic diffs.
+
+### Step 1 — dead code -> VERIFIED
+
+- **All 13 `no-unused-vars` warnings cleared** (13 -> 0). These were unused
+  destructured props (`skip` on 7 Step components, `set` on 2, `restart` on 1),
+  plus dead `const [open, setOpen] = useState(true)` local state in
+  `MethodList`, plus an unused `catch (_)` binding.
+  Safe because every Step component is rendered as `<StepX {...stepProps} />`
+  from a single spread object — dropping a name from the destructuring pattern
+  changes nothing at the call site. `StepInvite` already omitted `skip`, so this
+  is the file's own established pattern. Verified `"method-card open"` was a CSS
+  class string, not a use of the `open` variable.
+- **Removed `skip` from `OnboardingApp`** entirely (definition + `stepProps`).
+  Its own comment read *"Dev-only skip: advances without validation (will be
+  removed at the end)"*, and after the prop cleanup it had zero consumers.
+
+Verify: build green, 6/6 routes, lint 46 -> 29, no new problems.
+
+### Step 2 — duplication -> VERIFIED
+
+**a. Merged `BillAccountCodesCard` into `AccountCodesCard`** (-65 lines).
+A 62-line and a 65-line component with the same signature. The diff showed
+**three real behavioral differences**, so per your rule they were preserved as
+parameters rather than picking a winner:
+
+| | Account | Bill | prop |
+|---|---|---|---|
+| search matches against | full `"CODE · Name"` label | raw code only | `searchLabels` |
+| checkbox aria-label | full label | bare code | `labelAria` |
+| header block | none | title + subtitle | `header` |
+| body style | `{padding: 20}` | `{display: 'block'}` | `bodyStyle` |
+
+The search difference is **genuinely observable**: both call sites pass a real
+`labels` map built as `` `${code} · ${name}` ``, so `labelOf(c) !== c` in
+practice. Typing a name matches in Account but not in Bill. Not cosmetic.
+One difference that *was* safe to normalize: Bill wrote
+`!isOn(code)` inline where Account used `const cur = isOn(code); !cur`.
+`isOn` is pure and called once either way — identical semantics.
+
+**b. Extracted `StepNav`** (-4 duplicated footers). The Back / Save & Exit /
+Save & Next footer appeared 4x identically except for an `isLastContentStep`
+ternary. Unified on the ternary form: the two steps that don't pass the prop get
+`undefined`, which falls through to `"Save & Next"` — exactly what they rendered
+before. `StepSelectModule`'s footer was deliberately **left alone**: different
+disabled logic (`sel.length === 0 || saving`), different handler, and an extra
+sibling hint node, so sharing would parameterize more than it saves.
+
+Proof for both merges — **SSR render-diff harnesses** (`react-dom/server`),
+rendering the verbatim pre-merge implementations against the new shared ones and
+comparing output strings:
+
+- Card: 6 states x 2 variants (all-selected, none, partial, all-explicit-true,
+  empty codes, no-labels-prop). **All 12 render-identical.**
+- StepNav: 8 combinations (`saving` x `isLastContentStep` ∈ {true,false,
+  undefined}), covering the undefined fall-through that makes the unification
+  safe. **All 8 render-identical.**
+
+This directly discharges the byte-for-byte rule for the shared strings
+("Saving…", "Complete", "Save & Next", "Select all"/"Deselect all",
+"Connect to Xero to load account codes", "No matching account code",
+"Bill Account Code", and the Bill subtitle).
+
+Verify after each merge: build green, 6/6 routes, brace/paren balance 0,
+`tsc` parse check clean on the scripted-edit file, lint 46 -> 29 with no new
+problems, `no-undef` 3 -> 2.
+
+### Step 3 — formatter -> N/A (no Prettier)
+
+### Deliberately left alone in `components/`
+
+- **`restart` in `OnboardingApp`** — now has zero consumers after `StepAllSet`
+  stopped destructuring it, but it is **not** dev scaffolding like `skip` was:
+  it is working feature logic (`setState(initialState()); setCurrent(1);
+  setMaxReached(1)`) for a "start over" affordance that is simply not wired to
+  any button. **This looks like an unfinished feature, not dead code, so I
+  stopped rather than deleting it.** It is still passed through `stepProps`.
+  Your call: delete it, or wire up a restart button on the All Set step?
+- **`StepSelectModule`'s footer** — see above, genuinely different.
+- **The 11 `react-hooks/set-state-in-effect` errors, 2 `react-hooks/refs`,
+  2 `react-hooks/purity`, 3 `no-unused-expressions`** — all pre-existing
+  baseline lint, explicitly out of scope.
+- **The 8 remaining `no-img-element` warnings** — converting `<img>` to
+  `next/image` is a behavior change (layout, loading), not a cleanse.
+- **The two 1.7k-line files were not reformatted**, only edited in place.
 
 ---
 
