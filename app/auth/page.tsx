@@ -261,8 +261,8 @@ function AuthContent() {
               </svg>
             </span>
             <div className="auth-notice-body">
-              <div className="auth-notice-title">Secure Authentication</div>
-              <p>Your login is protected by industry-standard AES-256 encryption.</p>
+              <div className="auth-notice-title">You&apos;re in safe hands</div>
+              <p>I keep your login protected with industry-standard AES-256 encryption.</p>
             </div>
           </div>
         </div>

@@ -1117,7 +1117,7 @@ export default function OnboardingApp() {
     const moduleCodes = (state.modules || [])
       .map((id) => FE_TO_BACKEND_MODULE[id])
       .filter(Boolean);
-    if (moduleCodes.length === 0) return { ok: false, error: "I need at least one module to get started." };
+    if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to get started — which one sounds right?" };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(`${base}/api/onboarding/modules`, {
