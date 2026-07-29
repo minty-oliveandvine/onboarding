@@ -444,8 +444,8 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
           <Icon.Info />
         </div>
         <div className="notice-body">
-          <div className="notice-title">Information</div>
-          <p>You are advised to contact service team for proper setup and configuration of your Xero integration settings.</p>
+          <div className="notice-title">Before you connect</div>
+          <p>Our service team can walk you through setting up your Xero integration — want to reach out to them first?</p>
         </div>
       </div>
 
@@ -991,7 +991,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
             <Icon.Sparkle />
           </span>
         </button>
-        <span className="autofill-hint">Don&apos;t know what to choose? Set as default settings.</span>
+        <span className="autofill-hint">Not sure what to choose? I&apos;ll set some sensible defaults for you.</span>
       </div>
       <div className="page-head pc-page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <div className="pc-head-row">
@@ -1026,7 +1026,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
         <div className={'pc-card' + (showBalanceError && balanceEmpty ? ' is-error' : '')} ref={balanceRef}>
           <div className={'pc-field' + (showDateError && dateIsFuture ? ' field-error' : '')} ref={dateRef}>
             <div className="pc-sub">
-              Choose the first date that you wish to use <span className="pc-hint">(prefilled with today&apos;s date — click to choose another)</span>
+              Choose the first date that you wish to use <span className="pc-hint">(I&apos;ve put today&apos;s date in — click if you&apos;d like another)</span>
             </div>
             <MintyDatePicker
               value={p.openingDate || ''}
