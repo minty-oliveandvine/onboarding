@@ -218,7 +218,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
 // --- Step 2: Select Module ---
 export const MODULES = [
   { id: 'pettyCash', title: 'Petty Cash', desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.', img: '/pettycash-icon.png', accent: '#f5b945', price: '280 HKD per Month' },
-  { id: 'bills', title: 'Bill Payment', desc: 'Capture vendor bills, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', price: '280 HKD per Month' },
+  { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', price: '280 HKD per Month' },
 ];
 
 function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }) {
@@ -1404,7 +1404,7 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
   return (
     <>
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
-        <h2 style={{ fontSize: 30 }}>Bill Settings</h2>
+        <h2 style={{ fontSize: 30 }}>Payment Settings</h2>
         <p style={{ marginTop: 6 }}>Choose account code for expenses that will incur with supporting documents.</p>
       </div>
 
@@ -1421,8 +1421,8 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
           bodyStyle={{ display: 'block' }}
           header={
             <div className="method-head method-head-static" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
-              <div className="method-title">Bill Account Code</div>
-              <div className="acc-sub">Only selected account code will appear when adding a bill in Bill.</div>
+              <div className="method-title">Payment Account Code</div>
+              <div className="acc-sub">Only selected account code will appear when adding a payment in Payment.</div>
             </div>
           }
         />

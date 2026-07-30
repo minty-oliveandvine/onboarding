@@ -152,7 +152,7 @@ const STEPS = [
   { id: 5, label: 'Sales Setting', short: 'Sales Setting', tiny: 'Sales' },
   { id: 6, label: 'Account Code Setting', short: 'Account Code Setting', tiny: 'Account Code' },
   { id: 7, label: 'Others', short: 'Others', tiny: 'Others' },
-  { id: 8, label: 'Bill Settings', short: 'Bill Settings', tiny: 'Bill' },
+  { id: 8, label: 'Payment Settings', short: 'Payment Settings', tiny: 'Payment' },
   { id: 9, label: 'All Set', short: 'All Set', tiny: 'All Set' },
 ];
 
@@ -181,7 +181,7 @@ function getDisplaySteps(modules) {
     });
   }
   if (hasBills) {
-    out.push({ label: 'Bill Settings', tiny: 'Bill', ids: [8] });
+    out.push({ label: 'Payment Settings', tiny: 'Payment', ids: [8] });
   }
   out.push({ label: 'All Set', tiny: 'All Set', ids: [9] });
   return out.map((d, i) => ({ idx: i + 1, ...d }));
