@@ -210,6 +210,11 @@ const initialState = () => ({
     email: '',
   },
   modules: [],
+  // Has the user opened the add-card form at least once? Step 2 keeps Save & Next
+  // hidden until they have, so the card is a deliberate skip rather than something
+  // they never saw. Lives in `state` so it survives the redirect to Stripe (the
+  // whole state blob is persisted) and a later refresh.
+  pmOpened: false,
   xero: { connected: false, org: '' },
   pettyCash: {
     float: 2000,
@@ -406,6 +411,13 @@ export default function OnboardingApp() {
   // Module 2 profile handoff URL (no entity context) passed in by Module 1.
   const [profileUrl, setProfileUrl] = useState('');
   const [accountOptions, setAccountOptions] = useState({ bank: [], cashSale: [], director: [], discrepancy: [], expense: [], contacts: [], bill: [] });
+  // Live module prices + bulk-discount unit from Stripe, for Step 2's subscription
+  // summary. Stays null until loaded (and if the fetch fails), which hides the
+  // summary rather than showing invented figures.
+  const [modulePlans, setModulePlans] = useState(null);
+  // Does the entity have a card on file? Trials are card-backed, so Step 2 can't be
+  // passed until this is true — Save & Next only appears once it is.
+  const [hasPaymentMethod, setHasPaymentMethod] = useState(false);
   // Set on resume when the user landed past step 4 but Xero isn't connected in
   // the DB — drives the "connect to accounting first" pop-up.
   const [needsXeroPrompt, setNeedsXeroPrompt] = useState(false);
@@ -430,6 +442,96 @@ export default function OnboardingApp() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Module price catalog for Step 2's subscription summary. Fetched once the token
+  // is in hand; it's entity-independent, so it doesn't wait on entity creation.
+  // Failures are swallowed — `modulePlans` stays null and the summary is hidden, so
+  // an unreachable Stripe never blocks the user from picking a module.
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    fetch(`${base}/api/onboarding/plans`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data && Array.isArray(data.plans) && data.plans.length > 0) {
+          setModulePlans(data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  // Does the entity already have a card? (Resume, or a card added on an earlier
+  // pass.) Skipped while returning from Stripe — the completion effect below owns
+  // the flag in that case, and a concurrent read could land stale-false after it.
+  useEffect(() => {
+    if (!token || !state.entity.id) return;
+    if (typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).get('pm_session_id')) return;
+    let cancelled = false;
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    fetch(`${base}/api/onboarding/payment-method?entity_id=${encodeURIComponent(state.entity.id)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setHasPaymentMethod(!!data.has_payment_method);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [token, state.entity.id]);
+
+  // Back from the Stripe setup checkout. `pm_session_id` carries the session whose
+  // card we must save as the customer default; `pm_cancelled` means they backed out.
+  // Either way the params are stripped so a later refresh can't replay them. The
+  // wizard itself lands back on Step 2 on its own — the step is restored from the
+  // persisted session, not from the URL.
+  const pmCompletedRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    const sessionId = (p.get('pm_session_id') || '').trim();
+    const cancelled = !!p.get('pm_cancelled');
+    if (!sessionId && !cancelled) return;
+
+    const strip = () => {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('pm_session_id');
+        url.searchParams.delete('pm_cancelled');
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      } catch {
+        /* ignore */
+      }
+    };
+
+    // Coming back from Stripe at all means they opened the form — belt-and-braces
+    // with the flag set before the redirect, in case that write lost the race.
+    set({ pmOpened: true });
+
+    if (!sessionId) { strip(); return; }
+    // Wait for the session to rehydrate (token + entity id come from localStorage).
+    if (!token || !state.entity.id || pmCompletedRef.current) return;
+    pmCompletedRef.current = true;
+
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    fetch(`${base}/api/onboarding/payment-method/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ entity_id: state.entity.id, session_id: sessionId }),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.has_payment_method) setHasPaymentMethod(true);
+      })
+      .catch(() => {})
+      .finally(strip);
+  }, [token, state.entity.id]);
 
   const activeIds = useMemo(() => getActiveStepIds(state.modules), [state.modules]);
   const displaySteps = useMemo(() => getDisplaySteps(state.modules), [state.modules]);
@@ -1141,6 +1243,43 @@ export default function OnboardingApp() {
     }
   };
 
+  // Step 2's "Add payment method": save the module selection, then hand off to a
+  // hosted Stripe setup Checkout. The selection is persisted FIRST so it survives
+  // the redirect — Stripe brings the user back to a fresh page load. On success this
+  // navigates away, so it only ever returns on failure.
+  const addPaymentMethod = async () => {
+    if (!token || !state.entity.id) {
+      return { ok: false, error: 'Create your entity before adding a payment method.' };
+    }
+    const saved = await submitModule();
+    if (!saved.ok) return saved;
+
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
+    try {
+      const res = await fetch(`${base}/api/onboarding/payment-method/setup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ entity_id: state.entity.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) {
+        // Include the status when the body carried no error of its own — a non-JSON
+        // failure (e.g. a CSRF rejection, which never reaches the view) is otherwise
+        // indistinguishable from the server's own "couldn't open it" reply.
+        const reason = data.error || `Could not open the payment form (HTTP ${res.status}). Please try again.`;
+        return { ok: false, error: reason };
+      }
+      // Record that they've seen the card form BEFORE handing off, so Save & Next is
+      // waiting for them whichever way they come back — including a browser Back that
+      // skips our return URLs entirely.
+      set({ pmOpened: true });
+      window.location.href = data.url;
+      return { ok: true };
+    } catch {
+      return { ok: false, error: 'Could not reach the server. Please try again.' };
+    }
+  };
+
   const submitSalesMethods = async () => {
     if (!token || !state.entity.id) return { ok: true };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
@@ -1588,7 +1727,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, modulePlans, hasPaymentMethod, addPaymentMethod, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
 
   return (
     <>

@@ -1206,6 +1206,135 @@
   .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .module-grid-2 { gap: 28px; max-width: 640px; margin: 8px auto 0; }
 
+  /* Step 2 layout: module cards on the left, subscription summary on the right.
+
+     This step needs more room than the 720px `.page > *` cap allows (640 cards +
+     32 gap + 280 summary = 952), so it breaks out of that cap and re-centres on
+     the page's axis with a negative left margin — no transform, so the pill's
+     getBoundingClientRect stays honest.
+
+     The summary is only in the DOM once a module is picked, so with nothing
+     selected the grid centres on the page by itself. The cards can't RESIZE when
+     it appears (the grid's basis is fixed below) — the row just re-centres. */
+  .module-layout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 32px;
+    width: 960px;
+    max-width: none;
+    margin-left: calc((100% - 960px) / 2);
+    margin-right: 0;
+  }
+  /* Fixed basis: the cards keep their size no matter what's beside them. */
+  .module-layout .module-grid-2 { flex: 0 0 640px; margin: 8px 0 0; }
+
+  /* Subscription summary — the onboarding twin of Minty's settings panel. Fades
+     in on the first pick rather than popping, since the row re-centres with it. */
+  /* A white card, not a tinted one: the accent belongs to the callout inside it,
+     and tinting the whole panel leaves that callout with nothing to stand out
+     against. Border + soft shadow are what separate it from the white page. */
+  .sub-summary {
+    flex: 0 0 280px;
+    margin-top: 8px;
+    padding: 22px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--bg);
+    box-shadow: var(--shadow-sm);
+    font-size: 13.5px;
+    color: var(--ink-2);
+    animation: subSummaryIn 0.22s ease both;
+  }
+  @keyframes subSummaryIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .sub-summary { animation: none; }
+  }
+  .sub-summary-head {
+    margin-bottom: 14px; padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  .sub-summary-head h3 {
+    margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .sub-summary-sub {
+    margin: 3px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted);
+  }
+
+  /* One priced module, or the single "Super Minty" row that replaces both. */
+  .sub-line {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .sub-line-label {
+    display: flex; flex-direction: column; gap: 2px;
+    font-weight: 600; color: var(--ink);
+  }
+  .sub-line-note { font-size: 11px; font-weight: 500; color: var(--muted); }
+  .sub-line-price { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .sub-amt { white-space: nowrap; font-weight: 600; color: var(--ink); }
+  .sub-per { font-size: 11px; font-weight: 500; color: var(--muted); }
+  /* Struck-through price: what it WOULD cost, next to what it does. */
+  .sub-strike {
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-thickness: 1.5px;
+  }
+  /* A module that is not selected — listed, but explicitly not charged for. */
+  .sub-line.is-off .sub-line-label { font-weight: 500; color: var(--muted); }
+  .sub-notbilled { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* The one-line explanation of the price above: the bundle saving, or what the
+     single-module trial converts to. */
+  .sub-callout {
+    margin: 14px 0 0; padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    font-size: 11.5px; line-height: 1.45; color: var(--accent-ink);
+  }
+
+  .sub-total {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-weight: 700; color: var(--ink);
+  }
+  .sub-total-right { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
+  /* Plain accent text, deliberately NOT .beta-pill — that one is a near-black
+     pill built for the module cards, and it reads as a second heavy element
+     right where the eye should land on the HK$0. */
+  .sub-trial-tag {
+    font-size: 12px; font-weight: 600; color: var(--accent-ink);
+    white-space: nowrap;
+  }
+  .sub-total-amt { font-size: 17px; font-weight: 800; color: var(--ink); white-space: nowrap; }
+  /* No rule above this one: the total's own divider already closes the panel, and a
+     second hairline this close reads as a box round the total rather than a footnote. */
+  .sub-trial-note {
+    margin: 10px 0 0;
+    font-size: 11.5px; line-height: 1.5; color: var(--muted);
+  }
+
+  /* Too narrow for the 960px break-out: fall back to the page's own width and stack. */
+  @media (max-width: 1024px) {
+    .module-layout {
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .module-layout .module-grid-2 { flex: 0 1 auto; width: 100%; max-width: 640px; margin: 8px auto 0; }
+    .sub-summary { flex: 0 0 auto; width: 100%; max-width: 640px; margin: 0 auto; }
+  }
+
   /* New 2-up module pick cards */
   .module-pick {
     display: flex; flex-direction: column; align-items: center; gap: 16px;
