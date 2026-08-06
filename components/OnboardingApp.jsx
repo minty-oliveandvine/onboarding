@@ -152,7 +152,7 @@ const STEPS = [
   { id: 5, label: 'Sales Setting', short: 'Sales Setting', tiny: 'Sales' },
   { id: 6, label: 'Account Code Setting', short: 'Account Code Setting', tiny: 'Account Code' },
   { id: 7, label: 'Others', short: 'Others', tiny: 'Others' },
-  { id: 8, label: 'Bill Settings', short: 'Bill Settings', tiny: 'Bill' },
+  { id: 8, label: 'Payment Settings', short: 'Payment Settings', tiny: 'Payment' },
   { id: 9, label: 'All Set', short: 'All Set', tiny: 'All Set' },
 ];
 
@@ -181,7 +181,7 @@ function getDisplaySteps(modules) {
     });
   }
   if (hasBills) {
-    out.push({ label: 'Bill Settings', tiny: 'Bill', ids: [8] });
+    out.push({ label: 'Payment Settings', tiny: 'Payment', ids: [8] });
   }
   out.push({ label: 'All Set', tiny: 'All Set', ids: [9] });
   return out.map((d, i) => ({ idx: i + 1, ...d }));
@@ -574,14 +574,6 @@ export default function OnboardingApp() {
     setCurrent(n);
     setMaxReached((m) => Math.max(m, n));
     persistSavedStep(n);
-  };
-  // Dev-only skip: advances without validation (will be removed at the end)
-  const skip = () => {
-    setCurrent((c) => {
-      const n = nextActiveId(c);
-      setMaxReached((m) => Math.max(m, n));
-      return n;
-    });
   };
   const back = () => setCurrent((c) => prevActiveId(c));
   const goto = (id) => {
@@ -1227,7 +1219,7 @@ export default function OnboardingApp() {
     const moduleCodes = (state.modules || [])
       .map((id) => FE_TO_BACKEND_MODULE[id])
       .filter(Boolean);
-    if (moduleCodes.length === 0) return { ok: false, error: "I need at least one module to get started." };
+    if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to get started — which one sounds right?" };
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(`${base}/api/onboarding/modules`, {
@@ -1727,7 +1719,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, skip, restart, submitEntity, submitModule, modulePlans, hasPaymentMethod, addPaymentMethod, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, restart, submitEntity, submitModule, modulePlans, hasPaymentMethod, addPaymentMethod, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
 
   return (
     <>

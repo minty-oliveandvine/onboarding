@@ -20,7 +20,7 @@ const SECTIONS = [
   },
   {
     title: 'Payment Request',
-    items: [{ label: 'Bills', icon: 'local_atm' }],
+    items: [{ label: 'Payments', icon: 'local_atm' }],
   },
 ];
 

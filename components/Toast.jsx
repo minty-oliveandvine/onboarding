@@ -112,10 +112,10 @@ export function ToastProvider({ children }) {
     api.current = {
       show,
       hide,
-      success: (m) => show(m || 'Success', 'success'),
-      error: (m) => show(m || 'Error', 'error'),
-      warning: (m) => show(m || 'Warning', 'warning'),
-      info: (m) => show(m || 'Information', 'info'),
+      success: (m) => show(m || 'All done!', 'success'),
+      error: (m) => show(m || "Something got stuck! Want to try again?", 'error'),
+      warning: (m) => show(m || "Hmm, worth a quick look before you carry on?", 'warning'),
+      info: (m) => show(m || "Here's something worth knowing.", 'info'),
     };
   }
 
