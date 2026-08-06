@@ -221,6 +221,185 @@ export const MODULES = [
   { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', price: '280 HKD per Month' },
 ];
 
+// Backend module codes → the ids used by MODULES / state.modules above, so the
+// live plan catalog from /api/onboarding/plans can be matched to the picked cards.
+const FE_MODULE_BY_CODE = { PETTY_CASH: 'pettyCash', BILL: 'bills' };
+
+/** Index the live plan catalog by frontend module id (empty when it didn't load). */
+function plansByModuleId(catalog) {
+  const byId = {};
+  (catalog?.plans || []).forEach((p) => {
+    const id = FE_MODULE_BY_CODE[p.code];
+    if (id) byId[id] = p;
+  });
+  return byId;
+}
+
+/**
+ * "HKD 560", but "HKD 560.50" when a price genuinely carries cents.
+ *
+ * Spaced, because the leading token is whatever /api/onboarding/plans sends as
+ * `currency_symbol` — and `currency_info` is empty, so in practice that is the bare
+ * code "HKD" rather than a symbol. "HKD560" runs together; "HKD 560" reads. The same
+ * space is what lib/amount.js formatMoney() already puts there.
+ */
+function money(symbol, value) {
+  const text = formatAmount(value).replace(/\.00$/, '');
+  if (!text) return '';
+  return symbol ? `${symbol} ${text}` : text;
+}
+
+/**
+ * The day the trial converts to paid. `long` spells the year out for the
+ * first-charge sentence; the short form is enough for the inline callout.
+ *
+ * Safe to compute during render: the panel only exists once a module has been
+ * picked, which is client-side state — the server render has `modules: []` and
+ * returns null above, so there is no date to mismatch on hydration.
+ */
+function trialEndLabel(days, { long = false } = {}) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days || 0));
+  return d.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    ...(long ? { year: 'numeric' } : {}),
+  });
+}
+
+/**
+ * Subscription summary for the module picker — the onboarding twin of Minty's
+ * settings panel (templates/entity/partials/module_subscription_section.html).
+ *
+ * The pricing rule is the SERVER'S rather than a second implementation of it: two
+ * modules together bill at the BUNDLE price — one `billing_plan` row keyed by the
+ * sorted module SET — and any other selection is the sum of the standalone plans.
+ * That is what get_subscription_summary and checkout do, so this preview and the
+ * invoice that eventually lands cannot quote different numbers.
+ *
+ * This used to read `catalog.discount_unit` / `catalog.discount_currency`, a
+ * coupon-shaped model left over from when the price catalog lived in Stripe.
+ * /api/onboarding/plans does not send those fields and never has — it sends
+ * bundle_amount / bundle_codes — so the discount silently evaluated to zero and
+ * picking both modules quoted the undiscounted 560 against the 400 they are
+ * actually billed. Reading the bundle is the fix.
+ *
+ * Nothing is charged on this step: the trials are created at
+ * /api/onboarding/finalize, so the total is shown as what the trial converts to
+ * and the first-charge date is named outright.
+ */
+function ModuleSubscriptionSummary({ catalog, selected }) {
+  const byId = plansByModuleId(catalog);
+  // Canonical order (Petty Cash, then Payment Request) rather than the order the
+  // cards were clicked, so the lines read the same as the settings summary.
+  const rows = MODULES.map((m) => ({
+    module: m,
+    plan: byId[m.id],
+    on: selected.includes(m.id),
+  })).filter((r) => r.plan);
+  const picked = rows.filter((r) => r.on);
+
+  // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
+  // The panel is absent entirely rather than reserved, so the cards stay centred
+  // on the page until there's actually something to show beside them.
+  if (picked.length === 0) return null;
+
+  const symbol = picked[0].plan.currency_symbol || picked[0].plan.currency_code || '';
+  const interval = picked[0].plan.billing_interval || 'month';
+  const per = interval === 'month' ? '/mo' : `/${interval}`;
+  const subtotal = picked.reduce((sum, r) => sum + r.plan.amount, 0);
+
+  // The bundle is a price in its own right, not a per-line discount, so it applies
+  // only when the picked set is EXACTLY the set it covers — the same test as
+  // BundlePlanView.covers() and the settings summary.
+  const bundleCodes = (catalog.bundle_codes || []).map((c) => String(c).toUpperCase());
+  const bundleAmount = Number(catalog.bundle_amount || 0);
+  const pickedCodes = picked.map((r) => String(r.plan.code).toUpperCase());
+  const isBundle =
+    bundleAmount > 0 &&
+    bundleCodes.length > 0 &&
+    bundleCodes.length === pickedCodes.length &&
+    bundleCodes.every((c) => pickedCodes.includes(c));
+
+  const total = isBundle ? bundleAmount : subtotal;
+  const saving = isBundle ? subtotal - bundleAmount : 0;
+  const trialDays = Number(catalog.trial_period_days || 0);
+
+  return (
+    <aside className="sub-summary" aria-live="polite">
+      <div className="sub-summary-head">
+        <h3>Your subscription</h3>
+        <p className="sub-summary-sub">Modules you&apos;ve enabled · billed {interval}ly</p>
+      </div>
+
+      {isBundle ? (
+        <div className="sub-line">
+          <span className="sub-line-label">
+            Super Minty
+            <span className="sub-line-note">{picked.map((r) => r.module.title).join(' & ')}</span>
+          </span>
+          <span className="sub-line-price">
+            <span className="sub-strike">
+              {money(symbol, subtotal)} {per}
+            </span>
+            <span className="sub-amt">
+              {money(symbol, bundleAmount)} <span className="sub-per">{per}</span>
+            </span>
+          </span>
+        </div>
+      ) : (
+        // Every module is listed, picked or not: an unpicked one reads "Not billed"
+        // rather than vanishing, so the panel shows what is NOT being charged for
+        // as plainly as what is.
+        rows.map((r) => (
+          <div key={r.plan.code} className={'sub-line' + (r.on ? '' : ' is-off')}>
+            <span className="sub-line-label">{r.module.title}</span>
+            {r.on ? (
+              <span className="sub-amt">
+                {money(symbol, r.plan.amount)} <span className="sub-per">{per}</span>
+              </span>
+            ) : (
+              <span className="sub-notbilled">Not billed</span>
+            )}
+          </div>
+        ))
+      )}
+
+      <div className="sub-callout">
+        {isBundle
+          ? `Super Minty price — save ${money(symbol, saving)} vs ${money(symbol, picked[0].plan.amount)} each.`
+          : trialDays
+            ? `${picked[0].module.title} free trial — ${money(symbol, total)}${per} after ${trialEndLabel(trialDays)}`
+            : `${picked[0].module.title} — ${money(symbol, total)}${per}`}
+      </div>
+
+      <div className="sub-total">
+        <span>Total</span>
+        <span className="sub-total-right">
+          {trialDays > 0 && (
+            <>
+              <span className="sub-strike">{money(symbol, total)}</span>
+              {/* Plain text, not the card's FreeTrialPill: that one is a dark pill
+                  whose tooltip quotes a single module's price, which would
+                  misstate the bundle. */}
+              <span className="sub-trial-tag">Free Trial</span>
+            </>
+          )}
+          <span className="sub-total-amt">
+            {trialDays > 0 ? money(symbol, 0) : money(symbol, total)}
+          </span>
+        </span>
+      </div>
+
+      {trialDays > 0 ? (
+        <p className="sub-trial-note">
+          You&apos;re on a free trial — first charge {money(symbol, total)} on {trialEndLabel(trialDays, { long: true })}.
+        </p>
+      ) : null}
+    </aside>
+  );
+}
+
 function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }) {
   const [pos, setPos] = useState(null);
   const [mounted, setMounted] = useState(false);
@@ -267,8 +446,26 @@ function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }
   );
 }
 
-export function StepSelectModule({ state, set, next, back, submitModule, saveAndExit }) {
+/**
+ * Temporarily hidden: the card is not collected during onboarding for now.
+ *
+ * Only the BUTTON is gone. The whole save-card round-trip behind it is left intact
+ * and still wired — addPaymentMethod() → /api/onboarding/payment-method/setup →
+ * hosted Stripe portal → back with `pm_session_id` → /payment-method/complete, plus
+ * the status read that sets `hasPaymentMethod`. An entity that already has a card
+ * (added before this flag, or from settings) still reports one and still bills
+ * normally; nothing about the flow was deleted or stubbed.
+ *
+ * Flip to true to bring the button back — that is the entire revert.
+ */
+const SHOW_ADD_PAYMENT_METHOD = false;
+
+export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, hasPaymentMethod, addPaymentMethod, saveAndExit }) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
+  // Live Stripe prices, when the catalog loaded. Everything price-related on this
+  // step (card price, caption, summary) reads from here so the three can't drift
+  // apart; each falls back to the static copy in MODULES if Stripe is unreachable.
+  const planById = plansByModuleId(modulePlans);
   // Multi-select toggle: clicking a card adds or removes it from the
   // selection. Continue is gated on sel.length > 0 so users must pick at
   // least one — both can be picked together for a full setup.
@@ -278,9 +475,37 @@ export function StepSelectModule({ state, set, next, back, submitModule, saveAnd
   };
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const [openingPm, setOpeningPm] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  // Either action in flight disables both, so they can't race each other.
+  const busy = saving || openingPm;
+  // Save & Next appears once there's a card on file, or once the user has opened the
+  // card form and come back — i.e. they've seen the choice. `state.pmOpened` is
+  // persisted with the rest of the wizard state, so it survives the Stripe redirect.
+  //
+  // With the button hidden there is no way left for a user to satisfy that gate, so
+  // it lifts entirely: leaving it in place would strand every new user on this step
+  // with no control that could release them.
+  const canContinue = !SHOW_ADD_PAYMENT_METHOD || hasPaymentMethod || !!state.pmOpened;
+
+  // Adding a card is OPTIONAL here — it decides how the trial ENDS (converts to paid
+  // vs lapses), not whether it can start. Hands off to a hosted Stripe setup Checkout.
+  const handleAddPaymentMethod = async () => {
+    if (sel.length === 0 || busy || typeof addPaymentMethod !== 'function') return;
+    setSaveError('');
+    setOpeningPm(true);
+    const result = await addPaymentMethod();
+    // On success the browser is already navigating to Stripe — leave the button in
+    // its busy state rather than flashing it back to idle mid-redirect.
+    if (!result?.ok) {
+      setOpeningPm(false);
+      setSaveError(result?.error || 'Could not open the payment form. Please try again.');
+    }
+  };
 
   const handleNext = async () => {
-    if (sel.length === 0 || saving) return;
+    if (sel.length === 0 || busy) return;
+    setSaveError('');
     if (typeof submitModule === 'function') {
       setSaving(true);
       const result = await submitModule();
@@ -301,10 +526,15 @@ export function StepSelectModule({ state, set, next, back, submitModule, saveAnd
         </h2>
         <p>Pick the module you&apos;d like to start with. You can add more later from settings.</p>
       </div>
+      <div className="module-layout">
       <div className="module-grid module-grid-2">
         {MODULES.map((m) => {
           const I = m.icon ? Icon[m.icon] : null;
           const on = sel.includes(m.id);
+          const plan = planById[m.id];
+          const price = plan
+            ? `${plan.currency_code} ${plan.formatted_amount} per ${plan.billing_interval === 'month' ? 'Month' : plan.billing_interval}`
+            : m.price;
           return (
             <div
               key={m.id}
@@ -329,7 +559,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, saveAnd
                     {m.title}
                   </div>
                   <div className="mp-price">
-                    <span className="mp-price-strike">{m.price}</span>
+                    <span className="mp-price-strike">{price}</span>
                     <FreeTrialPill />
                   </div>
                   <div className="mp-hover">
@@ -346,24 +576,60 @@ export function StepSelectModule({ state, set, next, back, submitModule, saveAnd
           );
         })}
       </div>
+        <ModuleSubscriptionSummary catalog={modulePlans} selected={sel} />
+      </div>
       <p className="module-caption">
-        *Each module is 280HKD /month subscription, free during the beta period.
+        {(() => {
+          const anyPlan = planById[sel[0]] || Object.values(planById)[0];
+          const priceText = anyPlan
+            ? `${anyPlan.currency_code} ${anyPlan.formatted_amount} /${anyPlan.billing_interval}`
+            : '280HKD /month';
+          return `*Each module is ${priceText} subscription, free during the beta period.`;
+        })()}
       </p>
       <div className="step-nav">
         <button className="btn btn-ghost" onClick={back}>
           <Icon.ArrowLeft /> Back
         </button>
         <div className="step-actions">
-          <SaveExitLink saveAndExit={saveAndExit} submitFn={submitModule} disabled={saving} />
-          <button className="btn btn-primary" disabled={sel.length === 0 || saving} onClick={handleNext}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
-          </button>
-          {sel.length === 0 && (
+          <SaveExitLink saveAndExit={saveAndExit} submitFn={submitModule} disabled={busy} />
+          {/* The card is OPTIONAL: adding one makes the trial convert to paid when it
+              ends; skipping it means the trial simply lapses. So this sits beside
+              Save & Next rather than blocking it. */}
+          {/* Only offered when there ISN'T a card yet — once one is on file there's
+              nothing to add, so the slot collapses and Save & Next stands alone. */}
+          {SHOW_ADD_PAYMENT_METHOD && !hasPaymentMethod && (
+            <button className="btn btn-ghost" disabled={sel.length === 0 || busy} onClick={handleAddPaymentMethod}>
+              {openingPm ? 'Opening…' : 'Add payment method'}
+            </button>
+          )}
+          {/* Save & Next is held back until the user has actually SEEN the card form
+              (or already has a card). The card is optional, but skipping it should be
+              a decision they made — not one they made by never noticing the option. */}
+          {canContinue && (
+            <button className="btn btn-primary" disabled={sel.length === 0 || busy} onClick={handleNext}>
+              {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
+            </button>
+          )}
+          {sel.length === 0 ? (
             <div className="step-reminder" role="note">
               <Icon.Info />
               Pick a module to continue with your registration.
             </div>
-          )}
+          ) : !canContinue ? (
+            <div className="step-reminder" role="note">
+              <Icon.Info />
+              Add a payment method to continue. You won&apos;t be charged during the free trial.
+            </div>
+          ) : null}
+          {/* Why the card form wouldn't open. Was being set and never rendered, so
+              the failure showed only as a button that stopped spinning. */}
+          {saveError ? (
+            <div className="step-reminder" role="alert">
+              <Icon.Info />
+              {saveError}
+            </div>
+          ) : null}
         </div>
       </div>
     </>
