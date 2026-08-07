@@ -60,7 +60,6 @@ function AuthContent() {
   const [error, setError] = useState("");
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const namesValid = !signupMode || (firstName.trim() !== "" && lastName.trim() !== "");
-  const canContinue = emailValid && namesValid && !sending;
 
   const emailLocked = Boolean(inviteToken && prefilledEmail);
   // Show the "sign in as <email>" notice whenever someone arrives from an
@@ -68,6 +67,38 @@ function AuthContent() {
   // invite click and the wrong-account bounce-back (the backend re-sends the
   // same invite+email params after forcing a logout).
   const showInviteNotice = Boolean(inviteToken && prefilledEmail);
+
+  // --- Terms of Use agreement -------------------------------------------
+  // Shown whenever this page is about to CREATE an account: self-serve signup
+  // (signupMode) or an invite accept. BOTH conditions are needed — invite
+  // links do not set ?mode=signup, so gating on signupMode alone would
+  // silently skip every invited user, and invitees are our largest group of
+  // new accounts.
+  //
+  // This page cannot know whether the OTP will create an account or log in an
+  // existing one; the server decides that. So an invitee who already has an
+  // account is shown a box for Terms they may have accepted already. Harmless:
+  // the unique index on (user_id, terms_version) makes the write idempotent,
+  // and that is the right trade against missing a genuine first-time invitee.
+  const isSignupFlow = signupMode || showInviteNotice;
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [termsVersion, setTermsVersion] = useState("");
+  // Fetched rather than hardcoded, so the consent record names the version
+  // that was actually live when this page rendered.
+  useEffect(() => {
+    if (!isSignupFlow) return;
+    fetch(`${FLASK_BASE}/legal/current`)
+      .then((r) => r.json())
+      .then((d) => setTermsVersion(d.terms_version || ""))
+      .catch(() => setTermsVersion(""));
+  }, [isSignupFlow]);
+
+  // The tick box gates sending the code at all, so an account cannot even
+  // begin without agreement. The binding check is still the server's — see
+  // _terms_consent_for_signup in the Flask app.
+  const termsValid = !isSignupFlow || termsAccepted;
+
+  const canContinue = emailValid && namesValid && termsValid && !sending;
 
   // Recovered values (and URL params) can resolve after the initial mount —
   // the recovery effect runs post-render — so sync them into the editable
@@ -104,6 +135,14 @@ function AuthContent() {
       qs.set("email", email);
       if (firstName) qs.set("fn", firstName);
       if (lastName) qs.set("ln", lastName);
+      // Carry the agreement to /auth/confirm, which is where verify-code (and
+      // therefore account creation) actually happens. These params are only a
+      // claim — the server records nothing it has not been told explicitly,
+      // and enforces the requirement itself.
+      if (isSignupFlow && termsAccepted) {
+        qs.set("ta", "1");
+        if (termsVersion) qs.set("tv", termsVersion);
+      }
       // The invite now travels in the /auth/confirm URL, so the storage
       // fallback has done its job — clear it so it can't resurface later.
       clearPendingInvite();
@@ -189,6 +228,36 @@ function AuthContent() {
                 title={emailLocked ? "This invite was sent to this address" : undefined}
               />
             </div>
+
+            {isSignupFlow && (
+              <div className="field">
+                <label
+                  htmlFor="auth-terms"
+                  style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontWeight: 400 }}
+                >
+                  {/* Unticked on every render — a pre-ticked box is not
+                      agreement, because the person has done nothing. */}
+                  <input
+                    id="auth-terms"
+                    type="checkbox"
+                    checked={termsAccepted}
+                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    style={{ marginTop: "0.25rem", flex: "none" }}
+                  />
+                  <span>
+                    I agree to the{" "}
+                    <a href={`${FLASK_BASE}/legal/terms`} target="_blank" rel="noopener noreferrer">
+                      Terms of Use
+                    </a>{" "}
+                    and{" "}
+                    <a href={`${FLASK_BASE}/legal/privacy`} target="_blank" rel="noopener noreferrer">
+                      Privacy Policy
+                    </a>
+                    .
+                  </span>
+                </label>
+              </div>
+            )}
 
             <button
               type="button"

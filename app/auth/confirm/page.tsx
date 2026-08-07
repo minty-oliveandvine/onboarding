@@ -25,6 +25,13 @@ function ConfirmContent() {
   const inviteToken = searchParams.get("invite") || "";
   const firstName = searchParams.get("fn") || "";
   const lastName = searchParams.get("ln") || "";
+  // Terms agreement, carried from /auth where the tick box lives. Account
+  // creation happens on THIS page's verify-code call, so the agreement has to
+  // travel with it. These are a claim, not proof — the server decides for
+  // itself whether to record anything (see _terms_consent_for_signup) and, once
+  // REQUIRE_TERMS_AT_SIGNUP is on, whether to refuse the sign-up outright.
+  const termsAccepted = searchParams.get("ta") === "1";
+  const termsVersion = searchParams.get("tv") || "";
   const emailDisplay = maskEmail(email);
 
   const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
@@ -80,6 +87,8 @@ function ConfirmContent() {
           invite: inviteToken,
           first_name: firstName,
           last_name: lastName,
+          terms_accepted: termsAccepted,
+          terms_version: termsVersion,
         }),
       });
       const data = await res.json().catch(() => ({}));
