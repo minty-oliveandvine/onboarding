@@ -231,10 +231,7 @@ function AuthContent() {
 
             {isSignupFlow && (
               <div className="field">
-                <label
-                  htmlFor="auth-terms"
-                  style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", fontWeight: 400 }}
-                >
+                <label htmlFor="auth-terms" className="auth-terms-label">
                   {/* Unticked on every render — a pre-ticked box is not
                       agreement, because the person has done nothing. */}
                   <input
@@ -242,15 +239,24 @@ function AuthContent() {
                     type="checkbox"
                     checked={termsAccepted}
                     onChange={(e) => setTermsAccepted(e.target.checked)}
-                    style={{ marginTop: "0.25rem", flex: "none" }}
                   />
                   <span>
                     I agree to the{" "}
-                    <a href={`${FLASK_BASE}/legal/terms`} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className="auth-link"
+                      href={`${FLASK_BASE}/legal/terms`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Terms of Use
                     </a>{" "}
                     and{" "}
-                    <a href={`${FLASK_BASE}/legal/privacy`} target="_blank" rel="noopener noreferrer">
+                    <a
+                      className="auth-link"
+                      href={`${FLASK_BASE}/legal/privacy`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       Privacy Policy
                     </a>
                     .
@@ -404,6 +410,38 @@ function AuthContent() {
           height: 20px;
           border-radius: 50%;
           object-fit: cover;
+        }
+        /* Ties with .form-stack .field label (0,2,1) in globals.css and wins
+           on order, the same way .auth-form beats .form-stack above. */
+        .field label.auth-terms-label {
+          display: flex;
+          gap: 8px;
+          align-items: flex-start;
+          font-size: 13.5px;
+          font-weight: 400;
+          line-height: 1.5;
+          color: var(--ink-2);
+          cursor: pointer;
+        }
+        /* globals.css ".field input" sets appearance:none and pins text-input
+           padding/border/background onto EVERY input inside .field — including
+           this checkbox, which then toggles state but never draws a tick, so it
+           reads as permanently unchecked. Restore the native control.
+           Specificity (0,3,1) beats ".form-stack .field input" (0,2,1)
+           outright, so this holds regardless of stylesheet order. */
+        .field .auth-terms-label input[type="checkbox"] {
+          appearance: auto;
+          -webkit-appearance: auto;
+          flex: none;
+          width: 16px;
+          height: 16px;
+          margin: 1px 0 0;
+          padding: 0;
+          border: 0;
+          border-radius: 0;
+          background: none;
+          accent-color: var(--accent);
+          cursor: pointer;
         }
         .auth-foot {
           margin: 4px 0 0;
