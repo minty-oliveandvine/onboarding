@@ -16,6 +16,7 @@ import {
   StepAllSet,
 } from './OnboardingSteps';
 import { toAmountString } from '@/lib/amount';
+import { formatToday } from '@/lib/date';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -550,6 +551,18 @@ export default function OnboardingApp() {
 
   const set = (patch) => setState((prev) => ({ ...prev, ...patch }));
 
+  // Latest `state` mirrored into a ref for async flows (cold resume) that must
+  // both write the state AND keep using the value they wrote. Reading it inside
+  // a setState updater doesn't work: React only runs the updater synchronously
+  // when the fiber has no other update pending (the eager-state bailout), so a
+  // variable assigned in there is undefined whenever anything else queued first.
+  // Writers that need this pair up `stateRef.current = next; setState(next);` so
+  // the ref carries the update even before the render commits.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // Persist the FE step the user is now on as the resume position. Written on
   // every advance (Save & Next) and on Save & Exit, so resume lands on the
   // furthest step reached — this is what lets the Xero gate fire its pop-up when
@@ -683,33 +696,40 @@ export default function OnboardingApp() {
       const sm = payload.sales_methods || {};
       const ob = payload.opening_balance || {};
       const obAmount = ob.opening_balance;
-      let nextState;
-      setState((prev) => {
-        nextState = {
-          ...prev,
-          entity: {
-            ...prev.entity,
-            id: payload.entity_id,
-            // Keep FE display defaults when the server omits a field.
-            ...(payload.entity?.name ? { name: payload.entity.name } : {}),
-            ...(payload.entity?.country ? { country: payload.entity.country } : {}),
-            ...(payload.entity?.currency ? { currency: payload.entity.currency } : {}),
-          },
-          modules,
-          xero: payload.xero?.connected
-            ? { connected: true, org: payload.xero.org || prev.xero.org }
-            : prev.xero,
-          invites: Array.isArray(payload.invites) ? payload.invites : prev.invites,
-          pettyCash: {
-            ...prev.pettyCash,
-            ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),
-            ...(Array.isArray(sm.delivery) ? { deliveryMethods: sm.delivery } : {}),
-            ...(ob.opening_date ? { openingDate: ob.opening_date } : {}),
-            ...(obAmount !== undefined && obAmount !== null ? { openingBalance: String(obAmount) } : {}),
-          },
-        };
-        return nextState;
-      });
+      // Built from `stateRef`, not from inside a setState updater: the updater
+      // only runs synchronously when nothing else is queued on this component,
+      // and the resume path queues setToken/setUser/entity-name first — so the
+      // updater ran during the next render and everything below read an
+      // undefined `nextState` ("Cannot read properties of undefined").
+      // The ref is current by now: the awaited fetch lands in a later task than
+      // the init effect, so its batched updates (incl. the URL entity_name) have
+      // rendered and the mirror effect has run.
+      const prev = stateRef.current;
+      const nextState = {
+        ...prev,
+        entity: {
+          ...prev.entity,
+          id: payload.entity_id,
+          // Keep FE display defaults when the server omits a field.
+          ...(payload.entity?.name ? { name: payload.entity.name } : {}),
+          ...(payload.entity?.country ? { country: payload.entity.country } : {}),
+          ...(payload.entity?.currency ? { currency: payload.entity.currency } : {}),
+        },
+        modules,
+        xero: payload.xero?.connected
+          ? { connected: true, org: payload.xero.org || prev.xero.org }
+          : prev.xero,
+        invites: Array.isArray(payload.invites) ? payload.invites : prev.invites,
+        pettyCash: {
+          ...prev.pettyCash,
+          ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),
+          ...(Array.isArray(sm.delivery) ? { deliveryMethods: sm.delivery } : {}),
+          ...(ob.opening_date ? { openingDate: ob.opening_date } : {}),
+          ...(obAmount !== undefined && obAmount !== null ? { openingBalance: String(obAmount) } : {}),
+        },
+      };
+      stateRef.current = nextState;
+      setState(nextState);
       // Seed the "last persisted" snapshot from the resumed entity so a revisit
       // to Step 1 that changes nothing stays a no-op (no needless PUT). Uses the
       // same fields nextState landed on, falling back to FE display defaults.
@@ -795,11 +815,7 @@ export default function OnboardingApp() {
       } catch {
         /* ignore */
       }
-      const today = new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      });
+      const today = formatToday();
       // The Xero tenant/org name reported back by Xero (real connected entity).
       const xeroOrg = (p.get('org') || '').trim();
       // Wrong-account block: the backend refused to connect because the Xero
@@ -972,11 +988,7 @@ export default function OnboardingApp() {
     // Starting a fresh attempt clears any prior wrong-account banner so a retry
     // doesn't show a stale "use the account for X" message.
     setXeroMismatch('');
-    const today = new Date().toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    const today = formatToday();
     if (!state.entity.id) {
       set({ xero: { connected: true, org: state.entity.name || 'Olive & Vine Inc', lastConnected: today } });
       return;

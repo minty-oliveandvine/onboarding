@@ -10,6 +10,7 @@ import Confetti from './Confetti';
 import { useToast } from './Toast';
 import { fetchCountries, fetchCurrencies } from '@/lib/refData';
 import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amount';
+import { formatDate } from '@/lib/date';
 
 // --- Reusable bits ---
 export function Switch({ on, onChange }) {
@@ -244,9 +245,20 @@ function plansByModuleId(catalog) {
  * space is what lib/amount.js formatMoney() already puts there.
  */
 function money(symbol, value) {
-  const text = formatAmount(value).replace(/\.00$/, '');
+  const text = trimZeroCents(formatAmount(value));
   if (!text) return '';
   return symbol ? `${symbol} ${text}` : text;
+}
+
+/**
+ * "280.00" -> "280", but "280.50" stays. The rule money() has always applied, pulled
+ * out because the module cards and the beta footnote print the SERVER's
+ * `formatted_amount` rather than formatting the number themselves — and that string
+ * arrives with the cents on, because it is the same formatter the invoice memo and the
+ * charge-confirmation dialog use, where the cents belong.
+ */
+function trimZeroCents(text) {
+  return String(text ?? '').replace(/\.00$/, '');
 }
 
 /**
@@ -260,7 +272,7 @@ function money(symbol, value) {
 function trialEndLabel(days, { long = false } = {}) {
   const d = new Date();
   d.setDate(d.getDate() + Number(days || 0));
-  return d.toLocaleDateString('en-GB', {
+  return formatDate(d, {
     day: 'numeric',
     month: 'short',
     ...(long ? { year: 'numeric' } : {}),
@@ -367,7 +379,7 @@ function ModuleSubscriptionSummary({ catalog, selected }) {
 
       <div className="sub-callout">
         {isBundle
-          ? `Super Minty price — save ${money(symbol, saving)} vs ${money(symbol, picked[0].plan.amount)} each.`
+          ? `Super Minty price — save ${money(symbol, saving)}.`
           : trialDays
             ? `${picked[0].module.title} free trial — ${money(symbol, total)}${per} after ${trialEndLabel(trialDays)}`
             : `${picked[0].module.title} — ${money(symbol, total)}${per}`}
@@ -533,7 +545,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           const on = sel.includes(m.id);
           const plan = planById[m.id];
           const price = plan
-            ? `${plan.currency_code} ${plan.formatted_amount} per ${plan.billing_interval === 'month' ? 'Month' : plan.billing_interval}`
+            ? `${plan.currency_code} ${trimZeroCents(plan.formatted_amount)} per ${plan.billing_interval === 'month' ? 'Month' : plan.billing_interval}`
             : m.price;
           return (
             <div
@@ -582,7 +594,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         {(() => {
           const anyPlan = planById[sel[0]] || Object.values(planById)[0];
           const priceText = anyPlan
-            ? `${anyPlan.currency_code} ${anyPlan.formatted_amount} /${anyPlan.billing_interval}`
+            ? `${anyPlan.currency_code} ${trimZeroCents(anyPlan.formatted_amount)} /${anyPlan.billing_interval}`
             : '280HKD /month';
           return `*Each module is ${priceText} subscription, free during the beta period.`;
         })()}
