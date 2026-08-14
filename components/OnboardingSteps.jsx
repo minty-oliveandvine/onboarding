@@ -397,9 +397,9 @@ function ModuleSubscriptionSummary({ catalog, selected }) {
               <span className="sub-trial-tag">Free Trial</span>
             </>
           )}
-          <span className="sub-total-amt">
-            {trialDays > 0 ? money(symbol, 0) : money(symbol, total)}
-          </span>
+          {trialDays > 0 ? null : (
+            <span className="sub-total-amt">{money(symbol, total)}</span>
+          )}
         </span>
       </div>
 

@@ -714,6 +714,10 @@ export default function OnboardingApp() {
           ...(payload.entity?.name ? { name: payload.entity.name } : {}),
           ...(payload.entity?.country ? { country: payload.entity.country } : {}),
           ...(payload.entity?.currency ? { currency: payload.entity.currency } : {}),
+          // Optional and legitimately empty, so key off presence rather than
+          // truthiness — otherwise a cleared phone/email would never rehydrate.
+          ...(payload.entity?.phone !== undefined ? { phone: payload.entity.phone } : {}),
+          ...(payload.entity?.email !== undefined ? { email: payload.entity.email } : {}),
         },
         modules,
         xero: payload.xero?.connected
@@ -1146,6 +1150,11 @@ export default function OnboardingApp() {
       entity_name: state.entity.name,
       country: state.entity.country,
       currency: state.entity.currency,
+      // Optional. Always sent, even when empty: the backend reads an empty
+      // string as "clear this field", so a user who deletes their phone number
+      // on revisit actually gets it removed.
+      business_email: (state.entity.email || '').trim(),
+      contact_phone: (state.entity.phone || '').replace(/\D/g, ''),
     };
 
     // --- Revisit: entity already exists, so this is an EDIT, not a create. ---
@@ -1157,7 +1166,9 @@ export default function OnboardingApp() {
         prev &&
         prev.entity_name === payload.entity_name &&
         prev.country === payload.country &&
-        prev.currency === payload.currency;
+        prev.currency === payload.currency &&
+        prev.business_email === payload.business_email &&
+        prev.contact_phone === payload.contact_phone;
       if (unchanged) return { ok: true };
 
       try {
