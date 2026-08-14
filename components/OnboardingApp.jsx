@@ -737,10 +737,15 @@ export default function OnboardingApp() {
       // Seed the "last persisted" snapshot from the resumed entity so a revisit
       // to Step 1 that changes nothing stays a no-op (no needless PUT). Uses the
       // same fields nextState landed on, falling back to FE display defaults.
+      // Normalized the same way submitEntity builds its payload, so the
+      // unchanged-check compares like with like — otherwise every resumed
+      // visit to Step 1 fired a pointless PUT on fields nobody touched.
       savedEntityRef.current = {
         entity_name: nextState.entity.name,
         country: nextState.entity.country,
         currency: nextState.entity.currency,
+        business_email: (nextState.entity.email || '').trim(),
+        contact_phone: (nextState.entity.phone || '').replace(/\D/g, ''),
       };
       // Land on the FE step the backend persisted (`payload.saved_step`), with
       // the Xero gate applied — deriveResumeStep handles the contract, including
