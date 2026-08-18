@@ -1654,3 +1654,83 @@
   /* Caption / tooltip text */
   .info-tip-pop p { font-size: 16px; }
   /* Avoid bumping ultra-compact UI chrome like step pills and badges */
+
+  /* Buy now sheet (Step 2: Choose a module).
+
+     Above .skip-modal-overlay (1000) rather than level with it: both are portalled to
+     the body, so equal z-indexes would be resolved by DOM order — which is mount order,
+     not what the user is looking at. */
+  .buynow-overlay {
+    position: fixed; inset: 0; z-index: 1100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; overflow-y: auto; overscroll-behavior: contain;
+    background: rgba(15, 23, 27, 0.45);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+  }
+  .buynow-sheet {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
+    padding: 24px;
+    max-width: 480px; width: 100%;
+    margin: auto;
+  }
+  .buynow-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+  .buynow-title { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .buynow-sub { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+  .buynow-close {
+    flex: none; margin-left: auto;
+    background: transparent; border: 0; cursor: pointer;
+    color: var(--muted); padding: 4px; border-radius: 8px; line-height: 0;
+  }
+  .buynow-close:hover { background: var(--surface-2); color: var(--ink-2); }
+  .buynow-close:disabled { cursor: not-allowed; opacity: 0.5; }
+
+  .buynow-loading { margin: 0; padding: 18px 0; font-size: 14px; color: var(--muted); }
+
+  .buynow-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
+  .buynow-pm {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; cursor: pointer;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    background: var(--bg); transition: border-color .15s, background .15s;
+  }
+  .buynow-pm:hover { background: var(--surface); }
+  .buynow-pm.is-chosen { border-color: var(--accent); background: var(--accent-soft); }
+  .buynow-pm input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+  .buynow-pm-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .buynow-pm-label { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .buynow-pm-meta { font-size: 12.5px; color: var(--muted); }
+  .buynow-pm-flag {
+    margin-left: auto; flex: none;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+    color: #b4231f; background: #fff1f1; border: 1px solid #ffcccc;
+    padding: 3px 8px; border-radius: 999px;
+  }
+
+  .buynow-add { font-size: 13.5px; }
+  .buynow-form { margin-top: 4px; }
+  /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
+     key is a hundred characters with no space in it — without a break opportunity the
+     paragraph refuses to wrap and runs out through the side of the dialog. */
+  .buynow-note,
+  .buynow-error {
+    margin: 14px 0 0; font-size: 13px; line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .buynow-note { color: var(--muted); }
+  .buynow-error {
+    color: #b4231f; background: #fff1f1;
+    border: 1px solid #ffcccc; border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .buynow-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .buynow-actions .btn { min-width: 108px; justify-content: center; }
+
+  @media (max-width: 560px) {
+    .buynow-sheet { padding: 20px 18px; }
+    .buynow-actions { flex-direction: column-reverse; }
+    .buynow-actions .btn { width: 100%; }
+  }

@@ -7,6 +7,7 @@ import Icon from './Icon';
 import MintySelect from './MintySelect';
 import MintyDatePicker from './MintyDatePicker';
 import Confetti from './Confetti';
+import BuyNowSheet from './BuyNowSheet';
 import { useToast } from './Toast';
 import { fetchCountries, fetchCurrencies } from '@/lib/refData';
 import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amount';
@@ -300,22 +301,16 @@ function trialEndLabel(days, { long = false } = {}) {
  * /api/onboarding/finalize, so the total is shown as what the trial converts to
  * and the first-charge date is named outright.
  */
-function ModuleSubscriptionSummary({ catalog, selected }) {
-  const byId = plansByModuleId(catalog);
-  // Canonical order (Petty Cash, then Payment Request) rather than the order the
-  // cards were clicked, so the lines read the same as the settings summary.
-  const rows = MODULES.map((m) => ({
-    module: m,
-    plan: byId[m.id],
-    on: selected.includes(m.id),
-  })).filter((r) => r.plan);
-  const picked = rows.filter((r) => r.on);
-
-  // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
-  // The panel is absent entirely rather than reserved, so the cards stay centred
-  // on the page until there's actually something to show beside them.
-  if (picked.length === 0) return null;
-
+/**
+ * What the picked modules cost, and when the first charge falls.
+ *
+ * Lifted out of the summary panel because Buy now has to quote the SAME figures: the
+ * dialog names an amount and a date the payer then consents to, and a second copy of the
+ * bundle test is exactly how that comes to disagree with the panel beside it.
+ *
+ * `picked` is the priced rows (module + plan), already filtered to the selection.
+ */
+function priceSelection(catalog, picked) {
   const symbol = picked[0].plan.currency_symbol || picked[0].plan.currency_code || '';
   const interval = picked[0].plan.billing_interval || 'month';
   const per = interval === 'month' ? '/mo' : `/${interval}`;
@@ -333,9 +328,50 @@ function ModuleSubscriptionSummary({ catalog, selected }) {
     bundleCodes.length === pickedCodes.length &&
     bundleCodes.every((c) => pickedCodes.includes(c));
 
-  const total = isBundle ? bundleAmount : subtotal;
-  const saving = isBundle ? subtotal - bundleAmount : 0;
-  const trialDays = Number(catalog.trial_period_days || 0);
+  return {
+    symbol,
+    interval,
+    per,
+    subtotal,
+    isBundle,
+    // Returned in its own right, not just folded into `total`: the summary's bundle line
+    // strikes the subtotal through and prints the bundle price beside it, so it needs
+    // both numbers at once.
+    bundleAmount,
+    total: isBundle ? bundleAmount : subtotal,
+    saving: isBundle ? subtotal - bundleAmount : 0,
+    trialDays: Number(catalog.trial_period_days || 0),
+  };
+}
+
+/**
+ * The priced rows for a selection, in canonical order — or [] when there is nothing to
+ * price (no catalog, or no module picked yet).
+ */
+function pricedRows(catalog, selected) {
+  const byId = plansByModuleId(catalog);
+  return MODULES.map((m) => ({ module: m, plan: byId[m.id], on: selected.includes(m.id) }))
+    .filter((r) => r.plan && r.on);
+}
+
+function ModuleSubscriptionSummary({ catalog, selected }) {
+  const byId = plansByModuleId(catalog);
+  // Canonical order (Petty Cash, then Payment Request) rather than the order the
+  // cards were clicked, so the lines read the same as the settings summary.
+  const rows = MODULES.map((m) => ({
+    module: m,
+    plan: byId[m.id],
+    on: selected.includes(m.id),
+  })).filter((r) => r.plan);
+  const picked = rows.filter((r) => r.on);
+
+  // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
+  // The panel is absent entirely rather than reserved, so the cards stay centred
+  // on the page until there's actually something to show beside them.
+  if (picked.length === 0) return null;
+
+  const { symbol, interval, per, subtotal, isBundle, bundleAmount, total, saving, trialDays } =
+    priceSelection(catalog, picked);
 
   return (
     <aside className="sub-summary" aria-live="polite">
@@ -458,21 +494,7 @@ function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }
   );
 }
 
-/**
- * Temporarily hidden: the card is not collected during onboarding for now.
- *
- * Only the BUTTON is gone. The whole save-card round-trip behind it is left intact
- * and still wired — addPaymentMethod() → /api/onboarding/payment-method/setup →
- * hosted Stripe portal → back with `pm_session_id` → /payment-method/complete, plus
- * the status read that sets `hasPaymentMethod`. An entity that already has a card
- * (added before this flag, or from settings) still reports one and still bills
- * normally; nothing about the flow was deleted or stubbed.
- *
- * Flip to true to bring the button back — that is the entire revert.
- */
-const SHOW_ADD_PAYMENT_METHOD = false;
-
-export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, hasPaymentMethod, addPaymentMethod, saveAndExit }) {
+export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, hasBillingConsent, onBillingConsent, saveAndExit }) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
   // Live Stripe prices, when the catalog loaded. Everything price-related on this
   // step (card price, caption, summary) reads from here so the three can't drift
@@ -487,32 +509,39 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   };
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const [openingPm, setOpeningPm] = useState(false);
+  const [openingBuyNow, setOpeningBuyNow] = useState(false);
+  const [buyNowOpen, setBuyNowOpen] = useState(false);
   const [saveError, setSaveError] = useState('');
   // Either action in flight disables both, so they can't race each other.
-  const busy = saving || openingPm;
-  // Save & Next appears once there's a card on file, or once the user has opened the
-  // card form and come back — i.e. they've seen the choice. `state.pmOpened` is
-  // persisted with the rest of the wizard state, so it survives the Stripe redirect.
-  //
-  // With the button hidden there is no way left for a user to satisfy that gate, so
-  // it lifts entirely: leaving it in place would strand every new user on this step
-  // with no control that could release them.
-  const canContinue = !SHOW_ADD_PAYMENT_METHOD || hasPaymentMethod || !!state.pmOpened;
+  const busy = saving || openingBuyNow;
 
-  // Adding a card is OPTIONAL here — it decides how the trial ENDS (converts to paid
-  // vs lapses), not whether it can start. Hands off to a hosted Stripe setup Checkout.
-  const handleAddPaymentMethod = async () => {
-    if (sel.length === 0 || busy || typeof addPaymentMethod !== 'function') return;
+  // What Buy now will quote. Computed from the same helper as the summary panel beside
+  // it, so the dialog can't name a figure the page has already contradicted.
+  const priced = pricedRows(modulePlans, sel);
+  const pricing = priced.length > 0 ? priceSelection(modulePlans, priced) : null;
+
+  /**
+   * Buy now is OPTIONAL and does not gate this step.
+   *
+   * It decides how the trial ENDS — converts to paid, or lapses — not whether it can
+   * start, so Save & Next never waits on it. A payer who skips it finishes onboarding
+   * and gets the full trial; it just runs out at day 30 instead of continuing.
+   *
+   * The module selection is saved FIRST. The dialog quotes a price for the modules
+   * picked, and consent recorded against a selection that was never persisted would be
+   * consent to something the entity doesn't have.
+   */
+  const handleBuyNow = async () => {
+    if (sel.length === 0 || busy || !pricing) return;
     setSaveError('');
-    setOpeningPm(true);
-    const result = await addPaymentMethod();
-    // On success the browser is already navigating to Stripe — leave the button in
-    // its busy state rather than flashing it back to idle mid-redirect.
-    if (!result?.ok) {
-      setOpeningPm(false);
-      setSaveError(result?.error || 'Could not open the payment form. Please try again.');
+    setOpeningBuyNow(true);
+    const saved = typeof submitModule === 'function' ? await submitModule() : { ok: true };
+    setOpeningBuyNow(false);
+    if (!saved?.ok) {
+      setSaveError(saved?.error || 'Could not save your selection. Please try again.');
+      return;
     }
+    setBuyNowOpen(true);
   };
 
   const handleNext = async () => {
@@ -605,33 +634,32 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         </button>
         <div className="step-actions">
           <SaveExitLink saveAndExit={saveAndExit} submitFn={submitModule} disabled={busy} />
-          {/* The card is OPTIONAL: adding one makes the trial convert to paid when it
-              ends; skipping it means the trial simply lapses. So this sits beside
-              Save & Next rather than blocking it. */}
-          {/* Only offered when there ISN'T a card yet — once one is on file there's
-              nothing to add, so the slot collapses and Save & Next stands alone. */}
-          {SHOW_ADD_PAYMENT_METHOD && !hasPaymentMethod && (
-            <button className="btn btn-ghost" disabled={sel.length === 0 || busy} onClick={handleAddPaymentMethod}>
-              {openingPm ? 'Opening…' : 'Add payment method'}
+          {/* Buy now is OPTIONAL and sits BESIDE Save & Next, never in front of it:
+              it decides how the trial ends (converts to paid vs lapses), not whether
+              it can start. Offered only until it's been done — consent is once per
+              entity, so a second pass would be a button that changes nothing. */}
+          {!hasBillingConsent && (
+            <button
+              className="btn btn-ghost"
+              disabled={sel.length === 0 || busy || !pricing}
+              onClick={handleBuyNow}
+            >
+              {openingBuyNow ? 'Opening…' : 'Buy now'}
             </button>
           )}
-          {/* Save & Next is held back until the user has actually SEEN the card form
-              (or already has a card). The card is optional, but skipping it should be
-              a decision they made — not one they made by never noticing the option. */}
-          {canContinue && (
-            <button className="btn btn-primary" disabled={sel.length === 0 || busy} onClick={handleNext}>
-              {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
-            </button>
-          )}
+          <button className="btn btn-primary" disabled={sel.length === 0 || busy} onClick={handleNext}>
+            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
+          </button>
           {sel.length === 0 ? (
             <div className="step-reminder" role="note">
               <Icon.Info />
               Pick a module to continue with your registration.
             </div>
-          ) : !canContinue ? (
+          ) : hasBillingConsent ? (
             <div className="step-reminder" role="note">
               <Icon.Info />
-              Add a payment method to continue. You won&apos;t be charged during the free trial.
+              Billing confirmed. Your free trial runs for {pricing?.trialDays || 30} days
+              — you won&apos;t be charged until it ends.
             </div>
           ) : null}
           {/* Why the card form wouldn't open. Was being set and never rendered, so
@@ -644,6 +672,24 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           ) : null}
         </div>
       </div>
+      {/* trialLabel is null rather than today's date when the catalog carries no trial:
+          trialEndLabel(0) returns today, and the dialog would otherwise promise a trial
+          that ends the moment it is read. The sheet says something else in that case. */}
+      {buyNowOpen && pricing ? (
+        <BuyNowSheet
+          token={token}
+          entityId={state.entity.id}
+          entityName={state.entity.name || 'this entity'}
+          priceLabel={`${money(pricing.symbol, pricing.total)} / ${pricing.interval}`}
+          trialLabel={pricing.trialDays > 0 ? trialEndLabel(pricing.trialDays, { long: true }) : null}
+          onClose={() => setBuyNowOpen(false)}
+          onDone={() => {
+            setBuyNowOpen(false);
+            if (typeof onBillingConsent === 'function') onBillingConsent();
+            toast.success("You're all set — we'll bill this entity when the trial ends.");
+          }}
+        />
+      ) : null}
     </>
   );
 }
