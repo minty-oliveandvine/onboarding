@@ -1209,7 +1209,7 @@
   /* Step 2 layout: module cards on the left, subscription summary on the right.
 
      This step needs more room than the 720px `.page > *` cap allows (640 cards +
-     32 gap + 280 summary = 952), so it breaks out of that cap and re-centres on
+     32 gap + 420 card = 1092), so it breaks out of that cap and re-centres on
      the page's axis with a negative left margin — no transform, so the pill's
      getBoundingClientRect stays honest.
 
@@ -1221,23 +1221,24 @@
     align-items: flex-start;
     justify-content: center;
     gap: 32px;
-    width: 960px;
+    width: 1092px;
     max-width: none;
-    margin-left: calc((100% - 960px) / 2);
+    margin-left: calc((100% - 1092px) / 2);
     margin-right: 0;
   }
   /* Fixed basis: the cards keep their size no matter what's beside them. */
   .module-layout .module-grid-2 { flex: 0 0 640px; margin: 8px 0 0; }
 
-  /* Subscription summary — the onboarding twin of Minty's settings panel. Fades
+  /* Subscription card — the onboarding twin of Minty's settings panel. Fades
      in on the first pick rather than popping, since the row re-centres with it. */
-  /* A white card, not a tinted one: the accent belongs to the callout inside it,
-     and tinting the whole panel leaves that callout with nothing to stand out
-     against. Border + soft shadow are what separate it from the white page. */
+  /* A white card, not a tinted one: the accent belongs to the trial box and the
+     Due today figure inside it, and tinting the whole panel leaves those with
+     nothing to stand out against. Border + soft shadow are what separate it from
+     the white page. */
   .sub-summary {
-    flex: 0 0 280px;
+    flex: 0 0 420px;
     margin-top: 8px;
-    padding: 22px;
+    padding: 24px;
     border: 1px solid var(--line);
     border-radius: 18px;
     background: var(--bg);
@@ -1253,77 +1254,104 @@
   @media (prefers-reduced-motion: reduce) {
     .sub-summary { animation: none; }
   }
-  .sub-summary-head {
-    margin-bottom: 14px; padding-bottom: 14px;
-    border-bottom: 1px solid var(--line);
-  }
+  /* No rule under the head: the trial box directly below is already a hard edge,
+     and a hairline above it reads as a second border round the box. */
+  .sub-summary-head { margin-bottom: 16px; }
   .sub-summary-head h3 {
-    margin: 0; font-size: 16px; font-weight: 700; color: var(--ink);
-    letter-spacing: -0.01em;
+    margin: 0; font-size: 19px; font-weight: 700; color: var(--ink);
+    letter-spacing: -0.015em;
   }
   .sub-summary-sub {
-    margin: 3px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--muted);
+    margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted);
   }
 
-  /* One priced module, or the single "Super Minty" row that replaces both. */
-  .sub-line {
+  /* The trial terms, stated once and in full: how long, how much, and when. */
+  .sub-trial-box {
+    padding: 13px 15px;
+    border-radius: 12px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+  }
+  .sub-trial-box-title { margin: 0; font-size: 14px; font-weight: 700; }
+  .sub-trial-box-body { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; }
+
+  /* Fact rows: label left, value right, hairline between. */
+  .sub-rows { margin-top: 4px; }
+  .sub-row {
     display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 12px; margin-bottom: 10px;
+    gap: 16px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
   }
-  .sub-line-label {
-    display: flex; flex-direction: column; gap: 2px;
-    font-weight: 600; color: var(--ink);
+  .sub-row-label { font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
+  .sub-row-value {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
+    font-size: 13.5px; font-weight: 700; color: var(--ink); text-align: right;
   }
-  .sub-line-note { font-size: 11px; font-weight: 500; color: var(--muted); }
-  .sub-line-price { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-  .sub-amt { white-space: nowrap; font-weight: 600; color: var(--ink); }
-  .sub-per { font-size: 11px; font-weight: 500; color: var(--muted); }
-  /* Struck-through price: what it WOULD cost, next to what it does. */
-  .sub-strike {
-    white-space: nowrap;
-    font-size: 12px;
-    color: var(--muted);
-    text-decoration: line-through;
-    text-decoration-thickness: 1.5px;
+  .sub-row-price { white-space: nowrap; }
+  .sub-row-note {
+    display: block;
+    font-size: 11.5px; font-weight: 500; line-height: 1.35; color: var(--muted);
   }
-  /* A module that is not selected — listed, but explicitly not charged for. */
-  .sub-line.is-off .sub-line-label { font-weight: 500; color: var(--muted); }
-  .sub-notbilled { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .sub-per { font-size: 12px; font-weight: 500; color: var(--muted); }
 
-  /* The one-line explanation of the price above: the bundle saving, or what the
-     single-module trial converts to. */
-  .sub-callout {
-    margin: 14px 0 0; padding: 10px 12px;
+  /* The one number the payer is looking for. Carries the accent — and an explicit
+     zero — because the question this card answers is "what does today cost". */
+  .sub-due {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 16px;
+    padding: 15px 0 17px;
+  }
+  .sub-due-label { font-size: 14px; font-weight: 700; color: var(--ink); }
+  .sub-due-label .sub-row-note { margin-top: 3px; font-weight: 500; }
+  .sub-due-amt {
+    font-size: 26px; font-weight: 800; line-height: 1;
+    color: var(--accent-ink);
+    white-space: nowrap;
+    letter-spacing: -0.02em;
+  }
+
+  /* What happens AFTER the trial. Deliberately grey, not accent: it is the caveat
+     to the offer above, and a second mint box would compete with it. */
+  .sub-note {
+    margin: 0;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: var(--surface-2);
+    font-size: 12px; line-height: 1.5; color: var(--ink-2);
+  }
+
+
+  /* Replaces the button once consent exists — consent is once per entity, so there
+     is nothing left to press. */
+  .sub-confirmed {
+    display: flex; align-items: flex-start; gap: 9px;
+    margin: 16px 0 0;
+    padding: 12px 14px;
     border-radius: 10px;
     background: var(--accent-soft);
-    font-size: 11.5px; line-height: 1.45; color: var(--accent-ink);
+    font-size: 12.5px; font-weight: 600; line-height: 1.45;
+    color: var(--accent-ink);
   }
+  .sub-confirmed svg { flex: 0 0 auto; margin-top: 1px; }
 
-  .sub-total {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px;
-    margin-top: 14px; padding-top: 12px;
+  .sub-terms {
+    margin: 14px 0 0;
+    padding-top: 13px;
     border-top: 1px solid var(--line);
-    font-weight: 700; color: var(--ink);
+    font-size: 11px; line-height: 1.5; color: var(--muted-2);
+    text-align: center;
   }
-  .sub-total-right { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; justify-content: flex-end; }
-  /* Plain accent text, deliberately NOT .beta-pill — that one is a near-black
-     pill built for the module cards, and it reads as a second heavy element
-     right where the eye should land on the HK$0. */
-  .sub-trial-tag {
-    font-size: 12px; font-weight: 600; color: var(--accent-ink);
-    white-space: nowrap;
+  .sub-terms-link {
+    color: var(--accent-ink);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
-  .sub-total-amt { font-size: 17px; font-weight: 800; color: var(--ink); white-space: nowrap; }
-  /* No rule above this one: the total's own divider already closes the panel, and a
-     second hairline this close reads as a box round the total rather than a footnote. */
-  .sub-trial-note {
-    margin: 10px 0 0;
-    font-size: 11.5px; line-height: 1.5; color: var(--muted);
-  }
+  .sub-terms-link:hover { color: var(--accent-hover); }
 
-  /* Too narrow for the 960px break-out: fall back to the page's own width and stack. */
-  @media (max-width: 1024px) {
+  /* Too narrow for the 1092px break-out: fall back to the page's own width and stack. */
+  @media (max-width: 1160px) {
     .module-layout {
       flex-direction: column;
       align-items: center;
@@ -1715,12 +1743,22 @@
   /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
      key is a hundred characters with no space in it — without a break opportunity the
      paragraph refuses to wrap and runs out through the side of the dialog. */
+  /* The mandate sets the type here, and the note matches it — it stands in for Stripe's
+     own suppressed line (terms.card:'never'), so it is a disclosure rather than fine
+     print and is not shrunk below the text around it. */
   .buynow-note,
+  .buynow-mandate,
   .buynow-error {
     margin: 14px 0 0; font-size: 13px; line-height: 1.5;
     overflow-wrap: anywhere;
   }
-  .buynow-note { color: var(--muted); }
+  .buynow-note,
+  .buynow-mandate { color: var(--muted); }
+  .buynow-mandate a {
+    color: var(--accent-ink); font-weight: 600;
+    text-decoration: underline; text-underline-offset: 2px;
+  }
+  .buynow-mandate a:hover { color: var(--accent); }
   .buynow-error {
     color: #b4231f; background: #fff1f1;
     border: 1px solid #ffcccc; border-radius: var(--radius-sm);
@@ -1728,9 +1766,14 @@
   }
   .buynow-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
   .buynow-actions .btn { min-width: 108px; justify-content: center; }
+  /* Pushed to the far left, away from Back/Confirm: it is the one action here that
+     leaves the step, and it should not sit close enough to Confirm to be hit for it. */
+  .buynow-later { margin-right: auto; }
 
   @media (max-width: 560px) {
     .buynow-sheet { padding: 20px 18px; }
     .buynow-actions { flex-direction: column-reverse; }
     .buynow-actions .btn { width: 100%; }
+    /* Stacked: the row's auto margin would push it a full column height away. */
+    .buynow-later { margin-right: 0; }
   }

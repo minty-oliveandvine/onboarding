@@ -263,44 +263,41 @@ function trimZeroCents(text) {
 }
 
 /**
- * The day the trial converts to paid. `long` spells the year out for the
- * first-charge sentence; the short form is enough for the inline callout.
+ * The trial length as a period rather than a day count — "1 month", "2 months", "14 days".
  *
- * Safe to compute during render: the panel only exists once a module has been
- * picked, which is client-side state — the server render has `modules: []` and
- * returns null above, so there is no date to mismatch on hydration.
+ * The server sends days (`trial_period_days`, currently 30) and the wizard says "30 days"
+ * everywhere else, which is right for a countdown. The card is an offer rather than a
+ * countdown, and an offer is quoted in the unit the subscription bills in.
+ *
+ * Only whole 30-day multiples become months. A 45-day trial is not "1.5 months" and
+ * rounding it to either neighbour would misstate the term in a document about money.
  */
-function trialEndLabel(days, { long = false } = {}) {
-  const d = new Date();
-  d.setDate(d.getDate() + Number(days || 0));
-  return formatDate(d, {
-    day: 'numeric',
-    month: 'short',
-    ...(long ? { year: 'numeric' } : {}),
-  });
+function trialPeriodLabel(days) {
+  const n = Number(days || 0);
+  if (n > 0 && n % 30 === 0) {
+    const months = n / 30;
+    return months === 1 ? '1 month' : `${months} months`;
+  }
+  return `${n} days`;
 }
 
 /**
- * Subscription summary for the module picker — the onboarding twin of Minty's
- * settings panel (templates/entity/partials/module_subscription_section.html).
+ * The day the trial converts to paid — "23 Sep 2026". The one date helper for this step:
+ * the card and the billing dialog quote the same day, so they read it from the same place.
  *
- * The pricing rule is the SERVER'S rather than a second implementation of it: two
- * modules together bill at the BUNDLE price — one `billing_plan` row keyed by the
- * sorted module SET — and any other selection is the sum of the standalone plans.
- * That is what get_subscription_summary and checkout do, so this preview and the
- * invoice that eventually lands cannot quote different numbers.
+ * Not the flow's uppercase "23 SEP 2026": both callers sit it inside a sentence about
+ * money, where a shouted month reads as an abbreviation of something rather than a date.
  *
- * This used to read `catalog.discount_unit` / `catalog.discount_currency`, a
- * coupon-shaped model left over from when the price catalog lived in Stripe.
- * /api/onboarding/plans does not send those fields and never has — it sends
- * bundle_amount / bundle_codes — so the discount silently evaluated to zero and
- * picking both modules quoted the undiscounted 560 against the 400 they are
- * actually billed. Reading the bundle is the fix.
- *
- * Nothing is charged on this step: the trials are created at
- * /api/onboarding/finalize, so the total is shown as what the trial converts to
- * and the first-charge date is named outright.
+ * Safe to compute during render: it is only ever called once a module has been picked,
+ * which is client-side state — the server render has `modules: []` and the card returns
+ * null before reaching here, so there is no date to mismatch on hydration.
  */
+function firstChargeLabel(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + Number(days || 0));
+  return formatDate(d, { day: 'numeric', month: 'short', year: 'numeric', upper: false });
+}
+
 /**
  * What the picked modules cost, and when the first charge falls.
  *
@@ -313,7 +310,6 @@ function trialEndLabel(days, { long = false } = {}) {
 function priceSelection(catalog, picked) {
   const symbol = picked[0].plan.currency_symbol || picked[0].plan.currency_code || '';
   const interval = picked[0].plan.billing_interval || 'month';
-  const per = interval === 'month' ? '/mo' : `/${interval}`;
   const subtotal = picked.reduce((sum, r) => sum + r.plan.amount, 0);
 
   // The bundle is a price in its own right, not a per-line discount, so it applies
@@ -331,7 +327,6 @@ function priceSelection(catalog, picked) {
   return {
     symbol,
     interval,
-    per,
     subtotal,
     isBundle,
     // Returned in its own right, not just folded into `total`: the summary's bundle line
@@ -354,96 +349,158 @@ function pricedRows(catalog, selected) {
     .filter((r) => r.plan && r.on);
 }
 
-function ModuleSubscriptionSummary({ catalog, selected }) {
-  const byId = plansByModuleId(catalog);
-  // Canonical order (Petty Cash, then Payment Request) rather than the order the
-  // cards were clicked, so the lines read the same as the settings summary.
-  const rows = MODULES.map((m) => ({
-    module: m,
-    plan: byId[m.id],
-    on: selected.includes(m.id),
-  })).filter((r) => r.plan);
-  const picked = rows.filter((r) => r.on);
+/**
+ * The trial-activation card for the module picker — the onboarding twin of Minty's
+ * settings panel (templates/entity/partials/module_subscription_section.html).
+ *
+ * The pricing rule is the SERVER'S rather than a second implementation of it: two
+ * modules together bill at the BUNDLE price — one `billing_plan` row keyed by the
+ * sorted module SET — and any other selection is the sum of the standalone plans.
+ * That is what get_subscription_summary and checkout do, so this preview and the
+ * invoice that eventually lands cannot quote different numbers. Both figures come out
+ * of priceSelection(), which Buy now is quoted from too.
+ *
+ * This used to read `catalog.discount_unit` / `catalog.discount_currency`, a
+ * coupon-shaped model left over from when the price catalog lived in Stripe.
+ * /api/onboarding/plans does not send those fields and never has — it sends
+ * bundle_amount / bundle_codes — so the discount silently evaluated to zero and
+ * picking both modules quoted the undiscounted 560 against the 400 they are
+ * actually billed. Reading the bundle is the fix.
+ *
+ * NOTHING IS CHARGED ON THIS STEP, and the card must never imply otherwise. Trials are
+ * created at /api/onboarding/finalize; the button below only opens the dialog that saves
+ * a card and records consent. That is why "Due today" prints an explicit zero rather
+ * than leaving the payer to infer it from a struck-through price — the previous version
+ * of this panel showed the words "Free Trial" beside a crossed-out total and never named
+ * the amount actually being taken today.
+ *
+ * The button is OPTIONAL. Consent decides how the trial ENDS — converts to paid, or
+ * lapses — not whether it can start, so the step's own Save & Next moves on without it.
+ */
+function ModuleSubscriptionSummary({ catalog, selected, hasBillingConsent }) {
+  const picked = pricedRows(catalog, selected);
 
   // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
   // The panel is absent entirely rather than reserved, so the cards stay centred
   // on the page until there's actually something to show beside them.
   if (picked.length === 0) return null;
 
-  const { symbol, interval, per, subtotal, isBundle, bundleAmount, total, saving, trialDays } =
-    priceSelection(catalog, picked);
+  const { symbol, interval, isBundle, total, trialDays } = priceSelection(catalog, picked);
+  const onTrial = trialDays > 0;
+  const priceText = `${money(symbol, total)} / ${interval}`;
 
   return (
     <aside className="sub-summary" aria-live="polite">
       <div className="sub-summary-head">
-        <h3>Your subscription</h3>
-        <p className="sub-summary-sub">Modules you&apos;ve enabled · billed {interval}ly</p>
+        <h3>{onTrial ? 'Start your free trial' : 'Confirm your subscription'}</h3>
+        <p className="sub-summary-sub">
+          {onTrial
+            ? "You won't be charged today. Your subscription will renew automatically after the trial."
+            : "You won't be charged today. Your subscription starts once billing is confirmed."}
+        </p>
       </div>
 
-      {isBundle ? (
-        <div className="sub-line">
-          <span className="sub-line-label">
-            Super Minty
-            <span className="sub-line-note">{picked.map((r) => r.module.title).join(' & ')}</span>
+      {/* The one line a payer who reads nothing else must still come away with: how long
+          they have, and the exact amount and date of the first charge. */}
+      {onTrial ? (
+        <div className="sub-trial-box">
+          <p className="sub-trial-box-title">{trialPeriodLabel(trialDays)} free trial</p>
+          <p className="sub-trial-box-body">
+            Your first payment of {money(symbol, total)} will be charged on{' '}
+            {firstChargeLabel(trialDays)}.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="sub-rows">
+        <div className="sub-row">
+          <span className="sub-row-label">Plan</span>
+          <span className="sub-row-value">
+            {isBundle ? (
+              <>
+                Super Minty
+                {/* Named as well as priced: the invoice will say "Super Minty", and a
+                    payer who only ever saw two module names here would not recognise it. */}
+                <span className="sub-row-note">
+                  {picked.map((r) => r.module.title).join(' & ')}
+                </span>
+              </>
+            ) : (
+              picked[0].module.title
+            )}
           </span>
-          <span className="sub-line-price">
-            <span className="sub-strike">
-              {money(symbol, subtotal)} {per}
-            </span>
-            <span className="sub-amt">
-              {money(symbol, bundleAmount)} <span className="sub-per">{per}</span>
+        </div>
+
+        {onTrial ? (
+          <div className="sub-row">
+            <span className="sub-row-label">Trial period</span>
+            <span className="sub-row-value">{trialPeriodLabel(trialDays)} free</span>
+          </div>
+        ) : null}
+
+        {/* One figure, bundle or not: `total` is already the bundle price when the
+            picked set is exactly the one it covers. The undiscounted subtotal is
+            deliberately not shown beside it — the payer is being asked what they will
+            pay, and a struck-through number they were never going to be charged is a
+            sales argument in the middle of a billing consent. */}
+        <div className="sub-row">
+          <span className="sub-row-label">First payment</span>
+          <span className="sub-row-value">
+            {/* Amount and interval in ONE flex item: .sub-row-value is a column so the
+                Plan row can stack its note, which makes a bare sibling span its own row
+                and breaks "HKD 280 / month" across two lines. */}
+            <span className="sub-row-price">
+              {money(symbol, total)} <span className="sub-per">/ {interval}</span>
             </span>
           </span>
         </div>
-      ) : (
-        // Every module is listed, picked or not: an unpicked one reads "Not billed"
-        // rather than vanishing, so the panel shows what is NOT being charged for
-        // as plainly as what is.
-        rows.map((r) => (
-          <div key={r.plan.code} className={'sub-line' + (r.on ? '' : ' is-off')}>
-            <span className="sub-line-label">{r.module.title}</span>
-            {r.on ? (
-              <span className="sub-amt">
-                {money(symbol, r.plan.amount)} <span className="sub-per">{per}</span>
-              </span>
-            ) : (
-              <span className="sub-notbilled">Not billed</span>
-            )}
-          </div>
-        ))
-      )}
-
-      <div className="sub-callout">
-        {isBundle
-          ? `Super Minty price — save ${money(symbol, saving)}.`
-          : trialDays
-            ? `${picked[0].module.title} free trial — ${money(symbol, total)}${per} after ${trialEndLabel(trialDays)}`
-            : `${picked[0].module.title} — ${money(symbol, total)}${per}`}
       </div>
 
-      <div className="sub-total">
-        <span>Total</span>
-        <span className="sub-total-right">
-          {trialDays > 0 && (
-            <>
-              <span className="sub-strike">{money(symbol, total)}</span>
-              {/* Plain text, not the card's FreeTrialPill: that one is a dark pill
-                  whose tooltip quotes a single module's price, which would
-                  misstate the bundle. */}
-              <span className="sub-trial-tag">Free Trial</span>
-            </>
-          )}
-          {trialDays > 0 ? null : (
-            <span className="sub-total-amt">{money(symbol, total)}</span>
-          )}
+      <div className="sub-due">
+        <span className="sub-due-label">
+          Due today
+          <span className="sub-row-note">
+            {onTrial ? 'No payment required' : 'Charged when your subscription begins'}
+          </span>
         </span>
+        <span className="sub-due-amt">{money(symbol, onTrial ? 0 : total)}</span>
       </div>
 
-      {trialDays > 0 ? (
-        <p className="sub-trial-note">
-          You&apos;re on a free trial — first charge {money(symbol, total)} on {trialEndLabel(trialDays, { long: true })}.
+      {onTrial ? (
+        <p className="sub-note">
+          After your free trial, you&apos;ll be charged {money(symbol, total)} per {interval}{' '}
+          until you cancel. You can cancel anytime before the first charge.
         </p>
       ) : null}
+
+      {/* The card states the terms; it does not carry the action. Confirming billing is
+          Buy now in the step footer, beside Save & Next — the two ways out of this step
+          belong together rather than one being here and one down there. */}
+      {hasBillingConsent ? (
+        <p className="sub-confirmed">
+          <Icon.CheckSm />
+          <span>
+            Billing confirmed — {priceText} will be charged{' '}
+            {onTrial ? 'when your trial ends' : 'when your subscription begins'}.
+          </span>
+        </p>
+      ) : null}
+
+      {hasBillingConsent ? null : (
+        <p className="sub-terms">
+          By continuing, you agree to the subscription terms.{' '}
+          {/* Placeholder: there is no terms page in this app yet, so the click is
+              swallowed rather than sending the payer to the top of the wizard. Swap the
+              href for the real URL — and drop the onClick — once one exists. */}
+          <a
+            className="sub-terms-link"
+            href="#"
+            onClick={(e) => e.preventDefault()}
+          >
+            (Details)
+          </a>
+        </p>
+      )}
     </aside>
   );
 }
@@ -509,11 +566,8 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   };
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const [openingBuyNow, setOpeningBuyNow] = useState(false);
   const [buyNowOpen, setBuyNowOpen] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  // Either action in flight disables both, so they can't race each other.
-  const busy = saving || openingBuyNow;
+  const busy = saving;
 
   // What Buy now will quote. Computed from the same helper as the summary panel beside
   // it, so the dialog can't name a figure the page has already contradicted.
@@ -521,32 +575,27 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   const pricing = priced.length > 0 ? priceSelection(modulePlans, priced) : null;
 
   /**
-   * Buy now is OPTIONAL and does not gate this step.
+   * Save & Next — the only way forward, and the only route to billing.
    *
-   * It decides how the trial ENDS — converts to paid, or lapses — not whether it can
-   * start, so Save & Next never waits on it. A payer who skips it finishes onboarding
-   * and gets the full trial; it just runs out at day 30 instead of continuing.
+   * Card and consent are asked for ON THE WAY OUT of this step rather than from a button
+   * of their own: the subscription card beside the modules has already stated the term,
+   * the amount and the date, so the dialog is the signature at the bottom of a page the
+   * payer has just read.
    *
-   * The module selection is saved FIRST. The dialog quotes a price for the modules
-   * picked, and consent recorded against a selection that was never persisted would be
-   * consent to something the entity doesn't have.
+   * ORDER MATTERS. The module selection is saved FIRST, before the dialog opens. The
+   * dialog quotes a price for the modules picked, and consent recorded against a
+   * selection that was never persisted would be consent to something the entity does
+   * not have.
+   *
+   * CONSENT REMAINS OPTIONAL. It decides how the trial ENDS — converts to paid, or
+   * lapses — not whether it can start, so dismissing the dialog still advances the step.
+   * A payer who skips it finishes onboarding and gets the full trial; it just runs out
+   * at the end of the term instead of continuing. That is why the dismissal path calls
+   * next() rather than stranding them here: the modules are already saved, and a second
+   * press of Save & Next would only reopen a dialog they just declined.
    */
-  const handleBuyNow = async () => {
-    if (sel.length === 0 || busy || !pricing) return;
-    setSaveError('');
-    setOpeningBuyNow(true);
-    const saved = typeof submitModule === 'function' ? await submitModule() : { ok: true };
-    setOpeningBuyNow(false);
-    if (!saved?.ok) {
-      setSaveError(saved?.error || 'Could not save your selection. Please try again.');
-      return;
-    }
-    setBuyNowOpen(true);
-  };
-
   const handleNext = async () => {
     if (sel.length === 0 || busy) return;
-    setSaveError('');
     if (typeof submitModule === 'function') {
       setSaving(true);
       const result = await submitModule();
@@ -556,7 +605,12 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         return;
       }
     }
-    next();
+    // Already consented, or nothing priced to consent to — nothing left to ask.
+    if (hasBillingConsent || !pricing) {
+      next();
+      return;
+    }
+    setBuyNowOpen(true);
   };
 
   return (
@@ -617,7 +671,11 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           );
         })}
       </div>
-        <ModuleSubscriptionSummary catalog={modulePlans} selected={sel} />
+        <ModuleSubscriptionSummary
+          catalog={modulePlans}
+          selected={sel}
+          hasBillingConsent={hasBillingConsent}
+        />
       </div>
       <p className="module-caption">
         {(() => {
@@ -634,19 +692,6 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         </button>
         <div className="step-actions">
           <SaveExitLink saveAndExit={saveAndExit} submitFn={submitModule} disabled={busy} />
-          {/* Buy now is OPTIONAL and sits BESIDE Save & Next, never in front of it:
-              it decides how the trial ends (converts to paid vs lapses), not whether
-              it can start. Offered only until it's been done — consent is once per
-              entity, so a second pass would be a button that changes nothing. */}
-          {!hasBillingConsent && (
-            <button
-              className="btn btn-ghost"
-              disabled={sel.length === 0 || busy || !pricing}
-              onClick={handleBuyNow}
-            >
-              {openingBuyNow ? 'Opening…' : 'Buy now'}
-            </button>
-          )}
           <button className="btn btn-primary" disabled={sel.length === 0 || busy} onClick={handleNext}>
             {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
           </button>
@@ -655,25 +700,11 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
               <Icon.Info />
               Pick a module to continue with your registration.
             </div>
-          ) : hasBillingConsent ? (
-            <div className="step-reminder" role="note">
-              <Icon.Info />
-              Billing confirmed. Your free trial runs for {pricing?.trialDays || 30} days
-              — you won&apos;t be charged until it ends.
-            </div>
-          ) : null}
-          {/* Why the card form wouldn't open. Was being set and never rendered, so
-              the failure showed only as a button that stopped spinning. */}
-          {saveError ? (
-            <div className="step-reminder" role="alert">
-              <Icon.Info />
-              {saveError}
-            </div>
           ) : null}
         </div>
       </div>
       {/* trialLabel is null rather than today's date when the catalog carries no trial:
-          trialEndLabel(0) returns today, and the dialog would otherwise promise a trial
+          firstChargeLabel(0) returns today, and the dialog would otherwise promise a trial
           that ends the moment it is read. The sheet says something else in that case. */}
       {buyNowOpen && pricing ? (
         <BuyNowSheet
@@ -681,12 +712,22 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           entityId={state.entity.id}
           entityName={state.entity.name || 'this entity'}
           priceLabel={`${money(pricing.symbol, pricing.total)} / ${pricing.interval}`}
-          trialLabel={pricing.trialDays > 0 ? trialEndLabel(pricing.trialDays, { long: true }) : null}
+          trialLabel={pricing.trialDays > 0 ? firstChargeLabel(pricing.trialDays) : null}
+          // Close is NOT skip: the backdrop, Esc and the X leave them on this step with
+          // the modules already saved, and Save & Next asks again. Moving on without
+          // consent is "Do it later", a button they have to mean to press.
           onClose={() => setBuyNowOpen(false)}
+          onDefer={() => {
+            // The modules are already saved and the trial will still start; only its
+            // conversion at term end is given up.
+            setBuyNowOpen(false);
+            next();
+          }}
           onDone={() => {
             setBuyNowOpen(false);
             if (typeof onBillingConsent === 'function') onBillingConsent();
             toast.success("You're all set — we'll bill this entity when the trial ends.");
+            next();
           }}
         />
       ) : null}

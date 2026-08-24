@@ -70,7 +70,7 @@ function reason(err, fallback) {
  * The card form. Split out because `useStripe`/`useElements` only work INSIDE
  * `<Elements>`, which can't be mounted until the client secret has arrived.
  */
-function CardForm({ setupIntent, forceDefault, onSaved, onBack, busyLabel }) {
+function CardForm({ setupIntent, onSaved, onBack, onDefer, busyLabel }) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
@@ -138,19 +138,25 @@ function CardForm({ setupIntent, forceDefault, onSaved, onBack, busyLabel }) {
               "The card form couldn't load. If you're running an ad blocker or privacy extension, allow js.stripe.com and try again.",
           );
         }}
-        options={{ layout: 'tabs' }}
+        /* `terms.card: 'never'` suppresses Stripe's own mandate line, which is rendered
+           inside the iframe and names the STRIPE ACCOUNT rather than Minty — in test mode
+           that reads "Cash sandbox". Suppressing it moves the disclosure obligation to us,
+           so the sentence below is not decoration: it is the mandate, and it has to keep
+           saying that a payment method is being stored and may be charged. */
+        options={{ layout: 'tabs', terms: { card: 'never' } }}
       />
 
-      {forceDefault ? (
-        <p className="buynow-note">
-          This will be the card your Minty invoices are charged to.
-        </p>
-      ) : (
-        <p className="buynow-note">
-          This card becomes your default — it replaces the card your Minty invoices are
-          charged to, including for any other entities you pay for.
-        </p>
-      )}
+      <p className="buynow-mandate">
+        By providing your payment method, you authorise Minty to charge applicable
+        subscription fees in accordance with the Subscription Terms.{' '}
+        {/* Placeholder, as on the subscription card: there is no terms page in this app
+            yet, so the click is swallowed rather than jumping to the top of the dialog.
+            This link is part of a mandate disclosure — it needs a real URL before the
+            wording above is doing its job. */}
+        <a href="#" onClick={(e) => e.preventDefault()}>
+          (Details)
+        </a>
+      </p>
 
       {error ? (
         <p className="buynow-error" role="alert">
@@ -159,6 +165,18 @@ function CardForm({ setupIntent, forceDefault, onSaved, onBack, busyLabel }) {
       ) : null}
 
       <div className="buynow-actions">
+        {/* The way out for a payer with no card to hand. Distinct from closing the
+            dialog, which leaves them on the step: this one moves onboarding on without
+            a card and without consent. Present on the empty-wallet path too, where
+            there is no list to go Back to. */}
+        <button
+          type="button"
+          className="btn btn-ghost buynow-later"
+          onClick={onDefer}
+          disabled={busy}
+        >
+          Do it later
+        </button>
         {onBack ? (
           <button type="button" className="btn btn-ghost" onClick={onBack} disabled={busy}>
             Back
@@ -180,8 +198,14 @@ function CardForm({ setupIntent, forceDefault, onSaved, onBack, busyLabel }) {
  * @param {string}   props.priceLabel e.g. "HK$280 / month" — already formatted upstream
  * @param {?string}  props.trialLabel e.g. "17 Sep 2026" — when the first charge falls,
  *                                or null when the catalog offers no trial at all
- * @param {Function} props.onClose    dismissed without consenting
+ * @param {Function} props.onClose    dismissed — the caller keeps them on the step
+ * @param {Function} props.onDefer    "Do it later" — move on with no card and no consent
  * @param {Function} props.onDone     consent recorded; the caller flips its own state
+ *
+ * onClose and onDefer are deliberately NOT the same thing. Closing (the X, Esc, a click
+ * on the backdrop) is "not now, I'm still reading" and must not navigate — a stray click
+ * outside a dialog is not a decision about billing. Deferring is the decision, and it is
+ * only ever reached by pressing a button that says so.
  */
 export default function BuyNowSheet({
   token,
@@ -190,6 +214,7 @@ export default function BuyNowSheet({
   priceLabel,
   trialLabel,
   onClose,
+  onDefer,
   onDone,
 }) {
   const [loading, setLoading] = useState(true);
@@ -307,8 +332,6 @@ export default function BuyNowSheet({
     }
   };
 
-  const selected = methods.find((m) => m.id === chosen);
-
   const body = (
     <div
       className="buynow-overlay"
@@ -317,10 +340,28 @@ export default function BuyNowSheet({
         if (e.target === e.currentTarget && !saving) onClose();
       }}
     >
-      <div className="buynow-sheet" role="dialog" aria-modal="true" aria-label="Buy now">
+      <div
+        className="buynow-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label={adding ? 'Add payment method' : 'Confirm billing'}
+      >
         <div className="buynow-head">
           <div>
-            <p className="buynow-title">Confirm billing for {entityName}</p>
+            {/* The title names what the dialog is asking for right now. With the card
+                form up there is nothing yet to confirm billing AGAINST — naming the
+                entity there promises a choice the payer has not been given. `adding`
+                covers both routes to the form: an empty wallet, and "Use a different
+                card" from a full one.
+
+                Held back entirely until the wallet has loaded: which of the two applies
+                is not known until then, and a payer with no card would otherwise watch
+                "Confirm billing for X" flip to "Add payment method" under them. */}
+            {loading ? null : (
+              <p className="buynow-title">
+                {adding ? 'Add payment method' : `Confirm billing for ${entityName}`}
+              </p>
+            )}
             {/* The single most important sentence in the dialog. A payer who reads
                 nothing else must still come away knowing today costs nothing — so the
                 no-trial wording says it too, rather than falling back to a bare price. */}
@@ -361,9 +402,9 @@ export default function BuyNowSheet({
               >
                 <CardForm
                   setupIntent={intent.setup_intent}
-                  forceDefault={methods.length === 0}
                   onSaved={saveNewCard}
                   onBack={methods.length > 0 ? () => setAdding(false) : null}
+                  onDefer={onDefer}
                   busyLabel="Confirming…"
                 />
               </Elements>
@@ -413,13 +454,6 @@ export default function BuyNowSheet({
               Use a different card
             </button>
 
-            {selected && selected.id !== defaultId ? (
-              <p className="buynow-note">
-                This card becomes your default — it replaces the card your Minty invoices
-                are charged to, including for any other entities you pay for.
-              </p>
-            ) : null}
-
             {error ? (
               <p className="buynow-error" role="alert">
                 {error}
@@ -427,13 +461,15 @@ export default function BuyNowSheet({
             ) : null}
 
             <div className="buynow-actions">
+              {/* Replaces "Cancel": the X and Esc already close, and a payer choosing
+                  not to do this now needs to know it does not block them. */}
               <button
                 type="button"
-                className="btn btn-ghost"
-                onClick={onClose}
+                className="btn btn-ghost buynow-later"
+                onClick={onDefer}
                 disabled={saving}
               >
-                Cancel
+                Do it later
               </button>
               <button
                 type="button"
