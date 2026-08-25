@@ -58,6 +58,19 @@ function ConfirmContent() {
   // Resend is offered once its cooldown elapses; the lockout disables it too.
   const canResend = !resending && resendCooldown === 0 && !locked;
 
+  // One state, one message. `error` holds whatever the server said and always
+  // wins. There is deliberately NO local expiry string here: the countdown and
+  // the server's TTL disagree by a second or two, so a request in flight when
+  // the timer crossed zero used to flash a local "this code has expired" before
+  // the server's own wording replaced it. Expiry is the server's to report.
+  const statusWarning = error
+    ? ""
+    : locked
+    ? "Too many tries! I’ve locked this account for a bit—check back soon?"
+    : noAttempts
+    ? "No attempts left — please resend the code."
+    : "";
+
   // Resend cooldown — ticks down to 0 once Resend Code has been triggered.
   useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -303,15 +316,9 @@ function ConfirmContent() {
           {error && <div className="auth-error" role="alert">{error}</div>}
 
           <div className="confirm-status" aria-live="polite">
-            {locked ? (
-              <span className="confirm-status-warn">
-                Too many tries! I’ve locked this account for a bit—check back soon?
-              </span>
-            ) : noAttempts ? (
-              <span className="confirm-status-warn">No attempts left — please resend the code.</span>
-            ) : expired ? (
-              <span className="confirm-status-warn">This code has expired — please resend the code.</span>
-            ) : attemptsLeft < MAX_ATTEMPTS ? (
+            {statusWarning ? (
+              <span className="confirm-status-warn">{statusWarning}</span>
+            ) : !locked && !noAttempts && attemptsLeft < MAX_ATTEMPTS ? (
               <>
                 {attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} remaining
               </>
