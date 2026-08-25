@@ -161,8 +161,33 @@ function ConfirmContent() {
     }
   };
 
+  /** Spread a run of digits across the cells from `start`, then park the
+   *  cursor on the last one filled. Shared by paste and by autofill, which on
+   *  Android arrives as a single change event carrying the whole code rather
+   *  than six separate ones. */
+  const fillFrom = (start: number, raw: string) => {
+    const chars = raw.replace(/\D/g, "").split("");
+    if (chars.length === 0) return;
+    setDigits((cur) => {
+      const next = [...cur];
+      for (let n = 0; n < chars.length && start + n < 6; n += 1) {
+        next[start + n] = chars[n];
+      }
+      return next;
+    });
+    inputsRef.current[Math.min(start + chars.length, 5)]?.focus();
+  };
+
   const setDigit = (i: number, raw: string) => {
-    const v = raw.replace(/\D/g, "").slice(-1);
+    const cleaned = raw.replace(/\D/g, "");
+    // More than one digit means autofill (or a paste the browser routed
+    // through onChange). Spread it rather than keeping the last character,
+    // which is what made a pasted code collapse into a single box.
+    if (cleaned.length > 1) {
+      fillFrom(i, cleaned);
+      return;
+    }
+    const v = cleaned.slice(-1);
     setDigits((cur) => {
       const next = [...cur];
       next[i] = v;
@@ -173,9 +198,38 @@ function ConfirmContent() {
     }
   };
 
+  const onPaste = (i: number, e: React.ClipboardEvent<HTMLInputElement>) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+    if (!pasted) return;
+    e.preventDefault();
+    // A full-length code fills from the start wherever it was dropped —
+    // pasting the whole thing onto the fourth box should still work. A short
+    // fragment fills from where the cursor actually is.
+    fillFrom(pasted.length >= 6 ? 0 : i, pasted);
+  };
+
   const onKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace" && !digits[i] && i > 0) {
+    if (e.key === "Backspace") {
+      // Standard OTP behaviour: clear this cell if it has something, otherwise
+      // step back AND clear that one. Without the second half, backspace over
+      // a full row only moves the cursor and appears to do nothing.
+      e.preventDefault();
+      const target = digits[i] ? i : Math.max(0, i - 1);
+      setDigits((cur) => {
+        const next = [...cur];
+        next[target] = "";
+        return next;
+      });
+      if (!digits[i] && i > 0) inputsRef.current[i - 1]?.focus();
+      return;
+    }
+    if (e.key === "ArrowLeft" && i > 0) {
+      e.preventDefault();
       inputsRef.current[i - 1]?.focus();
+    }
+    if (e.key === "ArrowRight" && i < 5) {
+      e.preventDefault();
+      inputsRef.current[i + 1]?.focus();
     }
   };
 
@@ -225,7 +279,13 @@ function ConfirmContent() {
                 value={d}
                 disabled={locked}
                 onChange={(e) => setDigit(i, e.target.value)}
-                onFocus={() => setActiveIdx(i)}
+                onPaste={(e) => onPaste(i, e)}
+                onFocus={(e) => {
+                  setActiveIdx(i);
+                  // Select the contents so typing over a filled cell replaces
+                  // it — maxLength={1} would otherwise just block the keypress.
+                  e.target.select();
+                }}
                 onKeyDown={(e) => onKeyDown(i, e)}
                 aria-label={`Digit ${i + 1} of 6`}
               />

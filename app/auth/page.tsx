@@ -8,6 +8,7 @@ import {
   clearPendingInvite,
 } from "../../lib/pendingInvite";
 import AuthTopbar from "@/components/AuthTopbar";
+import TermsModal from "@/components/TermsModal";
 import { FLASK_BASE } from "@/lib/flaskBase";
 
 function AuthContent() {
@@ -82,6 +83,11 @@ function AuthContent() {
   // and that is the right trade against missing a genuine first-time invitee.
   const isSignupFlow = signupMode || showInviteNotice;
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // The box cannot be ticked directly — it is set by agreeing INSIDE the modal,
+  // which only enables its own button once the document has been scrolled to
+  // the end. A Xero user meets the full document on the acceptance gate after
+  // login; this is how an OTP user meets the same thing.
+  const [termsOpen, setTermsOpen] = useState(false);
   const [termsVersion, setTermsVersion] = useState("");
   // Fetched rather than hardcoded, so the consent record names the version
   // that was actually live when this page rendered.
@@ -238,7 +244,19 @@ function AuthContent() {
                     id="auth-terms"
                     type="checkbox"
                     checked={termsAccepted}
-                    onChange={(e) => setTermsAccepted(e.target.checked)}
+                    readOnly
+                    onClick={(e) => {
+                      // Never ticked directly. Clicking opens the document;
+                      // the box is set only by agreeing at the end of it.
+                      // Un-ticking IS allowed — withdrawing agreement should
+                      // never require reading anything again.
+                      if (termsAccepted) {
+                        setTermsAccepted(false);
+                        return;
+                      }
+                      e.preventDefault();
+                      setTermsOpen(true);
+                    }}
                   />
                   <span>
                     I agree to the{" "}
@@ -262,6 +280,19 @@ function AuthContent() {
                     .
                   </span>
                 </label>
+                <TermsModal
+                  open={termsOpen}
+                  flaskBase={FLASK_BASE}
+                  onClose={() => setTermsOpen(false)}
+                  onAgree={(version: string) => {
+                    setTermsAccepted(true);
+                    // Prefer the version the modal actually rendered over the
+                    // one /legal/current reported: if the Terms moved between
+                    // the two fetches, this is the wording they really read.
+                    if (version) setTermsVersion(version);
+                    setTermsOpen(false);
+                  }}
+                />
               </div>
             )}
 
