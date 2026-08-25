@@ -226,6 +226,11 @@ export default function BuyNowSheet({
   const [intent, setIntent] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
   const [saving, setSaving] = useState(false);
+  // The saved-card list COLLAPSES to the chosen card. A payer with several cards made
+  // this sheet taller than the viewport and pushed the price and the buttons off the
+  // bottom — and the list is a control they want when changing something, not every
+  // time they read what they are agreeing to.
+  const [expanded, setExpanded] = useState(false);
   const closeRef = useRef(null);
 
   // Load the wallet once, on open. A payer with no Stripe customer yet (`has_account`
@@ -292,6 +297,12 @@ export default function BuyNowSheet({
       cancelled = true;
     };
   }, [adding, intent, methods.length, token]);
+
+  // Collapsible only when there is more than one card AND one of them is actually the
+  // chosen row. Without that second half, a `chosen` matching nothing — a default
+  // pointing at a detached card, say — would collapse the list to nothing at all and
+  // leave the payer no way to pick.
+  const collapsible = methods.length > 1 && methods.some((m) => m.id === chosen);
 
   const openCardForm = useCallback(() => {
     setError('');
@@ -418,9 +429,36 @@ export default function BuyNowSheet({
           </>
         ) : (
           <>
-            <ul className="buynow-list">
+            {/* Collapsed to the chosen card until the payer asks to change it. Every
+                row stays MOUNTED and is hidden with a class rather than filtered out of
+                the map: unmounting the unchosen radios would drop the group's keyboard
+                navigation, and a filtered list re-mounts on every toggle. */}
+            {collapsible ? (
+              <div className="buynow-listhead">
+                <span className="buynow-listlabel">Card to charge</span>
+                <button
+                  type="button"
+                  className="btn btn-link buynow-change"
+                  onClick={() => setExpanded((v) => !v)}
+                  disabled={saving}
+                  aria-expanded={expanded}
+                  aria-controls="buynow-pm-list"
+                >
+                  {expanded ? 'Done' : 'Change'}
+                </button>
+              </div>
+            ) : null}
+
+            <ul className="buynow-list" id="buynow-pm-list">
               {methods.map((m) => (
-                <li key={m.id}>
+                <li
+                  key={m.id}
+                  className={
+                    !expanded && collapsible && chosen !== m.id
+                      ? 'is-collapsed'
+                      : undefined
+                  }
+                >
                   <label className={'buynow-pm' + (chosen === m.id ? ' is-chosen' : '')}>
                     <input
                       type="radio"
@@ -428,7 +466,7 @@ export default function BuyNowSheet({
                       value={m.id}
                       checked={chosen === m.id}
                       disabled={saving}
-                      onChange={() => setChosen(m.id)}
+                      onChange={() => { setChosen(m.id); setExpanded(false); }}
                     />
                     <span className="buynow-pm-main">
                       <span className="buynow-pm-label">{m.label}</span>
@@ -445,14 +483,19 @@ export default function BuyNowSheet({
               ))}
             </ul>
 
-            <button
-              type="button"
-              className="btn btn-link buynow-add"
-              onClick={openCardForm}
-              disabled={saving}
-            >
-              Use a different card
-            </button>
+            {/* Only alongside the OPEN list. Collapsed, "Change" and "Use a different
+                card" would sit next to each other as two near-identical links doing
+                different things — one expands the list, one opens the card form. */}
+            {!collapsible || expanded ? (
+              <button
+                type="button"
+                className="btn btn-link buynow-add"
+                onClick={openCardForm}
+                disabled={saving}
+              >
+                Use a different card
+              </button>
+            ) : null}
 
             {error ? (
               <p className="buynow-error" role="alert">

@@ -1738,6 +1738,16 @@
     padding: 3px 8px; border-radius: 999px;
   }
 
+  /* The list header and its Change toggle. `is-collapsed` hides the rows the payer is
+     not currently on, rather than unmounting them — see the note in BuyNowSheet. */
+  .buynow-listhead {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    margin-bottom: 8px;
+  }
+  .buynow-listlabel { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .buynow-change { font-size: 13px; }
+  .buynow-list > li.is-collapsed { display: none; }
+
   .buynow-add { font-size: 13.5px; }
   .buynow-form { margin-top: 4px; }
   /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
