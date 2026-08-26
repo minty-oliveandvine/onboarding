@@ -1,6 +1,12 @@
 'use client';
 
-import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
+import {
+  AddressElement,
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
@@ -10,7 +16,6 @@ import {
   BillingError,
   confirmCardSetup,
   fetchPaymentMethods,
-  setDefaultPaymentMethod,
   startCardSetup,
 } from '@/lib/billing';
 import Icon from './Icon';
@@ -111,7 +116,11 @@ function CardForm({ setupIntent, onSaved, onBack, onDefer, busyLabel }) {
       // The card exists at Stripe now; this is what makes it the account's — and for a
       // first card, what creates the customer. A failure here is not cosmetic: the method
       // would sit attached to nothing.
-      await onSaved(confirmed?.id || setupIntent);
+      //
+      // The PAYMENT METHOD id rides along with the intent id: the caller nominates this
+      // company onto that exact card rather than letting Minty infer it from the account
+      // default, which is what stops one entity's confirmation moving the others.
+      await onSaved(confirmed?.id || setupIntent, confirmed?.payment_method);
     } catch (err) {
       setError(
         reason(
@@ -143,8 +152,21 @@ function CardForm({ setupIntent, onSaved, onBack, onDefer, busyLabel }) {
            that reads "Cash sandbox". Suppressing it moves the disclosure obligation to us,
            so the sentence below is not decoration: it is the mandate, and it has to keep
            saying that a payment method is being stored and may be charged. */
-        options={{ layout: 'tabs', terms: { card: 'never' } }}
+        options={{
+          layout: 'tabs',
+          terms: { card: 'never' },
+          /* The name and address are the AddressElement's below. Left on, PaymentElement
+             asks for them too and the payer fills the same fields twice. */
+          fields: { billingDetails: { name: 'never', address: 'never' } },
+        }}
       />
+
+      {/* The billing name and address the issuer checks. Collected here rather than left
+          out: the payer portal shows both on the saved card, and a method saved without
+          them shows blanks a payer cannot fill in from anywhere. */}
+      <div className="buynow-address">
+        <AddressElement options={{ mode: 'billing', display: { name: 'full' } }} />
+      </div>
 
       <p className="buynow-mandate">
         By providing your payment method, you authorise Minty to charge applicable
@@ -183,7 +205,7 @@ function CardForm({ setupIntent, onSaved, onBack, onDefer, busyLabel }) {
           </button>
         ) : null}
         <button type="submit" className="btn btn-primary" disabled={!stripe || busy || dead}>
-          {busy ? busyLabel : 'Confirm'}
+          {busy ? busyLabel : 'Save'}
         </button>
       </div>
     </form>
@@ -221,7 +243,6 @@ export default function BuyNowSheet({
   const [error, setError] = useState('');
   const [methods, setMethods] = useState([]);
   const [chosen, setChosen] = useState('');
-  const [defaultId, setDefaultId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [intent, setIntent] = useState(null);
   const [stripePromise, setStripePromise] = useState(null);
@@ -244,7 +265,6 @@ export default function BuyNowSheet({
         if (cancelled) return;
         const list = data.methods || [];
         setMethods(list);
-        setDefaultId(data.default_id || null);
         setChosen(data.default_id || (list[0] ? list[0].id : ''));
         if (list.length === 0) setAdding(true);
       } catch (err) {
@@ -312,30 +332,39 @@ export default function BuyNowSheet({
   /**
    * Consent for a card the payer just typed in.
    *
-   * `make_default: true` — a card added HERE is the one they were shown and agreed to be
-   * charged on, so it must be the one that gets charged. Adding it without defaulting
-   * would record consent against a different card than the dialog described.
+   * `make_default: false`. THIS SHEET DOES NOT TOUCH THE ACCOUNT DEFAULT — it is confirming
+   * one entity, and the default is account-wide, so making every captured card the default
+   * silently re-pointed which card the payer's OTHER companies would be offered. The card
+   * is named on `authorizeBilling` instead, which puts this company on it and moves nothing
+   * else. A payer's FIRST card still becomes the default: Minty does that itself, because
+   * an account whose only card is not the default has nothing for dunning to point at.
+   *
+   * Promoting a card afterwards belongs to the payer portal (Billing → "Make default").
    */
-  const saveNewCard = async (setupIntentId) => {
-    await confirmCardSetup(token, setupIntentId, true);
-    await authorizeBilling(token, entityId);
+  const saveNewCard = async (setupIntentId, paymentMethodId) => {
+    await confirmCardSetup(token, setupIntentId, false);
+    // Without the id we would be back to Minty inferring the card from the account
+    // default, so it is passed explicitly. It is absent only if Stripe returned no intent
+    // object, in which case the fallback is the old behaviour rather than no nomination.
+    await authorizeBilling(token, entityId, paymentMethodId);
     onDone();
   };
 
   /**
    * Consent for a card already on file.
    *
-   * The default is set FIRST and consent only if that succeeded. The payer agreed to be
-   * billed on the card this dialog named; recording consent while the account still points
-   * at a different card would authorise a charge they were never shown.
+   * The card is NOMINATED first and the consent recorded only if that succeeded — the same
+   * guarantee the old `setDefaultPaymentMethod` call gave, one level down and confined to
+   * this company. The payer agreed to be billed on the card this sheet named; recording
+   * consent while the company still points at a different card would authorise a charge
+   * they were never shown. Both happen inside `authorizeBilling`, in that order.
    */
   const confirmExisting = async () => {
     if (!chosen || saving) return;
     setSaving(true);
     setError('');
     try {
-      if (chosen !== defaultId) await setDefaultPaymentMethod(token, chosen);
-      await authorizeBilling(token, entityId);
+      await authorizeBilling(token, entityId, chosen);
       onDone();
     } catch (err) {
       setError(reason(err, "Couldn't confirm billing. Please try again."));
@@ -355,7 +384,7 @@ export default function BuyNowSheet({
         className="buynow-sheet"
         role="dialog"
         aria-modal="true"
-        aria-label={adding ? 'Add payment method' : 'Confirm billing'}
+        aria-label={adding ? 'New billing account' : 'Confirm billing'}
       >
         <div className="buynow-head">
           <div>
@@ -367,17 +396,29 @@ export default function BuyNowSheet({
 
                 Held back entirely until the wallet has loaded: which of the two applies
                 is not known until then, and a payer with no card would otherwise watch
-                "Confirm billing for X" flip to "Add payment method" under them. */}
+                "Confirm billing for X" flip to "New billing account" under them. */}
             {loading ? null : (
               <p className="buynow-title">
-                {adding ? 'Add payment method' : `Confirm billing for ${entityName}`}
+                {adding ? 'New billing account' : `Confirm billing for ${entityName}`}
               </p>
             )}
-            {/* The single most important sentence in the dialog. A payer who reads
-                nothing else must still come away knowing today costs nothing — so the
-                no-trial wording says it too, rather than falling back to a bare price. */}
+            {/* Two sentences for two questions, and they swap with the title above.
+
+                ON THE FORM: where the card number goes, worded identically in Minty and
+                the payer portal — the same act, in three apps, should not be explained
+                three ways. What may be charged, and when, is the mandate under the form.
+
+                ON THE LIST: the single most important sentence in the dialog. A payer who
+                reads nothing else must still come away knowing today costs nothing — so
+                the no-trial wording says it too, rather than falling back to a bare
+                price. */}
             <p className="buynow-sub">
-              {trialLabel ? (
+              {adding ? (
+                <>
+                  Card details are held by our payment provider, Stripe — they are never
+                  stored by Minty.
+                </>
+              ) : trialLabel ? (
                 <>
                   You won&apos;t be charged today. Your free trial runs until {trialLabel},
                   then {priceLabel} — unless you cancel before then.
@@ -433,9 +474,14 @@ export default function BuyNowSheet({
                 row stays MOUNTED and is hidden with a class rather than filtered out of
                 the map: unmounting the unchosen radios would drop the group's keyboard
                 navigation, and a filtered list re-mounts on every toggle. */}
-            {collapsible ? (
-              <div className="buynow-listhead">
-                <span className="buynow-listlabel">Card to charge</span>
+            {/* The header is ALWAYS here, one saved card or seven. It used to appear only
+                alongside a collapsible list, so a payer with a single card met an
+                unlabelled row — the same list, in the same product, missing the words
+                that say what it is. The TOGGLE is still conditional: "Change" over a
+                one-row list is a control that cannot do anything. */}
+            <div className="buynow-listhead">
+              <span className="buynow-listlabel">Billing accounts</span>
+              {methods.length > 1 ? (
                 <button
                   type="button"
                   className="btn btn-link buynow-change"
@@ -446,8 +492,8 @@ export default function BuyNowSheet({
                 >
                   {expanded ? 'Done' : 'Change'}
                 </button>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
 
             <ul className="buynow-list" id="buynow-pm-list">
               {methods.map((m) => (
@@ -472,30 +518,44 @@ export default function BuyNowSheet({
                       <span className="buynow-pm-label">{m.label}</span>
                       <span className="buynow-pm-meta">
                         {m.expiry ? `Expires ${m.expiry}` : m.wallet_label || m.brand_label}
-                        {m.is_default ? ' · Current default' : ''}
                       </span>
                     </span>
-                    {/* An expired card can be selected and would be charged — say so here
-                        rather than at the first failed renewal weeks from now. */}
-                    {m.expired ? <span className="buynow-pm-flag">Expired</span> : null}
+                    {/* The flags, as PILLS rather than words appended to the meta line.
+                        What a card IS to the account and when it stops working are facts
+                        about the card, not part of its expiry date, and the same rail in
+                        the same order carries them in Minty and the payer portal.
+
+                        An expired card can still be selected and WOULD be charged — said
+                        here rather than at the first failed renewal weeks from now. */}
+                    <span className="buynow-pm-flags">
+                      {m.is_default ? (
+                        <span className="buynow-pm-flag is-default">Default</span>
+                      ) : null}
+                      {m.expires_soon && !m.expired ? (
+                        <span className="buynow-pm-flag is-soon">Expiring soon</span>
+                      ) : null}
+                      {m.expired ? (
+                        <span className="buynow-pm-flag is-expired">Expired</span>
+                      ) : null}
+                    </span>
                   </label>
                 </li>
               ))}
             </ul>
 
-            {/* Only alongside the OPEN list. Collapsed, "Change" and "Use a different
-                card" would sit next to each other as two near-identical links doing
-                different things — one expands the list, one opens the card form. */}
-            {!collapsible || expanded ? (
-              <button
-                type="button"
-                className="btn btn-link buynow-add"
-                onClick={openCardForm}
-                disabled={saving}
-              >
-                Use a different card
-              </button>
-            ) : null}
+            {/* ALWAYS shown, collapsed list or open. It used to be hidden beside a
+                collapsed list so that "Change" and the add-card link were never two
+                near-identical links side by side — a fair worry, but the restart screen
+                and the payer portal both show the pair, and a link that comes and goes as
+                the list opens is the stranger thing to meet. */}
+            <button
+              type="button"
+              className="btn btn-link buynow-add"
+              onClick={openCardForm}
+              disabled={saving}
+            >
+              New billing account
+            </button>
 
             {error ? (
               <p className="buynow-error" role="alert">

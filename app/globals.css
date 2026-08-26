@@ -1688,8 +1688,23 @@
      Above .skip-modal-overlay (1000) rather than level with it: both are portalled to
      the body, so equal z-indexes would be resolved by DOM order — which is mount order,
      not what the user is looking at. */
+  /* The entrance, shared with Minty's dialogs and the payer portal's: a 150ms fade on the
+     scrim and a 180ms fade-and-rise on the sheet.
+
+     TRANSLATE ONLY — NEVER SCALE. `transform: scale()` changes what
+     getBoundingClientRect reports, and Stripe measures the box it is mounting into. A
+     sheet still scaling at 0.98 when the Elements iframe mounts lays the card form out
+     to a width the dialog does not have. A translate moves the box without resizing it,
+     so the same entrance is safe on the one dialog that hosts an iframe. */
+  @keyframes buynowOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes buynowSheetIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
   .buynow-overlay {
     position: fixed; inset: 0; z-index: 1100;
+    animation: buynowOverlayIn .15s ease-out both;
     display: flex; align-items: center; justify-content: center;
     padding: 20px; overflow-y: auto; overscroll-behavior: contain;
     background: rgba(15, 23, 27, 0.45);
@@ -1697,6 +1712,7 @@
     backdrop-filter: blur(2px);
   }
   .buynow-sheet {
+    animation: buynowSheetIn .18s cubic-bezier(.16, 1, .3, 1) both;
     background: var(--bg);
     border: 1px solid var(--line);
     border-radius: var(--radius);
@@ -1705,9 +1721,19 @@
     max-width: 480px; width: 100%;
     margin: auto;
   }
+  /* Asked not to move, it does not move. The dialog still appears; it simply arrives
+     rather than travelling. */
+  @media (prefers-reduced-motion: reduce) {
+    .buynow-overlay, .buynow-sheet { animation: none; }
+  }
+
   .buynow-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
-  .buynow-title { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--ink); }
-  .buynow-sub { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--ink-2); }
+  /* The type scale is the payer portal's, so the same dialog is the same size wherever it
+     is opened from: 18px/28px title (its `text-lg`) and a 13.5px sub-line at the inherited
+     1.5, not 16px and 1.55. Two points of title is small on paper and obvious side by
+     side, because it is the first line of the dialog. */
+  .buynow-title { margin: 0 0 6px; font-size: 18px; line-height: 28px; font-weight: 700; color: var(--ink); }
+  .buynow-sub { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
   .buynow-close {
     flex: none; margin-left: auto;
     background: transparent; border: 0; cursor: pointer;
@@ -1731,12 +1757,28 @@
   .buynow-pm-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .buynow-pm-label { font-size: 14px; font-weight: 600; color: var(--ink); }
   .buynow-pm-meta { font-size: 12.5px; color: var(--muted); }
-  .buynow-pm-flag {
-    margin-left: auto; flex: none;
-    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
-    color: #b4231f; background: #fff1f1; border: 1px solid #ffcccc;
-    padding: 3px 8px; border-radius: 999px;
+  /* The flag rail. One pill per fact, in a fixed order — what the card is to the account,
+     then how close it is to not working — so the same card reads the same way here, on
+     Minty's restart screen and in the payer portal. Every pill is the same shape; only the
+     colour family changes, because they are the same KIND of statement. */
+  .buynow-pm-flags { margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px; }
+  /* STACKED on a narrow screen. Side by side, two pills plus the radio left the card
+     label about half the row, so "Visa •••• 5556" broke across two lines and its expiry
+     across two more. In a column they take one pill's width and the label keeps the
+     rest. 560px is the same breakpoint the sheet's action row stacks at. */
+  @media (max-width: 560px) {
+    .buynow-pm-flags { flex-direction: column; align-items: flex-end; }
   }
+  .buynow-pm-flag {
+    flex: none;
+    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
+    border: 1px solid transparent;
+    padding: 3px 8px; border-radius: 999px;
+    white-space: nowrap;
+  }
+  .buynow-pm-flag.is-default { color: #267347; background: #d6edd9; border-color: #b5ddbd; }
+  .buynow-pm-flag.is-soon    { color: #9e690d; background: #fce6bd; border-color: #f2d59b; }
+  .buynow-pm-flag.is-expired { color: #b4231f; background: #fff1f1; border-color: #ffcccc; }
 
   /* The list header and its Change toggle. `is-collapsed` hides the rows the payer is
      not currently on, rather than unmounting them — see the note in BuyNowSheet. */
@@ -1744,12 +1786,17 @@
     display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
     margin-bottom: 8px;
   }
-  .buynow-listlabel { font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .buynow-change { font-size: 13px; }
+  /* Also the payer portal's: a 14px semibold heading over the list, and a 13.5px text
+     button beside it — not 13px for both, which read as a caption rather than a heading. */
+  .buynow-listlabel { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .buynow-change { font-size: 13.5px; }
   .buynow-list > li.is-collapsed { display: none; }
 
   .buynow-add { font-size: 13.5px; }
   .buynow-form { margin-top: 4px; }
+  /* Spacing only. The AddressElement themes itself from Stripe's stock appearance, the
+     same as the PaymentElement above it — nothing here should try to restyle its insides. */
+  .buynow-address { margin-top: 16px; }
   /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
      key is a hundred characters with no space in it — without a break opportunity the
      paragraph refuses to wrap and runs out through the side of the dialog. */
@@ -1762,6 +1809,9 @@
     margin: 14px 0 0; font-size: 13px; line-height: 1.5;
     overflow-wrap: anywhere;
   }
+  /* Half a point larger than the mandate, as it is in the payer portal. An error is read
+     once, under pressure, and the mandate is standing text — they are not the same job. */
+  .buynow-error { font-size: 13.5px; }
   .buynow-note,
   .buynow-mandate { color: var(--muted); }
   .buynow-mandate a {
