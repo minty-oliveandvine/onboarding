@@ -54,21 +54,32 @@ function ConfirmContent() {
   const code = digits.join("");
   const noAttempts = attemptsLeft === 0;
   const expired = secondsLeft <= 0;
-  const canVerify = code.length === 6 && !verifying && !noAttempts && !expired && !locked;
+  // `expired` deliberately does NOT gate this. Disabling Verify on a local
+  // countdown meant the request was never sent, so the server never got to say
+  // "This code has expired" — the button just went grey with no explanation.
+  // Let it through: the server owns the real TTL and answers authoritatively,
+  // and the two clocks disagree by a second or two anyway.
+  const canVerify = code.length === 6 && !verifying && !noAttempts && !locked;
   // Resend is offered once its cooldown elapses; the lockout disables it too.
   const canResend = !resending && resendCooldown === 0 && !locked;
 
-  // One state, one message. `error` holds whatever the server said and always
-  // wins. There is deliberately NO local expiry string here: the countdown and
-  // the server's TTL disagree by a second or two, so a request in flight when
-  // the timer crossed zero used to flash a local "this code has expired" before
-  // the server's own wording replaced it. Expiry is the server's to report.
+  // One state, one message. `error` holds whatever the server said and ALWAYS
+  // wins — that is what stops a local expiry string flashing over the top of a
+  // reply already in flight when the timer crossed zero.
+  //
+  // The local expiry line exists so the person is told something the moment the
+  // countdown ends, rather than watching a button go grey for no stated reason.
+  // It is worded identically to the server's own message, so whichever one they
+  // see reads the same. The server remains the authority: Verify stays enabled
+  // past zero (see canVerify) so its answer, not this line, decides.
   const statusWarning = error
     ? ""
     : locked
     ? "Too many tries! I’ve locked this account for a bit—check back soon?"
     : noAttempts
     ? "No attempts left — please resend the code."
+    : expired
+    ? "This code has expired. Please request a new one."
     : "";
 
   // Resend cooldown — ticks down to 0 once Resend Code has been triggered.

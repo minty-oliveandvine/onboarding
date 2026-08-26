@@ -76,11 +76,10 @@ function AuthContent() {
   // silently skip every invited user, and invitees are our largest group of
   // new accounts.
   //
-  // This page cannot know whether the OTP will create an account or log in an
-  // existing one; the server decides that. So an invitee who already has an
-  // account is shown a box for Terms they may have accepted already. Harmless:
-  // the unique index on (user_id, terms_version) makes the write idempotent,
-  // and that is the right trade against missing a genuine first-time invitee.
+  // An invitee who ALREADY has an account and already agreed must not be asked
+  // again — see termsRequired below. This page cannot work that out on its own
+  // (it knows an email, not whether that email has an account, let alone
+  // whether it has consented), so it asks the server.
   const isSignupFlow = signupMode || showInviteNotice;
   const [termsAccepted, setTermsAccepted] = useState(false);
   // The box cannot be ticked directly — it is set by agreeing INSIDE the modal,
@@ -89,6 +88,12 @@ function AuthContent() {
   // login; this is how an OTP user meets the same thing.
   const [termsOpen, setTermsOpen] = useState(false);
   const [termsVersion, setTermsVersion] = useState("");
+  // Whether this person still owes an acceptance. Defaults to TRUE and only
+  // ever relaxes on an explicit server answer, so a failed request, a slow
+  // network or an unknown token all leave the tick box in place. Wrongly
+  // asking twice is an annoyance; wrongly skipping is a missing consent record.
+  const [termsRequired, setTermsRequired] = useState(true);
+
   // Fetched rather than hardcoded, so the consent record names the version
   // that was actually live when this page rendered.
   useEffect(() => {
@@ -99,10 +104,28 @@ function AuthContent() {
       .catch(() => setTermsVersion(""));
   }, [isSignupFlow]);
 
+  // Only an INVITE can be resolved this way — the answer is keyed on the invite
+  // token, which is a secret already bound to one address. A self-serve signup
+  // has no token and no confirmed email yet, so it always shows the box.
+  useEffect(() => {
+    if (!isSignupFlow || !inviteToken) return;
+    fetch(`${FLASK_BASE}/legal/invite-terms-status?invite=${encodeURIComponent(inviteToken)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.terms_required === false) setTermsRequired(false);
+      })
+      .catch(() => {
+        /* leave it required */
+      });
+  }, [isSignupFlow, inviteToken]);
+
+  // The box is shown only when it is actually needed.
+  const showTermsBox = isSignupFlow && termsRequired;
+
   // The tick box gates sending the code at all, so an account cannot even
   // begin without agreement. The binding check is still the server's — see
   // _terms_consent_for_signup in the Flask app.
-  const termsValid = !isSignupFlow || termsAccepted;
+  const termsValid = !showTermsBox || termsAccepted;
 
   const canContinue = emailValid && namesValid && termsValid && !sending;
 
@@ -128,7 +151,15 @@ function AuthContent() {
       const res = await fetch(`${FLASK_BASE}/auth/email/request-code`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        // The invite token rides along so the server can refuse a code that
+        // would go to an address the invitation was not sent to (see
+        // _validate_invite_for_email in the Flask app). Without it that guard
+        // never runs here, and the mismatch is only caught at verify-code —
+        // after a code has already been sent to an inbox that cannot use it.
+        body: JSON.stringify({
+          email,
+          ...(inviteToken ? { invite: inviteToken } : {}),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.status === "error") {
@@ -145,7 +176,7 @@ function AuthContent() {
       // therefore account creation) actually happens. These params are only a
       // claim — the server records nothing it has not been told explicitly,
       // and enforces the requirement itself.
-      if (isSignupFlow && termsAccepted) {
+      if (showTermsBox && termsAccepted) {
         qs.set("ta", "1");
         if (termsVersion) qs.set("tv", termsVersion);
       }
@@ -235,7 +266,7 @@ function AuthContent() {
               />
             </div>
 
-            {isSignupFlow && (
+            {showTermsBox && (
               <div className="field">
                 <label htmlFor="auth-terms" className="auth-terms-label">
                   {/* Unticked on every render — a pre-ticked box is not
