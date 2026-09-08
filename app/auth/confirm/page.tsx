@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { friendlyError } from "@/lib/errorCopy";
 import AuthTopbar from "@/components/AuthTopbar";
 import { FLASK_BASE } from "@/lib/flaskBase";
 
@@ -120,7 +121,7 @@ function ConfirmContent() {
       // survives refresh/new session — lock the whole form and show the message.
       if (res.status === 429) {
         setLocked(true);
-        if (data.message) setError(data.message);
+        setError(friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"));
         setVerifying(false);
         return;
       }
@@ -129,7 +130,7 @@ function ConfirmContent() {
         // counter on any server-acknowledged failure. Network errors (catch
         // branch) don't count — no code was actually submitted then.
         setAttemptsLeft((a) => Math.max(0, a - 1));
-        setError(data.message || "Hmm, that code doesn't look right. Want to try again?");
+        setError(friendlyError(data, "That code doesn't look right. Mind trying again?"));
         setVerifying(false);
         return;
       }
@@ -140,7 +141,7 @@ function ConfirmContent() {
           : FLASK_BASE;
       window.location.href = target;
     } catch {
-      setError("My connection timed out—let's try that again.");
+      setError("I couldn't reach the server. Mind trying again?");
       setVerifying(false);
     }
   };
@@ -160,13 +161,13 @@ function ConfirmContent() {
       // 429s. Keep the form locked and show the too-many-attempts message.
       if (res.status === 429) {
         setLocked(true);
-        if (data.message) setError(data.message);
+        setError(friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"));
         setResending(false);
         return;
       }
       if (!res.ok || data.status === "error") {
         // 400 covers early-resend ("Please wait a moment…") and other failures.
-        setError(data.message || "Something got stuck resending that! One more try?");
+        setError(friendlyError(data, "I couldn't resend that code. Mind trying again?"));
         setResending(false);
         return;
       }
@@ -180,7 +181,7 @@ function ConfirmContent() {
       setResending(false);
       inputsRef.current[0]?.focus();
     } catch {
-      setError("My connection timed out—let's try that again.");
+      setError("I couldn't reach the server. Mind trying again?");
       setResending(false);
     }
   };

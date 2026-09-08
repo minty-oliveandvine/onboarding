@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import ReactDOM from 'react-dom';
 import Icon from './Icon';
+import { friendlyError } from '../lib/errorCopy';
 import NavMenu from './NavMenu';
 import {
   StepCreateEntity,
@@ -995,11 +996,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "That didn't quite work—let's try disconnecting again." };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't disconnect that. Mind trying again?") };
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1147,7 +1148,10 @@ export default function OnboardingApp() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const backendMsg = (data.error || data.message || '').toString();
+          const backendMsg = friendlyError(
+            data,
+            "I couldn't save that company. Mind trying again?",
+          );
           if (res.status === 409) {
             return {
               ok: false,
@@ -1155,12 +1159,12 @@ export default function OnboardingApp() {
               error: `Oh, “${state.entity.name.trim()}” is taken already! Do you have another name in mind?`,
             };
           }
-          return { ok: false, error: backendMsg || "Something got stuck saving that! Want to try again?" };
+          return { ok: false, error: backendMsg };
         }
         savedEntityRef.current = { ...payload };
         return { ok: true };
       } catch {
-        return { ok: false, error: "My connection timed out—let's try that again." };
+        return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
       }
     }
 
@@ -1178,7 +1182,10 @@ export default function OnboardingApp() {
         // status, not the message: the body is {"error": "Entity name already
         // exist"} with no machine code, and the wording could change. A 400 is
         // a different validation failure (e.g. empty name), so pass it through.
-        const backendMsg = (data.error || data.message || '').toString();
+        const backendMsg = friendlyError(
+          data,
+          "I couldn't create that company. Mind trying again?",
+        );
         if (res.status === 409) {
           return {
             ok: false,
@@ -1186,7 +1193,7 @@ export default function OnboardingApp() {
             error: `Oh, “${state.entity.name.trim()}” is taken already! Do you have another name in mind?`,
           };
         }
-        return { ok: false, error: backendMsg || "That didn't quite work—let's try creating it again." };
+        return { ok: false, error: backendMsg };
       }
       if (data.entity_id) {
         setState((prev) => ({ ...prev, entity: { ...prev.entity, id: data.entity_id } }));
@@ -1194,7 +1201,7 @@ export default function OnboardingApp() {
       savedEntityRef.current = { ...payload };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1213,10 +1220,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, modules: moduleCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck! Want to try that again?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "Something went wrong on my end. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1234,10 +1241,10 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those! Want to try again?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1262,10 +1269,10 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving that balance! One more try?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save that opening balance. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1353,10 +1360,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, expense_codes: selectedCodes, mapping }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those codes! One more try?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those account codes. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1380,10 +1387,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, contacts }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those contacts! One more try?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those contacts. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1413,7 +1420,7 @@ export default function OnboardingApp() {
         // route the user back to the Xero step.
         return {
           ok: false,
-          error: data.error || "That didn't quite work—let's try adding them again.",
+          error: friendlyError(data, "I couldn't add those. Mind trying again?"),
           notConnected: res.status === 409 || data.connected === false,
         };
       }
@@ -1421,7 +1428,7 @@ export default function OnboardingApp() {
       setAccountOptions((prev) => ({ ...prev, contacts: [...(prev.contacts || []), option] }));
       return { ok: true, option };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1471,10 +1478,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, selected_codes: selectedCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "Something got stuck saving those codes! One more try?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those account codes. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1489,7 +1496,7 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, email, role, first_name, last_name }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "That invite didn't go through! Want to try again?" };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't send that invitation. Mind trying again?") };
       // The invitation row can be created even when the email itself fails to
       // go out (Brevo/SMTP error) — the backend signals that with
       // email_sent: false. Pass it through so the UI can warn instead of
@@ -1503,7 +1510,7 @@ export default function OnboardingApp() {
         data.email_sent ?? (data.invitation && data.invitation.email_sent);
       return { ok: true, invitation: data.invitation, emailSent: emailSentFlag !== false };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
@@ -1517,10 +1524,10 @@ export default function OnboardingApp() {
         body: JSON.stringify({ invitation_id: invitationId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: data.error || "That didn't quite work—let's try cancelling again." };
+      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't cancel that. Mind trying again?") };
       return { ok: true };
     } catch {
-      return { ok: false, error: "My connection timed out—let's try that again." };
+      return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 

@@ -753,7 +753,7 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
     if (!xeroMismatch) return;
     toast.error(
       xeroMismatch === 'unknown'
-        ? "Hmm, that's a different Xero account. Sign in with your onboarding email?"
+        ? "That's a different Xero account. Sign in with your onboarding email?"
         : `Hmm, that's a different Xero account. Sign in with ${xeroMismatch}?`
     );
     if (typeof clearXeroMismatch === 'function') clearXeroMismatch();
@@ -1846,7 +1846,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     if (!canSend) return;
     if (!emailOk) {
       setEmailTouched(true);
-      notify.error("Hmm, that doesn't look like an email. Try user@domain.com?");
+      notify.error("That doesn't look like an email. Try user@domain.com?");
       return;
     }
     setSending(true);

@@ -113,8 +113,8 @@ export function ToastProvider({ children }) {
       show,
       hide,
       success: (m) => show(m || 'All done!', 'success'),
-      error: (m) => show(m || "Something got stuck! Want to try again?", 'error'),
-      warning: (m) => show(m || "Hmm, worth a quick look before you carry on?", 'warning'),
+      error: (m) => show(m || "Something went wrong on my end. Mind trying again?", 'error'),
+      warning: (m) => show(m || "Worth a quick look before you carry on.", 'warning'),
       info: (m) => show(m || "Here's something worth knowing.", 'info'),
     };
   }

@@ -10,6 +10,7 @@ import {
 import AuthTopbar from "@/components/AuthTopbar";
 import TermsModal from "@/components/TermsModal";
 import { FLASK_BASE } from "@/lib/flaskBase";
+import { friendlyError } from "@/lib/errorCopy";
 
 function AuthContent() {
   const router = useRouter();
@@ -163,7 +164,7 @@ function AuthContent() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data.status === "error") {
-        setError(data.message || "Something got stuck sending that code! Want to try again?");
+        setError(friendlyError(data, "I couldn't send that code. Mind trying again?"));
         setSending(false);
         return;
       }
@@ -185,7 +186,7 @@ function AuthContent() {
       clearPendingInvite();
       router.push(`/auth/confirm?${qs.toString()}`);
     } catch {
-      setError("My connection timed out—let's try that again.");
+      setError("I couldn't reach the server. Mind trying again?");
       setSending(false);
     }
   };
