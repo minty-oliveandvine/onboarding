@@ -347,7 +347,7 @@ function pricedRows(catalog, selected) {
  * The button is OPTIONAL. Consent decides how the trial ENDS — converts to paid, or
  * lapses — not whether it can start, so the step's own Save & Next moves on without it.
  */
-function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onAddCard }) {
+function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onOpenBilling }) {
   const picked = pricedRows(catalog, selected);
 
   // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
@@ -389,7 +389,22 @@ function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onAdd
       </div>
 
       <div className="sub-pay">
-        <span className="sub-row-label">Payment method</span>
+        <span className="sub-pay-head">
+          <span className="sub-row-label">Payment method</span>
+          {/* ONLY ONCE THERE IS A CARD TO CHANGE. Not while the status is still loading —
+              offering to change something not yet shown — and not instead of "Add card",
+              which is this same action wearing the name that fits when there is nothing
+              there yet.
+
+              The frame draws no such control: once a card is confirmed it simply shows the
+              card. Added because without it a payer who picks the wrong card on this step
+              cannot correct it until onboarding is over and they find the payer portal. */}
+          {!cardLoading && card ? (
+            <button type="button" className="sub-pay-change" onClick={onOpenBilling}>
+              Change
+            </button>
+          ) : null}
+        </span>
         {/* WHILE WE DO NOT YET KNOW, SAY NOTHING — and "Add card" is not nothing.
             The status is a round trip, and until it lands `card` is null, which used to
             fall straight through to the button below. A payer returning to this step with
@@ -423,7 +438,7 @@ function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onAdd
           /* A button, not a link: it opens a dialog rather than going anywhere, and a
              payer using a keyboard should reach it in the tab order with the controls
              it belongs to. */
-          <button type="button" className="sub-pay-add" onClick={onAddCard}>
+          <button type="button" className="sub-pay-add" onClick={onOpenBilling}>
             Add card
           </button>
         )}
@@ -656,7 +671,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           selected={sel}
           card={savedCard}
           cardLoading={cardLoading}
-          onAddCard={() => setBillingOpen(true)}
+          onOpenBilling={() => setBillingOpen(true)}
         />
       </div>
       {/* WHERE "nothing is charged today" NOW LIVES. The summary panel used to carry a
@@ -690,6 +705,10 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         <BillingSheet
           token={token}
           entityId={state.entity.id}
+          /* WHICH CARD IS CURRENTLY BILLING THIS ENTITY, so the picker opens on it rather
+             than on the payer's account default. Those are the same card until somebody
+             changes one — which is exactly what the Change button above is for. */
+          nominatedId={savedCard?.id}
           // Closing costs nothing: the payer opened this from "Add card" and is put back
           // where they were, with the modules untouched.
           onClose={() => setBillingOpen(false)}

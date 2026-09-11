@@ -484,6 +484,9 @@ function CardAdded({ card, isDefault, onDone }) {
  * @param {object}   props
  * @param {string}   props.token      onboarding JWT
  * @param {string}   props.entityId   the entity being authorised
+ * @param {?string}  props.nominatedId the card this entity is billed to today, if any —
+ *                                the row the picker opens on. Absent is fine and means
+ *                                "nothing nominated yet".
  * @param {Function} props.onClose    dismissed — the caller keeps them on the step
  * @param {Function} props.onDone     consent recorded; the caller flips its own state
  *
@@ -505,6 +508,7 @@ function CardAdded({ card, isDefault, onDone }) {
 export default function BillingSheet({
   token,
   entityId,
+  nominatedId,
   onClose,
   onDone,
 }) {
@@ -541,9 +545,23 @@ export default function BillingSheet({
     const list = data.methods || [];
     setMethods(list);
     setAccounts(data.accounts || []);
-    setChosen(data.default_id || (list[0] ? list[0].id : ''));
+    /* THE ENTITY'S CARD FIRST, the account default only as a suggestion.
+     *
+     * These are the same card right up until somebody changes one, and then opening on the
+     * default would show the payer a card that is NOT the one billing this company — and
+     * a glance plus Confirm would move them onto it. The default is offered when nothing
+     * is nominated yet, which is the only case where there is nothing better to offer.
+     *
+     * The `list.some` check is not belt and braces: a nominated card since detached at
+     * Stripe is absent here, and selecting it would tick a row that does not exist and
+     * leave Confirm disabled with nothing on screen explaining why. */
+    setChosen(
+      nominatedId && list.some((m) => m.id === nominatedId)
+        ? nominatedId
+        : data.default_id || (list[0] ? list[0].id : ''),
+    );
     return list;
-  }, [token]);
+  }, [token, nominatedId]);
 
   useEffect(() => {
     let cancelled = false;
