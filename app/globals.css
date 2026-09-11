@@ -80,8 +80,10 @@
     border-bottom: 1px solid var(--line);
     background: var(--bg);
   }
-  .step + .step { border-left: 1px solid var(--bg); }
-  .step.is-squishing { animation: none; }
+  .step + .step { border-left: 1px solid var(--bg); }  @keyframes waveDrift {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
   .step {
     position: relative;
     padding: 12px 8px;
@@ -98,7 +100,8 @@
     transition: color .2s ease, background .25s ease;
     white-space: nowrap;
     overflow: hidden;
-  }  .step > .num, .step > .label { position: relative; z-index: 3; }
+  }  @keyframes waveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .step > .num, .step > .label { position: relative; z-index: 3; }
   .step:hover:not(.locked):not(.not-clickable) { background: #e6e9ed; }
   .step.locked { cursor: not-allowed; opacity: 0.55; }
   /* On the final "All Set" step every step is frozen: no pointer, no hover
@@ -140,6 +143,24 @@
   .step.active:hover,
   .step.active:focus,
   .step.active:active { color: #054b44; background: #46D8CC; filter: none; transform: none; }
+  @keyframes stepPulse {
+    0%, 100% {
+      box-shadow:
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
+        0 4px 14px rgba(70, 216, 204, 0.45),
+        0 0 0 2px rgba(70, 216, 204, 0.25);
+    }
+    50% {
+      box-shadow:
+        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+        inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
+        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
+        0 6px 22px rgba(70, 216, 204, 0.55),
+        0 0 0 3px rgba(70, 216, 204, 0.35);
+    }
+  }
   .step.active .num {
     background: transparent;
     color: #054b44;
@@ -171,10 +192,7 @@
   @media (min-width: 1280px) {
     .label-full { display: inline; }
     .label-tiny { display: none; }
-  }
-  .step .check { color: inherit; flex-shrink: 0; }
-
-  .substep-circle {
+  }  .stepper { overflow-x: visible; overflow-y: visible; }  .substep-circle {
     width: 20px; height: 20px;
     border-radius: 50%;
     border: 1.5px solid var(--line-strong);
@@ -262,6 +280,9 @@
     color: #fff;
     box-shadow: 0 2px 6px rgba(0, 203, 198, 0.35);
   }
+  @media (max-width: 1180px) {
+    .pc-side-menu { display: none; }
+  }
 
   /* Page */
   .page { max-width: 720px; margin: 0 auto; padding: 56px 28px 120px; }
@@ -280,9 +301,7 @@
   /* Form bits */
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .field label .field-optional { font-weight: 400; color: var(--muted); }
-  .field .hint { font-size: 12px; color: var(--muted); font-weight: 500; }
-  .field input, .field select, .field textarea {
+  .field label .field-optional { font-weight: 400; color: var(--muted); }  .field input, .field select, .field textarea {
     appearance: none;
     -webkit-appearance: none;
     border: 1px solid var(--line-strong);
@@ -321,7 +340,8 @@
     0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent); }
     60%  { box-shadow: 0 0 0 10px color-mix(in oklab, var(--accent) 0%, transparent); }
     100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
-  }  /* Buttons */
+  }
+  /* Buttons */
   .btn {
     border: 0; border-radius: var(--radius-sm);
     padding: 12px 20px;
@@ -359,9 +379,7 @@
   .step-nav {
     display: flex; justify-content: space-between; align-items: center;
     margin-top: 28px;
-  }
-  .step-nav .spacer { flex: 1; }
-  /* Right-side action group: Save & Exit + Save & Next laid out horizontally,
+  }  /* Right-side action group: Save & Exit + Save & Next laid out horizontally,
      so every step footer reads [Back] ... [Save & Exit] [Save & Next]. */
   .step-actions { display: flex; align-items: center; gap: 12px; }
 
@@ -490,8 +508,7 @@
     color: #00CBC6;
     animation: autofillSparkle 4.5s ease-in-out infinite;
   }
-  .method-sparkle svg { width: 100%; height: 100%; }  .method-card.open .method-caret { transform: rotate(180deg); color: var(--accent-ink); }
-  .method-body { padding: 0 20px 16px; }
+  .method-sparkle svg { width: 100%; height: 100%; }  .method-body { padding: 0 20px 16px; }
   .method-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
   .method-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid var(--line); transition: background .15s ease; }
   .method-row:last-child { border-bottom: 0; }
@@ -521,7 +538,7 @@
   .method-drag:hover { color: var(--ink); background: var(--surface-2); }
   .method-drag:active { cursor: grabbing; background: var(--surface-2); }
   .method-row.is-dragging { opacity: 0.45; }
-  .method-row.is-drag-over { background: var(--accent-soft); border-radius: 8px; } .method-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; font-size: 14.5px; border-radius: 12px; cursor: pointer; transition: background .15s ease, transform .12s ease; }
+  .method-row.is-drag-over { background: var(--accent-soft); border-radius: 8px; }  .method-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; font-size: 14.5px; border-radius: 12px; cursor: pointer; transition: background .15s ease, transform .12s ease; }
   .method-add:hover { background: var(--accent-soft); }
   .method-add:active { transform: scale(0.99); }
 
@@ -556,9 +573,11 @@
     transition: background .15s ease, opacity .15s ease;
   }
   .btn-mint-pill:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); }
-  .btn-mint-pill:disabled { opacity: 0.55; cursor: not-allowed; }  .method-gear.active { background: var(--accent-soft); color: var(--accent-ink); }* Default-state button (resets a section back to original) */
+  .btn-mint-pill:disabled { opacity: 0.55; cursor: not-allowed; }  @keyframes methodMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  /* Default-state button (resets a section back to original) */
   .pc-head-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-  .pc-head-row h2 { margin: 0; } Auto Fill button (Sales Setting top of page) */
+  .pc-head-row h2 { margin: 0; }
+  /* Auto Fill button (Sales Setting top of page) */
   .autofill-row {
     display: flex;
     align-items: center;
@@ -687,12 +706,7 @@
     8%   { transform: translate(calc(var(--end-x) * 0.08), calc(var(--start-y) + 30px)) rotate(calc(var(--rot-start) * 0.6 + var(--rot-end) * 0.05)) scale(1); opacity: 1; }
     75%  { opacity: 1; }
     100% { transform: translate(var(--end-x), var(--end-y)) rotate(var(--rot-end)) scale(0.9); opacity: 0; }
-  }.ans-card .field input {
-    padding: 13px 15px;
-    border-radius: 10px;
-    font-size: 14.5px;
   }
-
   /* Account codes selection card */
   .acc-card .method-head { align-items: flex-start; }
   .acc-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-weight: 400; letter-spacing: 0; }
@@ -1527,11 +1541,7 @@
     .sub-plan-art { width: 120px; top: 30px; right: -8px; }
     .sub-plan.is-bundle { min-height: 150px; }
     .sub-plan.is-bundle .sub-plan-value { margin-top: 28px; }
-  } .module.selected { border-color: var(--accent); background: var(--accent-soft); }
-  .module.disabled { opacity: 0.55; cursor: not-allowed; }  .module.selected .m-icon { background: white; color: var(--accent-ink); }.module.selected .m-check { background: var(--accent); border-color: var(--accent); }tch.on { background: var(--accent); }
-  .switch.on::after { left: 18px; }ntegration.connected { border-color: var(--accent); background: var(--accent-soft); }  .invite-row .icon-x { background: transparent; border: 0; color: var(--muted); padding: 8px; border-radius: 8px; }
-  .invite-row .icon-x:hover { background: var(--surface-2); color: var(--ink); }
-
+  }
   /* All set */
   .celebrate { text-align: center; padding: 24px 0 12px; }
   .check-circle {
@@ -1640,17 +1650,16 @@
     .allset-grid { grid-template-columns: 1fr; gap: 0; }
     .allset-grid dd { margin-bottom: 10px; }
     .allset-pay, .allset-exit { width: 100%; }
-  }l-radio button.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
-
+  }
   /* Responsive */
   @media (max-width: 760px) {
     .stepper { grid-template-columns: repeat(var(--step-count, 7), minmax(120px, 1fr)); overflow-x: auto; }
-    .module-grid { grid-template-columns: 1fr; }  .page { padding: 36px 18px 80px; }
+    .module-grid { grid-template-columns: 1fr; }    .page { padding: 36px 18px 80px; }
   }
   /* ---- Minimum text sizing ---- */
   .page-head h2 { font-size: 30px; }
-  .page-head p { font-size: 16px; }.field label,
-  .field .hint,
+  .page-head p { font-size: 16px; }
+  .field label,
   .pc-sub,
   .pc-section-sub,
   .pc-hint,
@@ -1659,7 +1668,6 @@
   .acc-name,
   .acc-empty,
   .method-name,
-  .ans-card .field input,
   .invite-name,
   .invite-email,
   .invite-card-title,
@@ -1975,14 +1983,17 @@
      one fact it carries. */
   .billing-done-card { color: #EA9713; }
   .billing-done-actions { display: flex; justify-content: center; margin-top: 48px; }
-  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }.billing-mandate,
+  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }
+
+  .billing-mandate,
   .billing-error {
     margin: 24px 0 0; font-size: 12.5px; line-height: 1.5;
     overflow-wrap: anywhere;
   }
   /* Half a point larger than the mandate, as it is in the payer portal. An error is read
      once, under pressure, and the mandate is standing text — they are not the same job. */
-  .billing-error { font-size: 13.5px; }.billing-mandate { color: #6B7A80; }
+  .billing-error { font-size: 13.5px; }
+  .billing-mandate { color: #6B7A80; }
   /* NOT UNDERLINED, and in the design's darker teal rather than the step's bright one. It
      is the tail of a mandate sentence, not navigation — the design marks it with colour
      and nothing else, and the underline arrives on hover to say it is clickable. */
