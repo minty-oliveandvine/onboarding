@@ -413,11 +413,11 @@ export default function OnboardingApp() {
   // summary. Stays null until loaded (and if the fetch fails), which hides the
   // summary rather than showing invented figures.
   const [modulePlans, setModulePlans] = useState(null);
-  // Has the payer agreed to be billed for this entity? Step 2's Buy now is offered until
+  // Has the payer agreed to be billed for this entity? Step 2's billing sheet is offered until
   // they have. Deliberately NOT "do they have a card": the card belongs to the payer and
   // is shared by every entity they pay for, so it says nothing about this one. Consent is
   // per (entity, payer), and it is what makes this entity's trial convert to paid at term
-  // end instead of lapsing. It gates nothing — a payer who skips Buy now still onboards.
+  // end instead of lapsing. It gates nothing — a payer who skips the sheet still onboards.
   const [hasBillingConsent, setHasBillingConsent] = useState(false);
   // Set on resume when the user landed past step 4 but Xero isn't connected in
   // the DB — drives the "connect to accounting first" pop-up.
@@ -465,7 +465,7 @@ export default function OnboardingApp() {
     };
   }, [token]);
 
-  // What does this entity's billing already look like? (Resume, or Buy now completed on
+  // What does this entity's billing already look like? (Resume, or billing confirmed on
   // an earlier pass.) Re-read whenever the sheet reports consent, so the button reflects
   // the server rather than only the optimistic local flip.
   const [billingNonce, setBillingNonce] = useState(0);
@@ -485,7 +485,7 @@ export default function OnboardingApp() {
     };
   }, [token, state.entity.id, billingNonce]);
 
-  // Buy now succeeded. The flag is flipped locally so the button settles immediately, and
+  // Billing was confirmed. The flag is flipped locally so the button settles immediately, and
   // the read above is re-run to confirm it against the server.
   const onBillingConsent = useCallback(() => {
     setHasBillingConsent(true);

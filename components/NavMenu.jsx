@@ -6,7 +6,8 @@
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 
-// Inter to match Module 2's typeface (the app default is Plus Jakarta Sans).
+// Spelled out rather than inherited because these styles are inline objects on a
+// portalled menu; it is the same Inter the app now uses everywhere.
 const INTER_STACK =
   "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 

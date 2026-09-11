@@ -7,11 +7,12 @@ import Icon from './Icon';
 import MintySelect from './MintySelect';
 import MintyDatePicker from './MintyDatePicker';
 import Confetti from './Confetti';
-import BuyNowSheet from './BuyNowSheet';
+import BillingSheet from './BillingSheet';
+import CardBrand from './CardBrand';
 import { useToast } from './Toast';
 import { fetchCountries, fetchCurrencies } from '@/lib/refData';
 import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amount';
-import { formatDate } from '@/lib/date';
+import { fetchBillingStatus } from '@/lib/billing';
 
 // --- Reusable bits ---
 export function Switch({ on, onChange }) {
@@ -218,9 +219,13 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
 }
 
 // --- Step 2: Select Module ---
+// `tile` and `art` come off the card exports rather than being derived from `accent`:
+// the design gives each module its own tile wash and its own illustration size (Petty
+// Cash 80px, Payment Request 95px), and a colour-mix of the accent landed near neither.
+// `accent` is kept because the illustration inherits it as `currentColor`.
 export const MODULES = [
-  { id: 'pettyCash', title: 'Petty Cash', desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.', img: '/pettycash-icon.png', accent: '#f5b945', price: '280 HKD per Month' },
-  { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', price: '280 HKD per Month' },
+  { id: 'pettyCash', title: 'Petty Cash', desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.', img: '/pettycash-icon.png', accent: '#f5b945', tile: '#FFF7EC', art: 80, price: '280 HKD per Month' },
+  { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', tile: '#EDF5FC', art: 95, price: '280 HKD per Month' },
 ];
 
 // Backend module codes → the ids used by MODULES / state.modules above, so the
@@ -263,45 +268,9 @@ function trimZeroCents(text) {
 }
 
 /**
- * The trial length as a period rather than a day count — "1 month", "2 months", "14 days".
- *
- * The server sends days (`trial_period_days`, currently 30) and the wizard says "30 days"
- * everywhere else, which is right for a countdown. The card is an offer rather than a
- * countdown, and an offer is quoted in the unit the subscription bills in.
- *
- * Only whole 30-day multiples become months. A 45-day trial is not "1.5 months" and
- * rounding it to either neighbour would misstate the term in a document about money.
- */
-function trialPeriodLabel(days) {
-  const n = Number(days || 0);
-  if (n > 0 && n % 30 === 0) {
-    const months = n / 30;
-    return months === 1 ? '1 month' : `${months} months`;
-  }
-  return `${n} days`;
-}
-
-/**
- * The day the trial converts to paid — "23 Sep 2026". The one date helper for this step:
- * the card and the billing dialog quote the same day, so they read it from the same place.
- *
- * Not the flow's uppercase "23 SEP 2026": both callers sit it inside a sentence about
- * money, where a shouted month reads as an abbreviation of something rather than a date.
- *
- * Safe to compute during render: it is only ever called once a module has been picked,
- * which is client-side state — the server render has `modules: []` and the card returns
- * null before reaching here, so there is no date to mismatch on hydration.
- */
-function firstChargeLabel(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + Number(days || 0));
-  return formatDate(d, { day: 'numeric', month: 'short', year: 'numeric', upper: false });
-}
-
-/**
  * What the picked modules cost, and when the first charge falls.
  *
- * Lifted out of the summary panel because Buy now has to quote the SAME figures: the
+ * Lifted out of the summary panel because the billing sheet has to quote the SAME figures: the
  * dialog names an amount and a date the payer then consents to, and a second copy of the
  * bundle test is exactly how that comes to disagree with the panel beside it.
  *
@@ -358,7 +327,7 @@ function pricedRows(catalog, selected) {
  * sorted module SET — and any other selection is the sum of the standalone plans.
  * That is what get_subscription_summary and checkout do, so this preview and the
  * invoice that eventually lands cannot quote different numbers. Both figures come out
- * of priceSelection(), which Buy now is quoted from too.
+ * of priceSelection(), which the billing sheet is quoted from too.
  *
  * This used to read `catalog.discount_unit` / `catalog.discount_currency`, a
  * coupon-shaped model left over from when the price catalog lived in Stripe.
@@ -377,7 +346,7 @@ function pricedRows(catalog, selected) {
  * The button is OPTIONAL. Consent decides how the trial ENDS — converts to paid, or
  * lapses — not whether it can start, so the step's own Save & Next moves on without it.
  */
-function ModuleSubscriptionSummary({ catalog, selected, hasBillingConsent }) {
+function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onAddCard }) {
   const picked = pricedRows(catalog, selected);
 
   // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
@@ -385,178 +354,108 @@ function ModuleSubscriptionSummary({ catalog, selected, hasBillingConsent }) {
   // on the page until there's actually something to show beside them.
   if (picked.length === 0) return null;
 
-  const { symbol, interval, isBundle, total, trialDays } = priceSelection(catalog, picked);
-  const onTrial = trialDays > 0;
-  const priceText = `${money(symbol, total)} / ${interval}`;
+  const { symbol, interval, isBundle, subtotal, total } = priceSelection(catalog, picked);
+  // Only when the bundle actually saves something. A struck price equal to the one
+  // beside it is not a discount, it is a typo the payer has to work out.
+  const struck = isBundle && subtotal > total ? trimZeroCents(formatAmount(subtotal)) : null;
 
   return (
     <aside className="sub-summary" aria-live="polite">
-      <div className="sub-summary-head">
-        <h3>{onTrial ? 'Start your free trial' : 'Confirm your subscription'}</h3>
-        <p className="sub-summary-sub">
-          {onTrial
-            ? "You won't be charged today. Your subscription will renew automatically after the trial."
-            : "You won't be charged today. Your subscription starts once billing is confirmed."}
-        </p>
+      <h3 className="sub-summary-title">Subscription Summary</h3>
+
+      <div className={'sub-plan ' + (isBundle ? 'is-bundle' : 'is-single')}>
+        <span className="sub-row-label">Selected plan</span>
+        <div className="sub-plan-value">
+          {isBundle ? (
+            <>
+              <span className="sub-plan-name">SuperMinty</span>
+              {/* Named as well as priced: the invoice will say "SuperMinty", and a
+                  payer who only ever saw two module names here would not recognise it. */}
+              <span className="sub-plan-note">Both modules selected</span>
+            </>
+          ) : (
+            <>
+              <span className="sub-plan-name">{picked[0].module.title}</span>
+              {/* "only" is doing work — it is what says the OTHER module is not
+                  included, on a screen whose whole question is which to start. */}
+              <span className="sub-plan-note">only</span>
+            </>
+          )}
+        </div>
+        {isBundle ? (
+          <img className="sub-plan-art" src="/assets/superminty-cat.png" alt="" aria-hidden="true" />
+        ) : null}
       </div>
 
-      {/* The one line a payer who reads nothing else must still come away with: how long
-          they have, and the exact amount and date of the first charge. */}
-      {onTrial ? (
-        <div className="sub-trial-box">
-          <p className="sub-trial-box-title">{trialPeriodLabel(trialDays)} free trial</p>
-          <p className="sub-trial-box-body">
-            Your first payment of {money(symbol, total)} will be charged on{' '}
-            {firstChargeLabel(trialDays)}.
-          </p>
-        </div>
-      ) : null}
-
-      <div className="sub-rows">
-        <div className="sub-row">
-          <span className="sub-row-label">Plan</span>
-          <span className="sub-row-value">
-            {isBundle ? (
-              <>
-                Super Minty
-                {/* Named as well as priced: the invoice will say "Super Minty", and a
-                    payer who only ever saw two module names here would not recognise it. */}
-                <span className="sub-row-note">
-                  {picked.map((r) => r.module.title).join(' & ')}
-                </span>
-              </>
-            ) : (
-              picked[0].module.title
-            )}
+      <div className="sub-pay">
+        <span className="sub-row-label">Payment method</span>
+        {/* WHILE WE DO NOT YET KNOW, SAY NOTHING — and "Add card" is not nothing.
+            The status is a round trip, and until it lands `card` is null, which used to
+            fall straight through to the button below. A payer returning to this step with
+            a card already confirmed was therefore offered the chance to add one, for as
+            long as the request took, before the row corrected itself. Offering an action
+            that is about to be withdrawn is worse than a moment of visible waiting. */}
+        {cardLoading ? (
+          <span
+            className="sub-pay-loading"
+            role="status"
+            aria-label="Checking your payment method"
+          >
+            <span className="sub-pay-bar" aria-hidden="true" />
+            <span className="sub-pay-bar is-short" aria-hidden="true" />
           </span>
-        </div>
+        ) : card ? (
+          /* THE MARK, THEN THE WHOLE STRING — 01-C draws it that way, and the string is one
+             line rather than a brand stacked over "ending in NNNN". Same component as the
+             picker's rows, so the card a payer confirms in the dialog is the card they see
+             here, drawn identically.
 
-        {onTrial ? (
-          <div className="sub-row">
-            <span className="sub-row-label">Trial period</span>
-            <span className="sub-row-value">{trialPeriodLabel(trialDays)} free</span>
-          </div>
-        ) : null}
-
-        {/* One figure, bundle or not: `total` is already the bundle price when the
-            picked set is exactly the one it covers. The undiscounted subtotal is
-            deliberately not shown beside it — the payer is being asked what they will
-            pay, and a struck-through number they were never going to be charged is a
-            sales argument in the middle of a billing consent. */}
-        <div className="sub-row">
-          <span className="sub-row-label">First payment</span>
-          <span className="sub-row-value">
-            {/* Amount and interval in ONE flex item: .sub-row-value is a column so the
-                Plan row can stack its note, which makes a bare sibling span its own row
-                and breaks "HKD 280 / month" across two lines. */}
-            <span className="sub-row-price">
-              {money(symbol, total)} <span className="sub-per">/ {interval}</span>
+             `card.label` is the fallback for a method with no last4 to end in: a Link
+             wallet exposes no card object at all, and "Link" is the true answer. */
+          <span className="sub-pay-card">
+            <CardBrand brand={card.brand} label={card.brand_label} className="sub-pay-mark" />
+            <span className="sub-pay-name">
+              {card.last4 ? `${card.brand_label} ending in ${card.last4}` : card.label}
             </span>
           </span>
-        </div>
+        ) : (
+          /* A button, not a link: it opens a dialog rather than going anywhere, and a
+             payer using a keyboard should reach it in the tab order with the controls
+             it belongs to. */
+          <button type="button" className="sub-pay-add" onClick={onAddCard}>
+            Add card
+          </button>
+        )}
       </div>
 
-      <div className="sub-due">
-        <span className="sub-due-label">
-          Due today
-          <span className="sub-row-note">
-            {onTrial ? 'No payment required' : 'Charged when your subscription begins'}
+      {/* AFTER THE TRIAL — not now. Nothing on this step charges anything, which is why
+          this tile is labelled with when the money moves rather than with a total. */}
+      <div className="sub-tile">
+        <span className="sub-tile-label">After trial</span>
+        <span className="sub-tile-price">
+          {/* THE STRUCK SUBTOTAL STACKS OVER THE FIGURE, NOT OVER THE WHOLE LINE — which
+              is why "/month" sits outside this column rather than inside the price span.
+              With it inside, right-aligning the column put 560 above the word "month"
+              instead of above the 400 it is being compared with.
+
+              It carries no currency code because it sits directly above one in the same
+              currency; the figure that will actually be charged is the one named in full. */}
+          <span className="sub-tile-figure">
+            {struck ? <span className="sub-tile-was">{struck}</span> : null}
+            <span className="sub-tile-now">{money(symbol, total)}</span>
           </span>
+          <span className="sub-tile-per">/{interval}</span>
         </span>
-        <span className="sub-due-amt">{money(symbol, onTrial ? 0 : total)}</span>
       </div>
-
-      {onTrial ? (
-        <p className="sub-note">
-          After your free trial, you&apos;ll be charged {money(symbol, total)} per {interval}{' '}
-          until you cancel. You can cancel anytime before the first charge.
-        </p>
-      ) : null}
-
-      {/* The card states the terms; it does not carry the action. Confirming billing is
-          Buy now in the step footer, beside Save & Next — the two ways out of this step
-          belong together rather than one being here and one down there. */}
-      {hasBillingConsent ? (
-        <p className="sub-confirmed">
-          <Icon.CheckSm />
-          <span>
-            Billing confirmed — {priceText} will be charged{' '}
-            {onTrial ? 'when your trial ends' : 'when your subscription begins'}.
-          </span>
-        </p>
-      ) : null}
-
-      {hasBillingConsent ? null : (
-        <p className="sub-terms">
-          By continuing, you agree to the subscription terms.{' '}
-          {/* Placeholder: there is no terms page in this app yet, so the click is
-              swallowed rather than sending the payer to the top of the wizard. Swap the
-              href for the real URL — and drop the onClick — once one exists. */}
-          <a
-            className="sub-terms-link"
-            href="#"
-            onClick={(e) => e.preventDefault()}
-          >
-            (Details)
-          </a>
-        </p>
-      )}
     </aside>
   );
 }
 
-function FreeTrialPill({ heading = false, ripple = false, label = 'Free Trial' }) {
-  const [pos, setPos] = useState(null);
-  const [mounted, setMounted] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  const show = () => {
-    if (!ref.current) return;
-    const r = ref.current.getBoundingClientRect();
-    setPos({ left: r.left + r.width / 2, top: r.top - 8 });
-  };
-  const hide = () => setPos(null);
-  useEffect(() => {
-    if (!pos) return;
-    const onScroll = () => hide();
-    window.addEventListener('scroll', onScroll, true);
-    return () => window.removeEventListener('scroll', onScroll, true);
-  }, [pos]);
-  return (
-    <>
-      <span
-        ref={ref}
-        className={'beta-pill free-trial-pill' + (ripple ? ' is-ripple' : '')}
-        tabIndex="0"
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        onClick={(e) => e.stopPropagation()}
-        style={heading ? { fontSize: 12.5, padding: '4px 13px' } : undefined}
-      >
-        {label}
-      </span>
-      {mounted &&
-        pos &&
-        ReactDOM.createPortal(
-          <div className="free-trial-tip-portal" style={{ left: pos.left, top: pos.top }}>
-            <p>Free trial for 30 days, then HK $280 / month afterwards.</p>
-          </div>,
-          document.body
-        )}
-    </>
-  );
-}
-
-export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, hasBillingConsent, onBillingConsent, saveAndExit }) {
+export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, onBillingConsent, saveAndExit }) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
-  // Live Stripe prices, when the catalog loaded. Everything price-related on this
-  // step (card price, caption, summary) reads from here so the three can't drift
-  // apart; each falls back to the static copy in MODULES if Stripe is unreachable.
-  const planById = plansByModuleId(modulePlans);
+  // No per-card price lookup any more: the cards carry a trial status, not a figure,
+  // and the ONE price on this step is the summary's "After trial" tile. It reads the
+  // live catalog through priceSelection(), so there is nothing left here to drift.
   // Multi-select toggle: clicking a card adds or removes it from the
   // selection. Continue is gated on sel.length > 0 so users must pick at
   // least one — both can be picked together for a full setup.
@@ -566,13 +465,83 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   };
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const [buyNowOpen, setBuyNowOpen] = useState(false);
+  const [billingOpen, setBillingOpen] = useState(false);
   const busy = saving;
 
-  // What Buy now will quote. Computed from the same helper as the summary panel beside
+  // What the billing sheet will quote. Computed from the same helper as the summary beside
   // it, so the dialog can't name a figure the page has already contradicted.
   const priced = pricedRows(modulePlans, sel);
   const pricing = priced.length > 0 ? priceSelection(modulePlans, priced) : null;
+
+  // "30 days", from the SERVER's trial_period_days rather than the words. The card, the
+  // intro and the footnote all print it, and three hardcoded thirties are three places
+  // that keep saying thirty after billing_policy is tuned to something else.
+  // DAYS, not trialPeriodLabel(). That helper turns 30 into "1 month" — right for the
+  // billing sheet, where the term is being quoted as the interval it will bill in, and
+  // wrong here: this step's copy is written in days throughout ("30-day free trial",
+  // "30 days free trial"), and a card reading "1 month free trial" beside a footnote
+  // promising 30 days invites the reader to work out whether they are the same offer.
+  // Still the SERVER's number, so tuning billing_policy moves all three strings.
+  const trialDays = Number(modulePlans?.trial_period_days || 30);
+  const trialDaysLabel = trialDays + ' days';   // "30 days free trial"  (the card)
+  const trialTermLabel = trialDays + '-day';    // "its own 30-day free trial" (prose)
+
+  /* THE CARD THIS ENTITY IS CONFIRMED ON — not "a card the payer owns".
+   *
+   * This row used to read the payer's wallet and print their ACCOUNT DEFAULT, which made
+   * a card appear here the moment the payer had one anywhere, for any company, agreed to
+   * or not. Two things were wrong with that, and they compound:
+   *
+   *   - It printed BEFORE consent. Saving a card is not agreeing to be billed on it, and
+   *     the row reads as a statement that this entity is set up when it is not.
+   *   - It printed the WRONG CARD. Nomination is per entity; the account default is a
+   *     different card as soon as the payer has two, so the row could name a card this
+   *     company was never going to be charged on.
+   *
+   * Both are answered by the same source: `/onboarding/payment-method` returns the
+   * nominated card and the consent flag together, and the row shows a card only when it
+   * has both. No consent, or nothing nominated, and it offers "Add card" — which is the
+   * truth in either case.
+   *
+   * Re-read after the billing dialog reports a confirmation, which is the only thing on
+   * this step that can change the answer. */
+  const [savedCard, setSavedCard] = useState(null);
+  const [cardEpoch, setCardEpoch] = useState(0);
+  // Starts TRUE so the first paint shows the placeholder rather than "Add card" — see the
+  // note on the row itself. Set back to true on every re-read, because a confirmation
+  // re-runs this and the row should not flicker through the old answer on the way to the
+  // new one.
+  const [cardLoading, setCardLoading] = useState(true);
+  useEffect(() => {
+    if (!token || !state?.entity?.id) {
+      // Nothing to wait for, so stop waiting — without this the placeholder would sit
+      // there for ever on a step that has no entity to ask about.
+      setCardLoading(false);
+      return;
+    }
+    let live = true;
+    setCardLoading(true);
+    fetchBillingStatus(token, state.entity.id)
+      .then((res) => {
+        if (!live) return;
+        setSavedCard(res?.has_billing_consent ? res.card || null : null);
+      })
+      // Silent: a payer with no Stripe customer yet is the ordinary case on this step,
+      // not an error, and the row simply offers "Add card" instead.
+      .catch(() => {})
+      .finally(() => {
+        if (live) setCardLoading(false);
+      });
+    return () => {
+      live = false;
+    };
+  }, [token, state?.entity?.id, cardEpoch]);
+
+  // Confetti is part of the SuperMinty STATE, not a one-shot animation: 01-B draws it
+  // in the frame, so it stays up for as long as both modules are ticked and goes the
+  // moment one is unticked. Derived, so it needs no state, no timer and no cleanup —
+  // and re-entering the step with both already picked shows it, as the frame does.
+  const bothPicked = sel.length === MODULES.length;
 
   /**
    * Save & Next — the only way forward, and the only route to billing.
@@ -594,6 +563,13 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
    * next() rather than stranding them here: the modules are already saved, and a second
    * press of Save & Next would only reopen a dialog they just declined.
    */
+  /* SAVE & NEXT DOES NOT ASK ABOUT BILLING. It saves the modules and moves on, whether or
+   * not there is a card on file, because the card is optional at this step.
+   *
+   * This used to open the billing sheet whenever consent was missing, which made a card the
+   * price of reaching step 3. The sheet is now reached deliberately, from "Add card" in the
+   * summary beside these cards, or later from the All Set step. Anyone restoring the prompt
+   * here should know they are also restoring the need for an escape out of it. */
   const handleNext = async () => {
     if (sel.length === 0 || busy) return;
     if (typeof submitModule === 'function') {
@@ -605,31 +581,38 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         return;
       }
     }
-    // Already consented, or nothing priced to consent to — nothing left to ask.
-    if (hasBillingConsent || !pricing) {
-      next();
-      return;
-    }
-    setBuyNowOpen(true);
+    next();
   };
+
+  // The step is one column, and the column has two widths: the two cards on their own,
+  // or the cards plus the summary panel. Everything on the step tracks it, so the
+  // heading and the footnote widen with the row instead of keeping an edge the cards
+  // no longer have.
+  const wide = sel.length > 0 ? ' is-wide' : '';
 
   return (
     <>
-      <div className="page-head">
-        <h2 className="module-title">
-          Choose a module <FreeTrialPill heading ripple label="Beta Version" />
-        </h2>
-        <p>Pick the module you&apos;d like to start with. You can add more later from settings.</p>
+      <div className={'page-head module-head' + wide}>
+        <h2>Which free trial would you like to start today?</h2>
+        <p>
+          Each module includes its own {trialTermLabel} free trial. Start with one module or
+          unlock the full Minty experience. Any unselected module can be activated later.
+        </p>
       </div>
-      <div className="module-layout">
+      <div className={'module-layout' + wide}>
       <div className="module-grid module-grid-2">
+        {/* Two bursts flanking the pair, straight out of the 01-B frame. NOT the falling
+            Confetti component the All Set step uses — the design draws a moment, not a
+            shower, and the pieces are positioned artwork rather than generated. */}
+        {bothPicked ? (
+          <>
+            <img className="module-burst is-left" src="/assets/confetti-left.png" alt="" aria-hidden="true" />
+            <img className="module-burst is-right" src="/assets/confetti-right.png" alt="" aria-hidden="true" />
+          </>
+        ) : null}
         {MODULES.map((m) => {
           const I = m.icon ? Icon[m.icon] : null;
           const on = sel.includes(m.id);
-          const plan = planById[m.id];
-          const price = plan
-            ? `${plan.currency_code} ${trimZeroCents(plan.formatted_amount)} per ${plan.billing_interval === 'month' ? 'Month' : plan.billing_interval}`
-            : m.price;
           return (
             <div
               key={m.id}
@@ -645,25 +628,21 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
                 }
               }}
             >
-              <div className="mp-frame">
-                <div className="mp-card">
-                  <div className="mp-art" style={{ '--art-accent': m.accent }}>
-                    {m.img ? <img src={m.img} alt={m.title} className="mp-img" /> : I ? <I width="72" height="72" /> : null}
-                  </div>
-                  <div className="mp-name" style={{ padding: '10px 12px 4px', margin: '-5px 0px 10px' }}>
-                    {m.title}
-                  </div>
-                  <div className="mp-price">
-                    <span className="mp-price-strike">{price}</span>
-                    <FreeTrialPill />
-                  </div>
-                  <div className="mp-hover">
-                    <div className="mp-title">{m.title}</div>
-                    <div className="mp-desc">{m.desc}</div>
-                  </div>
+              <div className="mp-card">
+                <div className="mp-art" style={{ '--art-accent': m.accent, '--art-tile': m.tile, '--art-size': m.art + 'px' }}>
+                  {m.img ? <img src={m.img} alt="" className="mp-img" /> : I ? <I width={m.art} height={m.art} /> : null}
+                </div>
+                <div className="mp-name">{m.title}</div>
+                {/* The card's whole status line. "Available" and "Selected" are the two
+                    states this screen actually has — the price is deliberately not here
+                    any more, because nothing on this step is being charged and a figure
+                    beside a trial reads as one that is. It is in the summary, under
+                    "After trial", where it is true. */}
+                <div className="mp-trial">
+                  <span className="mp-trial-term">{trialDaysLabel} free trial</span>
+                  <span className="mp-trial-state">{on ? 'Selected' : 'Available'}</span>
                 </div>
               </div>
-              <div className="mp-label">{m.title}</div>
               <div className="mp-circle" aria-hidden>
                 {on && <Icon.CheckSm />}
               </div>
@@ -674,19 +653,22 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         <ModuleSubscriptionSummary
           catalog={modulePlans}
           selected={sel}
-          hasBillingConsent={hasBillingConsent}
+          card={savedCard}
+          cardLoading={cardLoading}
+          onAddCard={() => setBillingOpen(true)}
         />
       </div>
-      <p className="module-caption">
-        {(() => {
-          const anyPlan = planById[sel[0]] || Object.values(planById)[0];
-          const priceText = anyPlan
-            ? `${anyPlan.currency_code} ${trimZeroCents(anyPlan.formatted_amount)} /${anyPlan.billing_interval}`
-            : '280HKD /month';
-          return `*Each module is ${priceText} subscription, free during the beta period.`;
-        })()}
+      {/* WHERE "nothing is charged today" NOW LIVES. The summary panel used to carry a
+          "Due today" line saying it explicitly; the design replaced that panel with four
+          elements and this footnote. If this sentence goes, the step stops saying it at
+          all — the only other place is the billing dialog, which a payer can finish the
+          step without ever opening. */}
+      <p className={'module-caption' + wide}>
+        Each module comes with its own {trialTermLabel} free trial. Start with one module
+        today, or unlock both and enjoy the complete Minty experience. You can always
+        activate the other trial later. No payment is required today.
       </p>
-      <div className="step-nav">
+      <div className={'step-nav module-nav' + wide}>
         <button className="btn btn-ghost" onClick={back}>
           <Icon.ArrowLeft /> Back
         </button>
@@ -703,31 +685,25 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           ) : null}
         </div>
       </div>
-      {/* trialLabel is null rather than today's date when the catalog carries no trial:
-          firstChargeLabel(0) returns today, and the dialog would otherwise promise a trial
-          that ends the moment it is read. The sheet says something else in that case. */}
-      {buyNowOpen && pricing ? (
-        <BuyNowSheet
+      {billingOpen && pricing ? (
+        <BillingSheet
           token={token}
           entityId={state.entity.id}
-          entityName={state.entity.name || 'this entity'}
-          priceLabel={`${money(pricing.symbol, pricing.total)} / ${pricing.interval}`}
-          trialLabel={pricing.trialDays > 0 ? firstChargeLabel(pricing.trialDays) : null}
-          // Close is NOT skip: the backdrop, Esc and the X leave them on this step with
-          // the modules already saved, and Save & Next asks again. Moving on without
-          // consent is "Do it later", a button they have to mean to press.
-          onClose={() => setBuyNowOpen(false)}
-          onDefer={() => {
-            // The modules are already saved and the trial will still start; only its
-            // conversion at term end is given up.
-            setBuyNowOpen(false);
-            next();
-          }}
+          // Closing costs nothing: the payer opened this from "Add card" and is put back
+          // where they were, with the modules untouched.
+          onClose={() => setBillingOpen(false)}
+          /* NEITHER EXIT NAVIGATES, and `next()` here would be a bug rather than a
+             convenience. This sheet is now only ever opened from "Add card", a path that
+             has NOT run submitModule() — advancing from it would land on step 3 with the
+             module selection unsaved. Save & Next is the only thing that moves the wizard,
+             because it is the only thing that saves first. */
           onDone={() => {
-            setBuyNowOpen(false);
+            setBillingOpen(false);
+            // Re-read the wallet: the card the payer just saved is what the summary's
+            // Payment method row should now name.
+            setCardEpoch((n) => n + 1);
             if (typeof onBillingConsent === 'function') onBillingConsent();
-            toast.success("You're all set — we'll bill this entity when the trial ends.");
-            next();
+            toast.success("Card saved — we'll bill this entity when the trial ends.");
           }}
         />
       ) : null}

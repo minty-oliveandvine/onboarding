@@ -30,7 +30,11 @@
     --shadow-md: 0 8px 24px rgba(15, 20, 25, 0.06), 0 2px 6px rgba(15, 20, 25, 0.04);
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+  /* Inter, matching the design and Module 2. This is the ONLY place the typeface is
+     set — every other rule says font-family: inherit — so the app changes face here and
+     nowhere else. Plus Jakarta Sans was the previous default and is no longer requested
+     in layout.tsx; do not reintroduce it in a single component. */
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
   body { min-height: 100vh; }
   button { font-family: inherit; cursor: pointer; }
   input, select, textarea { font-family: inherit; }
@@ -60,7 +64,7 @@
   .topbar h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; text-align: center; }
   .topbar .right { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
   @media (min-width: 640px) { .topbar .right { gap: 8px; } }
-  .avatar { width: 28px; height: 28px; border: 0; padding: 0; border-radius: 50%; background: #FFE6B1; color: #6B3A12; display: grid; place-items: center; font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; font-weight: 600; font-size: 12px; letter-spacing: normal; cursor: pointer; transition: opacity .15s ease; }
+  .avatar { width: 28px; height: 28px; border: 0; padding: 0; border-radius: 50%; background: #FFE6B1; color: #6B3A12; display: grid; place-items: center; font-weight: 600; font-size: 12px; letter-spacing: normal; cursor: pointer; transition: opacity .15s ease; }
   .avatar:hover { opacity: 0.9; }
   .icon-btn { width: 40px; height: 40px; border-radius: 8px; border: 0; background: transparent; display: grid; place-items: center; color: #656565; cursor: pointer; transition: background .15s ease; }
   .icon-btn:hover { background: color-mix(in oklab, #656565 10%, transparent); }
@@ -459,16 +463,19 @@
   /* Right-side action group: Save & Exit + Save & Next laid out horizontally,
      so every step footer reads [Back] ... [Save & Exit] [Save & Next]. */
   .step-actions { display: flex; align-items: center; gap: 12px; }
-  .step-actions .module-require { flex-basis: 100%; text-align: right; }
 
   /* Skip-confirmation modal (Step 3: Invite) */
   .skip-modal-overlay {
     position: fixed; inset: 0; z-index: 1000;
     display: flex; align-items: center; justify-content: center;
     padding: 20px;
-    background: rgba(15, 23, 27, 0.45);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+    /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
+       near-black wash it replaces, and the difference in job is the point — at 12% the
+       darkening barely separates anything, so it is the BLUR doing the work. Dropping the
+       blur here does not degrade to "slightly less separation", it degrades to none. */
+    background: rgba(22, 32, 46, 0.12);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
   }
   .skip-modal {
     background: var(--bg);
@@ -808,9 +815,6 @@
   .autofill-label { display: inline-block; }
   .autofill-hint { color: var(--muted); font-size: 13px; }
 
-  /* Select Module: warning under the Save & Next button when nothing picked */
-  .module-nav { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-  .module-require { font-size: 12.5px; color: #d92d20; max-width: 320px; text-align: right; line-height: 1.45; }
   /* Passive "you still need to do X" reminder — informational, NOT an error. */
   .step-reminder {
     display: inline-flex;
@@ -1202,48 +1206,243 @@
   .pill-status { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
   .pill-status.ok { background: var(--accent-soft); color: var(--accent-ink); }
   .pill-status.off { background: var(--surface-2); color: var(--muted); }
-  /* Module grid */
+  /* ==========================================================================
+     STEP 2 — "Which free trial would you like to start today?"
+
+     Built to Figma section 01 (01-A one selected, 01-B both + confetti, 01-C card
+     on file). Measurements are taken from that frame, whose content column is
+     1440px wide — the same width this app lays out at, so the numbers transfer
+     directly rather than being scaled by eye.
+
+     WHY THE TEALS ARE NOT var(--accent). The design draws this step in #4FC7C7 /
+     #18C4C7, which is a lighter, bluer teal than the app's #36c3b4. They are
+     tokens rather than literals so the difference is visible in one place and can
+     be unified deliberately; scattering the hexes through the rules below is how
+     two brand teals become permanent.
+     ========================================================================== */
+  :root {
+    --pick-line: #4FC7C7;      /* selected card border, checkbox fill */
+    --pick-ink: #18C4C7;       /* "Selected", SuperMinty, the price */
+    --pick-tint: #F5FFFF;      /* selected card fill */
+    --pick-tile: #E9F8F8;      /* the "After trial" tile */
+    /* Summary panel, sampled from frame 01-A rather than mapped onto the app palette —
+       these are colours the design uses only here, and rounding them to --ink-2 / --accent
+       is what made the panel read as a different design from the one that was drawn. */
+    --sum-label: #737A87;      /* "Selected plan", "Payment method" */
+    --sum-note: #6B7280;       /* "/month" */
+    --sum-price: #4FC7C7;      /* "HK$280", "Add card" */
+    --sum-plan: #2E6FF2;       /* a single module's name. NOT the bundle: SuperMinty is
+                                  --pick-ink, and the two states are deliberately
+                                  different colours in the design. */
+  }
+
   .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .module-grid-2 { gap: 28px; max-width: 640px; margin: 8px auto 0; }
+  /* 300 + 42 + 300 = 642, measured off 01-B. `position: relative` so the confetti
+     bursts below can hang off the pair rather than off the page. */
+  .module-grid-2 { position: relative; grid-template-columns: repeat(2, 300px); gap: 42px; justify-content: center; margin: 8px auto 0; }
 
-  /* Step 2 layout: module cards on the left, subscription summary on the right.
+  /* The celebration, and it is ARTWORK, not an animation: 01-B draws two bursts, one
+     off the top-left of the pair and one off the top-right, both bleeding outside it.
+     Inert and unselectable so they cannot swallow a click on a tick box underneath.
 
-     This step needs more room than the 720px `.page > *` cap allows (640 cards +
-     32 gap + 420 card = 1092), so it breaks out of that cap and re-centres on
-     the page's axis with a negative left margin — no transform, so the pill's
-     getBoundingClientRect stays honest.
+     BEHIND EVERYTHING, which is how the frame paints it: the two confetti rects come
+     before both card groups in the export. A positioned element outranks ordinary flow
+     content regardless of source order, so the card, the tick box and the heading each
+     have to claim a layer above this one explicitly — see the z-index:1 rules below. */
+  .module-burst {
+    position: absolute;
+    pointer-events: none;
+    user-select: none;
+    z-index: 0;
+    animation: moduleBurstIn 0.35s ease both;
+  }
+  .module-burst.is-left  { left: -92px; top: -67px; width: 284px; }
+  .module-burst.is-right { right: -87px; top: -62px; width: 224px; }
+  /* Fades in when the second module goes on and out when one comes off, rather than
+     expiring on a timer — the burst belongs to the state, not to the click. */
+  @keyframes moduleBurstIn {
+    from { opacity: 0; transform: scale(0.94); }
+    to   { opacity: 1; transform: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .module-burst { animation: none; }
+  }
+
+  /* Cards left, Subscription Summary right. This step needs more room than the
+     720px `.page > *` cap allows (642 cards + 99 gap + 427 panel = 1168), so it
+     breaks out of that cap and re-centres on the page's axis with a negative left
+     margin — no transform, so anything measuring itself here stays honest.
 
      The summary is only in the DOM once a module is picked, so with nothing
      selected the grid centres on the page by itself. The cards can't RESIZE when
      it appears (the grid's basis is fixed below) — the row just re-centres. */
+  /* ONE COLUMN FOR THE WHOLE STEP, AND IT HAS TWO WIDTHS.
+
+     642px is the two cards side by side. 1168px is those cards plus the 99px gap and
+     the 427px summary panel, which only exists once a module is picked.
+
+     The heading, the card row and the footnote all take whichever is current, so the
+     step keeps a single left and right edge in both states. Before this they did not:
+     the row re-centred when the panel appeared while the text kept the width it had,
+     so picking a module moved the cards out from under the sentence describing them.
+
+     Both widths break out of the 720px `.page > *` cap by re-centring on the page's
+     own axis with a calculated left margin — a margin, never a transform, so anything
+     measuring itself inside here still reports where it really is. */
+  /* The heading claims a layer too: a burst reaching up past the card row would
+     otherwise paint over the copy, positioned content beating flow content. */
+  .module-head { position: relative; z-index: 1; }
+
+  .module-head,
+  .module-layout,
+  .module-caption,
+  .module-nav {
+    --step-col: 642px;
+    width: var(--step-col);
+    max-width: none;
+    margin-left: calc((100% - var(--step-col)) / 2);
+    margin-right: 0;
+    transition: width .28s ease, margin-left .28s ease;
+  }
+  .module-head.is-wide,
+  .module-layout.is-wide,
+  .module-caption.is-wide,
+  .module-nav.is-wide {
+    --step-col: 1168px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .module-head,
+    .module-layout,
+    .module-caption,
+    .module-nav { transition: none; }
+  }
+
   .module-layout {
     display: flex;
     align-items: flex-start;
     justify-content: center;
-    gap: 32px;
-    width: 1092px;
-    max-width: none;
-    margin-left: calc((100% - 1092px) / 2);
-    margin-right: 0;
+    gap: 99px;
   }
-  /* Fixed basis: the cards keep their size no matter what's beside them. */
-  .module-layout .module-grid-2 { flex: 0 0 640px; margin: 8px 0 0; }
+  .module-layout .module-grid-2 { flex: 0 0 642px; margin: 8px 0 0; }
 
-  /* Subscription card — the onboarding twin of Minty's settings panel. Fades
-     in on the first pick rather than popping, since the row re-centres with it. */
-  /* A white card, not a tinted one: the accent belongs to the trial box and the
-     Due today figure inside it, and tinting the whole panel leaves those with
-     nothing to stand out against. Border + soft shadow are what separate it from
-     the white page. */
+  /* --- the two module cards ---------------------------------------------- */
+
+  .module-pick {
+    display: flex; flex-direction: column; align-items: center; gap: 34px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .mp-card {
+    position: relative;
+    z-index: 1;              /* above the confetti */
+    width: 100%;
+    height: 366px;
+    /* 2px in both states, not 1px growing to 2px on select — an odd border would move
+       every glyph on the card by half a pixel the moment it is ticked. */
+    border: 2px solid var(--line);
+    border-radius: 20px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 31px 0 0;
+    transition: border-color .2s ease, background .2s ease, box-shadow .25s ease, transform .2s ease;
+  }
+  .module-pick:hover .mp-card { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(15,20,25,0.08); }
+  .module-pick.selected .mp-card {
+    border-color: var(--pick-line);
+    background: var(--pick-tint);
+    /* The teal glow, read off the card export: two stacked drop shadows, the outer one
+       with a 4px spread. It is what makes a ticked card look lit rather than merely
+       outlined, and it is the piece a plain border-colour swap misses. */
+    box-shadow:
+      0 4px 20px 4px rgba(69, 214, 214, 0.2),
+      0 4px 12px rgba(69, 214, 214, 0.1);
+  }
+  .module-pick.selected:hover .mp-card {
+    box-shadow:
+      0 6px 24px 5px rgba(69, 214, 214, 0.26),
+      0 4px 12px rgba(69, 214, 214, 0.12);
+  }
+  /* The art tile. Keeps the per-module --art-accent the cards have always used, so
+     Petty Cash stays warm and Payment Request stays cool. */
+  .mp-art {
+    width: 167px; height: 120px;
+    border-radius: 13px;
+    background: var(--art-tile);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--art-accent);
+    flex: 0 0 auto;
+  }
+  .mp-img { width: var(--art-size); height: var(--art-size); object-fit: contain; display: block; }
+  .mp-name {
+    margin-top: 22px;
+    /* THE TITLE IS INSET, WHICH IS WHAT LETS IT WRAP.
+
+       With no padding the text had the card's full 296px and ran nearly edge to edge
+       before it would break. The frame insets it ~38px a side (title 224px wide in a
+       300px card), so matching that inset gives a long name somewhere to break while a
+       short one still sits on one line. */
+    padding: 0 34px;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.015em;
+    /* Two even lines rather than "Payment" over a stranded "Request". */
+    text-wrap: balance;
+    color: #16202E;
+    text-align: center;
+  }
+  /* Pinned to the bottom of the card rather than flowing after the title: the two
+     cards must line their status lines up even though their titles differ in
+     length, and one of them wrapping would otherwise push its own line down. */
+  .mp-trial {
+    position: absolute;
+    left: 0; right: 0; bottom: 26px;
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-weight: 700;
+    font-size: 20px;
+    line-height: 1.2;
+    color: var(--muted);
+    text-align: center;
+  }
+  .module-pick.selected .mp-trial { color: var(--pick-ink); }
+
+  .mp-circle {
+    position: relative;      /* above the confetti; a flow element would sit under it */
+    z-index: 1;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    border: 2px solid var(--line-strong);
+    background: var(--bg);
+    display: grid; place-items: center;
+    color: white;
+    transition: background .25s ease, border-color .25s ease, transform .2s ease, box-shadow .25s ease;
+  }
+  .module-pick:hover .mp-circle { border-color: var(--muted); }
+  .module-pick.selected .mp-circle {
+    background: var(--pick-line);
+    border-color: transparent;
+    box-shadow: 0 6px 14px rgba(79,199,199,0.35);
+    transform: scale(1.05);
+  }
+  .mp-circle svg { transform: scale(1.6); }
+
+  /* --- the Subscription Summary ------------------------------------------ */
+
+  /* Four elements and no more: a title, the plan, the payment method, and what
+     happens after the trial. The panel this replaced also carried a trial box, a
+     fact table, a "Due today" line, an after-trial sentence and a terms link.
+     THE "nothing is charged today" MESSAGE MOVED WITH THEM — it is now the
+     footnote under the cards (.module-caption) and the mandate inside the billing
+     dialog. Do not delete that footnote thinking it is decoration. */
   .sub-summary {
-    flex: 0 0 420px;
+    flex: 0 0 427px;
     margin-top: 8px;
-    padding: 24px;
+    padding: 21px 40px 30px;
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: 12px;
     background: var(--bg);
     box-shadow: var(--shadow-sm);
-    font-size: 13.5px;
     color: var(--ink-2);
     animation: subSummaryIn 0.22s ease both;
   }
@@ -1254,273 +1453,279 @@
   @media (prefers-reduced-motion: reduce) {
     .sub-summary { animation: none; }
   }
-  /* No rule under the head: the trial box directly below is already a hard edge,
-     and a hairline above it reads as a second border round the box. */
-  .sub-summary-head { margin-bottom: 16px; }
-  .sub-summary-head h3 {
-    margin: 0; font-size: 19px; font-weight: 700; color: var(--ink);
-    letter-spacing: -0.015em;
+  .sub-summary-title {
+    margin: 0 0 52px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
   }
-  .sub-summary-sub {
-    margin: 6px 0 0; font-size: 12.5px; line-height: 1.5; color: var(--muted);
+  .sub-row-label { font-size: 13px; color: var(--sum-label); white-space: nowrap; }
+
+  /* THE PLAN BLOCK HAS TWO LAYOUTS, because the design draws two.
+
+     ONE MODULE (01-A): label and name on the same row, name right-aligned against the
+     panel edge, "only" tucked under it. No illustration.
+
+     BOTH (01-B): label on its own row, then the bundle name and "Both modules selected"
+     LEFT-aligned below it, with the cape cat filling the space to their right. Keeping
+     the single-module right-alignment here is what put the name, the note and "Add card"
+     underneath the cat. */
+  .sub-plan {
+    position: relative;
+  }
+  .sub-plan .sub-row-label { display: block; }
+
+  .sub-plan.is-single {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 96px;
+  }
+  .sub-plan.is-single .sub-plan-value {
+    align-items: flex-end;
+    text-align: right;
+    margin-top: 14px;
+    /* WRAPS ONLY WHEN THERE IS NO ROOM — no width cap.
+
+       The column takes whatever the label leaves and the name breaks when it no longer
+       fits, which on the 427px panel means one line and on a phone means two. A fixed
+       cap (an earlier attempt used max-width:46%) forced the break at every width,
+       including where it fitted perfectly well.
+
+       min-width:0 is what makes it possible at all: a flex item refuses to shrink below
+       its longest word without it, so the row would widen instead of the text wrapping. */
+    flex: 1;
+    min-width: 0;
   }
 
-  /* The trial terms, stated once and in full: how long, how much, and when. */
-  .sub-trial-box {
-    padding: 13px 15px;
-    border-radius: 12px;
-    background: var(--accent-soft);
-    color: var(--accent-ink);
+  .sub-plan.is-bundle {
+    /* Tall enough to clear the cat, which is out of flow and would otherwise let the
+       Payment method row slide up underneath it. */
+    min-height: 232px;
   }
-  .sub-trial-box-title { margin: 0; font-size: 14px; font-weight: 700; }
-  .sub-trial-box-body { margin: 4px 0 0; font-size: 12.5px; line-height: 1.45; }
+  .sub-plan.is-bundle .sub-plan-value {
+    align-items: flex-start;
+    text-align: left;
+    margin-top: 46px;
+  }
 
-  /* Fact rows: label left, value right, hairline between. */
-  .sub-rows { margin-top: 4px; }
-  .sub-row {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px;
-    padding: 13px 0;
-    border-bottom: 1px solid var(--line);
+  .sub-plan-value {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
-  .sub-row-label { font-size: 13.5px; color: var(--ink-2); white-space: nowrap; }
-  .sub-row-value {
-    display: flex; flex-direction: column; align-items: flex-end; gap: 3px;
-    font-size: 13.5px; font-weight: 700; color: var(--ink); text-align: right;
+  .sub-plan-art {
+    position: absolute;
+    right: -14px;
+    top: 24px;
+    width: 190px;
+    height: auto;
+    pointer-events: none;
   }
-  .sub-row-price { white-space: nowrap; }
-  .sub-row-note {
+  .sub-plan-name {
+    /* If it does have to wrap, split the lines evenly instead of leaving one word
+       stranded. Ignored by browsers that do not support it, which is harmless. */
+    text-wrap: balance;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--sum-plan);
+    line-height: 1.2;
+  }
+  /* The bundle is the other colour — see the token comment. */
+  .sub-plan.is-bundle .sub-plan-name { color: var(--pick-ink); }
+  /* Black for "only", grey for "Both modules selected" — the two states genuinely
+     differ in the design, sampled off each panel export rather than assumed. */
+  .sub-plan-note { font-size: 13px; color: var(--ink); }
+  .sub-plan.is-bundle .sub-plan-note { color: var(--sum-label); }
+
+  /* CENTRED, not baseline. The right-hand side is two rows tall once it carries a mark
+     over a caption, and a baseline taken against it leaves "Payment method" level with the
+     middle of the logo. */
+  .sub-pay {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: 22px;
+  }
+  .sub-pay-card { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
+  /* The mark, undressed — the picker's chip border and background belong to the picker.
+     64px rather than the frame's 70: that measurement is taken off Mastercard's own
+     artwork, which carries less padding inside its box than our viewBox does, so matching
+     the number would draw a visibly bigger mark. */
+  .sub-pay-mark {
     display: block;
-    font-size: 11.5px; font-weight: 500; line-height: 1.35; color: var(--muted);
+    width: 64px; height: auto;
+    border: 0; background: none;
   }
-  .sub-per { font-size: 12px; font-weight: 500; color: var(--muted); }
-
-  /* The one number the payer is looking for. Carries the accent — and an explicit
-     zero — because the question this card answers is "what does today cost". */
-  .sub-due {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 16px;
-    padding: 15px 0 17px;
-  }
-  .sub-due-label { font-size: 14px; font-weight: 700; color: var(--ink); }
-  .sub-due-label .sub-row-note { margin-top: 3px; font-weight: 500; }
-  .sub-due-amt {
-    font-size: 26px; font-weight: 800; line-height: 1;
-    color: var(--accent-ink);
-    white-space: nowrap;
-    letter-spacing: -0.02em;
-  }
-
-  /* What happens AFTER the trial. Deliberately grey, not accent: it is the caveat
-     to the offer above, and a second mint box would compete with it. */
-  .sub-note {
-    margin: 0;
-    padding: 12px 14px;
-    border-radius: 10px;
-    background: var(--surface-2);
-    font-size: 12px; line-height: 1.5; color: var(--ink-2);
-  }
-
-
-  /* Replaces the button once consent exists — consent is once per entity, so there
-     is nothing left to press. */
-  .sub-confirmed {
-    display: flex; align-items: flex-start; gap: 9px;
-    margin: 16px 0 0;
-    padding: 12px 14px;
-    border-radius: 10px;
-    background: var(--accent-soft);
-    font-size: 12.5px; font-weight: 600; line-height: 1.45;
-    color: var(--accent-ink);
-  }
-  .sub-confirmed svg { flex: 0 0 auto; margin-top: 1px; }
-
-  .sub-terms {
-    margin: 14px 0 0;
-    padding-top: 13px;
-    border-top: 1px solid var(--line);
-    font-size: 11px; line-height: 1.5; color: var(--muted-2);
-    text-align: center;
-  }
-  .sub-terms-link {
-    color: var(--accent-ink);
+  .sub-pay-mark svg { display: block; width: 100%; height: auto; }
+  /* 14px bold is the picker's row label exactly, so the two places a card is named agree
+     without a second type scale. */
+  .sub-pay-name { font-size: 14px; font-weight: 700; color: #16202E; }
+  /* A button, not an anchor — it opens a dialog rather than going anywhere. Styled
+     as a link because that is what the design draws and what the payer expects to
+     click, but it keeps a button's keyboard behaviour. */
+  .sub-pay-add {
+    border: 0; background: none; padding: 0;
+    font-size: 13px;
     font-weight: 600;
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    color: var(--sum-price);
+    cursor: pointer;
   }
-  .sub-terms-link:hover { color: var(--accent-hover); }
+  .sub-pay-add:hover { text-decoration: underline; }
 
-  /* Too narrow for the 1092px break-out: fall back to the page's own width and stack. */
-  @media (max-width: 1160px) {
+  /* The waiting state for the Payment method row: two bars standing in for the brand and
+     the "ending in NNNN" beneath it, so the row keeps its height and nothing below it
+     moves when the real answer arrives. */
+  .sub-pay-loading {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+  }
+  .sub-pay-bar {
+    display: block; width: 84px; height: 10px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
+    background-size: 400% 100%;
+    animation: subPayShimmer 1.4s ease-in-out infinite;
+  }
+  .sub-pay-bar.is-short { width: 58px; height: 9px; }
+  @keyframes subPayShimmer {
+    0%   { background-position: 100% 50%; }
+    100% { background-position: 0 50%; }
+  }
+  /* Asked not to move, it does not move — the bars still reserve the space, they simply
+     stop travelling. */
+  @media (prefers-reduced-motion: reduce) {
+    .sub-pay-bar { animation: none; background: var(--surface-2); }
+  }
+
+  /* The one figure on this step, and it is labelled with WHEN rather than with a
+     total — nothing is charged today, and a bare total here would read as though
+     something were. */
+  /* THE LABEL AND THE PRICE ARE NOT ON ONE LINE. "After trial" sits at the top left of
+     the pill and the figure at the bottom right — a diagonal, not a centred row. Read
+     off the tile's own export: in a 366x71 tile the label's baseline is at y=26 and the
+     price's at y=55. Centring both (which is what this did) closes that gap and makes
+     the pill look like a table row. */
+  .sub-tile {
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+    margin: 20px -10px 0;
+    padding: 12px 30px 11px;
+    min-height: 71px;
+    border-radius: 999px;
+    background: var(--pick-tile);
+  }
+  .sub-tile-label { align-self: flex-start; font-size: 15px; color: var(--sum-label); white-space: nowrap; }
+  /* The bundle tile is taller — it carries the struck subtotal above the price. */
+  .sub-plan.is-bundle ~ .sub-tile { min-height: 86px; }
+  /* A ROW of [stacked figure][/month], not one column. The struck subtotal has to line
+     up over the number it is struck against, so "/month" is a sibling of the stack
+     rather than a child of the price. */
+  .sub-tile-price { display: flex; align-items: flex-end; gap: 7px; }
+  .sub-tile-figure { display: flex; flex-direction: column; align-items: flex-end; }
+  /* The undiscounted subtotal. Grey and struck, with no currency code — it sits
+     directly above one, in the same currency, and repeating it makes the figure
+     that IS charged harder to pick out. */
+  .sub-tile-was {
+    font-size: 19px;
+    color: var(--muted);
+    text-decoration: line-through;
+    line-height: 1.2;
+  }
+  .sub-tile-now {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--sum-price);
+    white-space: nowrap;
+  }
+  /* Bottoms align via flex-end, but a 15px box's baseline sits lower inside it than a
+     26px box's does; 2px lifts it back onto the figure's baseline. */
+  .sub-tile-per { font-size: 15px; font-weight: 500; color: var(--sum-note); padding-bottom: 2px; }
+
+  /* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
+
+  /* THIS STEP'S HEAD IS SIZED FROM THE FRAME, AND THAT MEANS BEATING THE FLOOR.
+
+     The "Minimum text sizing" block near the bottom of this file bumps .page-head h2 to
+     30px and .page-head p to 16px across the whole wizard. The 01-A page-head export
+     measures a 18.2px cap height on the heading (~25px Inter) and 10.9px on the
+     sub (~15px), so both rules have to be outranked HERE rather than weakened there —
+     every other step still wants the floor.
+
+     .page-head.module-head is two classes to .page-head's one, so it wins regardless of
+     which rule comes later in the file. Colours are NOT set: #1B1D1C and #8A8D8B were
+     sampled off the live frame and are already var(--ink) and var(--muted). (An SVG
+     export of this head says #737A87 for the sub; the live frame disagrees, and the
+     frame is what the design actually renders.)
+
+     The sub drops 16px -> 15px, which is a deliberate step below the app's floor for
+     one line of supporting copy. If that is not wanted, delete the p rule and keep the
+     h2 one — the heading at 25px is nowhere near a legibility problem. */
+  .page-head.module-head h2 { font-size: 25px; }
+  .page-head.module-head p { font-size: 15px; }
+
+  /* AIR UNDER THE COPY, so the confetti has somewhere to be.
+
+     The bursts reach 67px above the card top (the offset the frame draws them at, kept
+     as-is). The wizard's default .page-head margin is 36px, which with the grid's own
+     8px leaves only 44px to the cards — so the bursts climb 23px into the sub.
+
+     This adds the difference plus ~16px of clearance. It does NOT move the heading or
+     the sub: their top edge is set by everything above, and margin-bottom only pushes
+     what follows. The cards and the confetti drop; the text stays where it is. */
+  .page-head.module-head { margin-bottom: 75px; }
+
+  /* NO .module-title rule any more. It existed to lay out the heading beside the
+     "Beta Version" pill, which the design drops. The heading is now a plain
+     .page-head h2 — centred, 700, and floored at 30px by the text-sizing block
+     below, which is why it reads larger here than in the Figma frame. */
+  /* Not a footnote in the throwaway sense — see the note on .sub-summary above. */
+  .module-caption {
+    margin-top: 40px;
+    text-align: left;
+    line-height: 1.6;
+    color: var(--muted-2);
+  }
+  /* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
+  @media (max-width: 1240px) {
+    .module-head,
+    .module-layout,
+    .module-caption,
+    .module-nav {
+      width: 100%;
+      margin-left: 0;
+    }
     .module-layout {
       flex-direction: column;
       align-items: center;
-      width: 100%;
-      margin-left: auto;
-      margin-right: auto;
+      gap: 24px;
     }
-    .module-layout .module-grid-2 { flex: 0 1 auto; width: 100%; max-width: 640px; margin: 8px auto 0; }
-    .sub-summary { flex: 0 0 auto; width: 100%; max-width: 640px; margin: 0 auto; }
+    .module-layout .module-grid-2 { flex: 0 1 auto; margin: 8px auto 0; }
+    .sub-summary { flex: 0 0 auto; width: 100%; max-width: 642px; margin: 0 auto; }
+  }
+  @media (max-width: 700px) {
+    .module-grid-2 { grid-template-columns: 1fr; gap: 28px; max-width: 320px; }
+    .module-burst { display: none; }
+
+    /* 40px a side of a ~340px panel left 259px of content — the cat then covered half
+       of it. 20px gives the text back 80px before anything else is touched. */
+    .sub-summary { padding: 20px 20px 24px; }
+
+    /* The cat scales with the panel, it does not go: at 190px on a phone it sat on top
+       of "SuperMinty" and "Both modules selected". 120px clears both. The bundle block
+       gives back the height reserved for the bigger one at the same time. */
+    .sub-plan-art { width: 120px; top: 30px; right: -8px; }
+    .sub-plan.is-bundle { min-height: 150px; }
+    .sub-plan.is-bundle .sub-plan-value { margin-top: 28px; }
   }
 
-  /* New 2-up module pick cards */
-  .module-pick {
-    display: flex; flex-direction: column; align-items: center; gap: 16px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .mp-frame {
-    width: 100%;
-    padding: 3px;
-    border-radius: 18px;
-    background: var(--line);
-    transition: background .25s ease, transform .2s ease, box-shadow .25s ease;
-  }
-  .module-pick:hover .mp-frame { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(15,20,25,0.08); }
-  .module-pick.selected .mp-frame {
-    background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%);
-    box-shadow: 0 12px 32px rgba(0,203,198,0.28);
-  }
-  .mp-card {
-    position: relative;
-    border-radius: 15px;
-    background: var(--bg);
-    aspect-ratio: 1 / 1;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-  .mp-art {
-    position: relative;
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 16px 12px 0;
-    background: linear-gradient(150deg, color-mix(in oklab, var(--art-accent) 12%, white), white 65%);
-    color: var(--art-accent);
-    transition: opacity .25s ease, transform .25s ease;
-  }
-  .mp-img { width: 92%; max-height: 100%; object-fit: contain; display: block; }
-  .mp-name {
-    padding: 4px 12px 4px;
-    text-align: center;
-    font-weight: 700;
-    font-size: 26px;
-    letter-spacing: -0.015em;
-    color: var(--ink);
-    background: linear-gradient(150deg, color-mix(in oklab, var(--art-accent) 12%, white), white 65%);
-    margin-top: -5px;
-  }
-  .mp-price {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 0 12px 18px;
-    background: linear-gradient(150deg, color-mix(in oklab, var(--art-accent) 12%, white), white 65%);
-    font-size: 13px;
-  }
-  .mp-price-strike {
-    color: var(--muted);
-    text-decoration: line-through;
-    text-decoration-color: #e34d4d;
-    text-decoration-thickness: 1.5px;
-  }
-  .beta-pill {
-    display: inline-flex;
-    align-items: center;
-    background: #1f2937;
-    color: #fff;
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    padding: 3px 11px;
-    border-radius: 999px;
-    line-height: 1.4;
-    vertical-align: middle;
-  }
-  .free-trial-pill {
-    position: relative;
-    cursor: help;
-    outline: none;
-  }
-  .free-trial-pill.is-ripple {
-    box-shadow: 0 0 0 0 rgba(70, 216, 204, 0.5);
-    animation: freeTrialRipple 1.8s ease-out infinite;
-  }
-  @keyframes freeTrialRipple {
-    0%   { box-shadow: 0 0 0 0 rgba(31, 41, 55, 0.45), 0 0 0 0 rgba(31, 41, 55, 0); }
-    70%  { box-shadow: 0 0 0 10px rgba(31, 41, 55, 0), 0 0 0 18px rgba(31, 41, 55, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(31, 41, 55, 0), 0 0 0 0 rgba(31, 41, 55, 0); }
-  }
-  .free-trial-tip-portal {
-    position: fixed;
-    transform: translate(-50%, -100%);
-    background: rgba(255, 255, 255, 0.78);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    backdrop-filter: blur(18px) saturate(180%);
-    color: #0f172a;
-    font-size: 12.5px;
-    font-weight: 500;
-    line-height: 1.5;
-    padding: 10px 14px;
-    border-radius: 12px;
-    width: max-content;
-    max-width: 240px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    text-align: center;
-    z-index: 9999;
-    pointer-events: none;
-    animation: ftFade .18s ease-out;
-  }
-  .free-trial-tip-portal p { margin: 0; }
-  @keyframes ftFade { from { opacity: 0; transform: translate(-50%, calc(-100% + 6px)); } to { opacity: 1; transform: translate(-50%, -100%); } }
-  .module-title { display: inline-flex; align-items: center; gap: 10px; justify-content: center; }
-  .module-title .beta-pill { font-size: 12.5px; padding: 4px 13px; }
-  .module-caption {
-    margin: 22px auto 0;
-    max-width: 560px;
-    text-align: center;
-    font-size: 11.5px;
-    line-height: 1.55;
-    color: var(--muted);
-  }
-  .mp-hover {
-    position: absolute; inset: 0;
-    padding: 24px;
-    display: flex; flex-direction: column; justify-content: center; gap: 10px;
-    text-align: center;
-    background: rgba(255,255,255,0.96);
-    opacity: 0;
-    transform: translateY(8px);
-    transition: opacity .25s ease, transform .25s ease;
-    pointer-events: none;
-  }
-  .module-pick:hover .mp-hover { opacity: 1; transform: translateY(0); }
-  .mp-title { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; color: var(--ink); }
-  .mp-desc { font-size: 13px; color: var(--ink-2); line-height: 1.55; }
-
-  .mp-label { display: none; }
-
-  .mp-circle {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    border: 2px solid var(--line-strong);
-    background: var(--bg);
-    display: grid; place-items: center;
-    color: white;
-    transition: background .25s ease, border-color .25s ease, transform .2s ease, box-shadow .25s ease;
-  }
-  .module-pick:hover .mp-circle { border-color: var(--muted); }
-  .module-pick.selected .mp-circle {
-    background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%);
-    border-color: transparent;
-    box-shadow: 0 6px 14px rgba(0,203,198,0.35);
-    transform: scale(1.05);
-  }
-  .mp-circle svg { transform: scale(1.4); }
+  /* NO font-size here on purpose. The design draws this at about 12.5px, but the
+     "Minimum text sizing" block further down lists .module-caption and floors it at
+     16px — an accessibility decision this app already took, and one that outranks a
+     caption being small. Declaring a size here would simply be overridden and read as
+     though it worked. */
   .module {
     position: relative;
     border: 1.5px solid var(--line);
@@ -1643,9 +1848,6 @@
   .acc-name,
   .acc-empty,
   .method-name,
-  .mp-desc,
-  .mp-price,
-  .mp-price-strike,
   .ans-label,
   .ans-card .field input,
   .invite-name,
@@ -1655,8 +1857,6 @@
   .invite-field > label,
   .invite-role,
   .module-caption,
-  .module-require,
-  .free-trial-tip-portal,
   .autofill-hint,
   .info-tip-pop,
   .substep-label,
@@ -1683,7 +1883,7 @@
   .info-tip-pop p { font-size: 16px; }
   /* Avoid bumping ultra-compact UI chrome like step pills and badges */
 
-  /* Buy now sheet (Step 2: Choose a module).
+  /* Billing sheet (Step 2: which free trial to start).
 
      Above .skip-modal-overlay (1000) rather than level with it: both are portalled to
      the body, so equal z-indexes would be resolved by DOM order — which is mount order,
@@ -1696,144 +1896,356 @@
      sheet still scaling at 0.98 when the Elements iframe mounts lays the card form out
      to a width the dialog does not have. A translate moves the box without resizing it,
      so the same entrance is safe on the one dialog that hosts an iframe. */
-  @keyframes buynowOverlayIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes buynowSheetIn {
+  @keyframes billingOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes billingSheetIn {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
 
-  .buynow-overlay {
+  .billing-overlay {
     position: fixed; inset: 0; z-index: 1100;
-    animation: buynowOverlayIn .15s ease-out both;
+    animation: billingOverlayIn .15s ease-out both;
     display: flex; align-items: center; justify-content: center;
     padding: 20px; overflow-y: auto; overscroll-behavior: contain;
-    background: rgba(15, 23, 27, 0.45);
-    -webkit-backdrop-filter: blur(2px);
-    backdrop-filter: blur(2px);
+    /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
+       near-black wash it replaces, and the difference in job is the point — at 12% the
+       darkening barely separates anything, so it is the BLUR doing the work. Dropping the
+       blur here does not degrade to "slightly less separation", it degrades to none. */
+    background: rgba(22, 32, 46, 0.12);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
   }
-  .buynow-sheet {
-    animation: buynowSheetIn .18s cubic-bezier(.16, 1, .3, 1) both;
+  /* THREE FRAMES, THREE WIDTHS. Figma section 01 draws the picker at 481px, the new
+     billing account form at 880 and the success card at 435 — measured in a 1440px content
+     column, which is what this app lays out at, so the numbers transfer directly.
+
+     NO WIDTH TRANSITION between them, for the same reason the entrance does not scale:
+     Stripe measures the box it mounts into, and a dialog still animating from 481 to 880
+     when the Elements iframe comes up lays the card form out to a width the dialog is
+     about to stop having. */
+  .billing-sheet {
+    animation: billingSheetIn .18s cubic-bezier(.16, 1, .3, 1) both;
+    position: relative;
     background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
-    padding: 24px;
-    max-width: 480px; width: 100%;
+    /* NO BORDER. Over a 12% scrim the shadow is the whole separation, and a 1px grey line
+       drawn on top of it reads as a seam rather than an edge.
+
+       ONE SHELL FOR ALL THREE STATES, though the frames draw three: radius 16 with this
+       shadow (01-D), radius 12 with a card-level 0 2px 8px (01-L), radius 24 with a
+       two-layer shadow (01-J). 01-D's is the only one that reads as a modal rather than a
+       rectangle with a default shadow, and a dialog that changes shape as the payer moves
+       through it is three dialogs. */
+    border: 0;
+    border-radius: 16px;
+    box-shadow: 0 16px 44px rgba(22, 32, 46, 0.16);
+    padding: 30px;
+    max-width: 481px; width: 100%;
     margin: auto;
   }
+  .billing-sheet.is-form { max-width: 880px; padding: 26px 28px 28px; }
+  /* `overflow: visible` is kept rather than needed: the cat sits inside the card (see
+     `.billing-done-art`), and nothing else here draws outside it. A dialog has no reason
+     to clip its own contents, so leaving it costs nothing — but it is no longer load
+     bearing, and the cat's placement must not be changed on the assumption that it is. */
+  .billing-sheet.is-done { max-width: 435px; padding: 67px 48px 40px; overflow: visible; }
+
   /* Asked not to move, it does not move. The dialog still appears; it simply arrives
      rather than travelling. */
   @media (prefers-reduced-motion: reduce) {
-    .buynow-overlay, .buynow-sheet { animation: none; }
+    .billing-overlay, .billing-sheet { animation: none; }
   }
 
-  .buynow-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px; }
+  .billing-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; }
+  .billing-headtext { min-width: 0; }
+  /* The head is EMPTY on the success card, which carries its own two-colour heading — only
+     the close button is left in it. Without this the margin still lands and 01-J opens with
+     22px of nothing above the cat. */
+  .is-done .billing-head { margin-bottom: 0; }
   /* The type scale is the payer portal's, so the same dialog is the same size wherever it
-     is opened from: 18px/28px title (its `text-lg`) and a 13.5px sub-line at the inherited
-     1.5, not 16px and 1.55. Two points of title is small on paper and obvious side by
-     side, because it is the first line of the dialog. */
-  .buynow-title { margin: 0 0 6px; font-size: 18px; line-height: 28px; font-weight: 700; color: var(--ink); }
-  .buynow-sub { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
-  .buynow-close {
+     is opened from. 19px here rather than the old 18: the design sets both dialog titles
+     at that, and it is the first line of the dialog. */
+  .billing-title { margin: 0 0 6px; font-size: 20px; line-height: normal; font-weight: 700; letter-spacing: -0.01em; color: #16202E; }
+  /* The picker titles itself smaller than the form — 16px semibold against 20px bold.
+     Kept as two sizes rather than normalised, because the design sizes each heading to what
+     it introduces: a short list under a label, against a page of fields. */
+  .is-list .billing-title { font-size: 16px; font-weight: 600; }
+  .billing-sub { margin: 0; font-size: 13.5px; line-height: normal; color: #6B7A80; max-width: 434px; }
+  .billing-close {
     flex: none; margin-left: auto;
     background: transparent; border: 0; cursor: pointer;
     color: var(--muted); padding: 4px; border-radius: 8px; line-height: 0;
   }
-  .buynow-close:hover { background: var(--surface-2); color: var(--ink-2); }
-  .buynow-close:disabled { cursor: not-allowed; opacity: 0.5; }
+  .billing-close:hover { background: var(--surface-2); color: var(--ink-2); }
+  .billing-close:disabled { cursor: not-allowed; opacity: 0.5; }
 
-  .buynow-loading { margin: 0; padding: 18px 0; font-size: 14px; color: var(--muted); }
+  .billing-loading { margin: 0; padding: 18px 0; font-size: 14px; color: var(--muted); }
 
-  .buynow-list { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 8px; }
-  .buynow-pm {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 14px; cursor: pointer;
-    border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
-    background: var(--bg); transition: border-color .15s, background .15s;
+  /* --- 01-L · the card picker ---------------------------------------------- */
+
+  /* SCROLLS RATHER THAN COLLAPSING. A wallet of seven cards used to hide everything but
+     the chosen row behind a "Change" toggle, which kept the sheet inside the viewport by
+     hiding the choice the dialog exists to offer. The cap is ~3.5 rows, so a fourth card
+     is visibly cut off — that is the affordance, and a list that ended flush on the fourth
+     row would look complete. */
+  .billing-list {
+    list-style: none; margin: 0; padding: 2px;
+    display: grid; gap: 10px;
+    max-height: 370px; overflow-y: auto; overscroll-behavior: contain;
   }
-  .buynow-pm:hover { background: var(--surface); }
-  .buynow-pm.is-chosen { border-color: var(--accent); background: var(--accent-soft); }
-  .buynow-pm input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
-  .buynow-pm-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .buynow-pm-label { font-size: 14px; font-weight: 600; color: var(--ink); }
-  .buynow-pm-meta { font-size: 12.5px; color: var(--muted); }
-  /* The flag rail. One pill per fact, in a fixed order — what the card is to the account,
-     then how close it is to not working — so the same card reads the same way here, on
-     Minty's restart screen and in the payer portal. Every pill is the same shape; only the
-     colour family changes, because they are the same KIND of statement. */
-  .buynow-pm-flags { margin-left: auto; flex: none; display: flex; align-items: center; gap: 6px; }
-  /* STACKED on a narrow screen. Side by side, two pills plus the radio left the card
-     label about half the row, so "Visa •••• 5556" broke across two lines and its expiry
-     across two more. In a column they take one pill's width and the label keeps the
-     rest. 560px is the same breakpoint the sheet's action row stacks at. */
-  @media (max-width: 560px) {
-    .buynow-pm-flags { flex-direction: column; align-items: flex-end; }
+  .billing-pm {
+    display: flex; align-items: center; gap: 18px;
+    min-height: 95px;
+    padding: 14px 20px; cursor: pointer;
+    /* NO BORDER — the design separates one row from the next with a shadow alone. */
+    border: 0; border-radius: 12px;
+    background: var(--bg); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    outline: 2px solid transparent; outline-offset: -2px;
+    transition: box-shadow .15s, outline-color .15s;
   }
-  .buynow-pm-flag {
+  .billing-pm:hover { box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14); }
+  /* AN OUTLINE, NOT A BORDER, so choosing a row does not change its size and shunt the
+     rest of the list down by 2px.
+
+     The frames say nothing about this state: the only row they draw IS the chosen one, and
+     it carries no mark of it. Left that way, a 20px radio would be the entire signal in a
+     list of three, so the ring stays. */
+  .billing-pm.is-chosen {
+    outline-color: var(--pick-line);
+    box-shadow: 0 2px 10px rgba(79, 199, 199, 0.18);
+  }
+  /* THE RADIO IS DRAWN, NOT THEMED. `accent-color` gives a coloured dot inside a thin
+     ring; the design draws the inverse — a 6px teal ring around a white core — and no
+     property turns one into the other. `appearance: none` is the only route, and it takes
+     the native focus ring away with the native appearance, which is what the
+     :focus-visible rule below is replacing. Do not delete it. */
+  .billing-pm input {
+    appearance: none; -webkit-appearance: none;
+    flex: none; width: 20px; height: 20px; margin: 0;
+    border: 2px solid #D7DEE2; border-radius: 50%;
+    background: var(--bg);
+    cursor: pointer;
+    transition: border-color .15s, border-width .15s;
+  }
+  .billing-pm input:checked { border: 6px solid #2E9B9B; }
+  .billing-pm input:focus-visible { outline: 2px solid var(--pick-line); outline-offset: 2px; }
+  .billing-pm input:disabled { cursor: not-allowed; opacity: .5; }
+  /* The brand chip — see CardBrand.jsx for why it is our own mark and not the network's
+     artwork. A fixed box so the labels beside it line up down the list however wide the
+     wordmark inside turns out to be. */
+  .pm-brand {
+    flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 56px; height: 36px;
+    border: 1px solid #EFF1F3; border-radius: 7px;
+    background: var(--bg);
+  }
+  .billing-pm-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+  .billing-pm-label { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; color: #16202E; }
+  .billing-pm-meta { display: flex; align-items: baseline; gap: 11px; font-size: 12px; color: #16202E; }
+  /* "Expire on" is the caption and the date is the fact — the design greys the first and
+     leaves the second in ink, which is why they are two elements rather than one string. */
+  .billing-pm-metalabel { color: #A0A8B2; }
+  .billing-pm-company { font-size: 12.5px; color: var(--muted); }
+  /* The flags, in a fixed order — what a card IS to the account, then how close it is to
+     not working — so the same card reads the same way here, on Minty's restart screen and
+     in the payer portal. Every pill is the same shape; only the colour family changes,
+     because they are the same KIND of statement. */
+  .billing-pm-flags { margin-left: auto; flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .billing-pm-flag {
     flex: none;
     font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
     border: 1px solid transparent;
     padding: 3px 8px; border-radius: 999px;
     white-space: nowrap;
   }
-  .buynow-pm-flag.is-default { color: #267347; background: #d6edd9; border-color: #b5ddbd; }
-  .buynow-pm-flag.is-soon    { color: #9e690d; background: #fce6bd; border-color: #f2d59b; }
-  .buynow-pm-flag.is-expired { color: #b4231f; background: #fff1f1; border-color: #ffcccc; }
+  .billing-pm-flag.is-soon    { color: #9e690d; background: #fce6bd; border-color: #f2d59b; }
+  .billing-pm-flag.is-expired { color: #b4231f; background: #fff1f1; border-color: #ffcccc; }
 
-  /* The list header and its Change toggle. `is-collapsed` hides the rows the payer is
-     not currently on, rather than unmounting them — see the note in BuyNowSheet. */
-  .buynow-listhead {
-    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-    margin-bottom: 8px;
+  /* Centred under the list, in the step's teal. A button rather than an anchor — it opens
+     the form beside it rather than going anywhere — styled as the link the design draws,
+     and keeping a button's keyboard behaviour. */
+  .billing-add {
+    display: block; margin: 30px auto 0;
+    border: 0; background: none; padding: 4px 8px;
+    font-size: 16px; font-weight: 400; color: var(--pick-ink);
+    cursor: pointer;
   }
-  /* Also the payer portal's: a 14px semibold heading over the list, and a 13.5px text
-     button beside it — not 13px for both, which read as a caption rather than a heading. */
-  .buynow-listlabel { font-size: 14px; font-weight: 600; color: var(--ink); }
-  .buynow-change { font-size: 13.5px; }
-  .buynow-list > li.is-collapsed { display: none; }
+  .billing-add:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .billing-add:disabled { cursor: not-allowed; opacity: .5; }
 
-  .buynow-add { font-size: 13.5px; }
-  .buynow-form { margin-top: 4px; }
-  /* Spacing only. The AddressElement themes itself from Stripe's stock appearance, the
-     same as the PaymentElement above it — nothing here should try to restyle its insides. */
-  .buynow-address { margin-top: 16px; }
+  /* --- 01-D · the new billing account form --------------------------------- */
+
+  /* Form left, cat right. The column is 434px because that is what the frame draws, and
+     because it is a comfortable measure for a form of single-line fields — a form that
+     stretched to the full 880 would put the caret half a screen from the label. */
+  .billing-formwrap { display: flex; align-items: flex-start; gap: 80px; }
+  .billing-formcol { flex: 0 0 434px; max-width: 100%; min-width: 0; }
+  /* 232px, not the frame's 290. The exported asset was cropped to its alpha bounds
+     (580x840 -> 464x605), so the drawn footprint and the file's own width are not the same
+     number — 290 of frame is 232 of this file. */
+  .billing-formart { flex: 1 1 auto; align-self: center; width: 232px; max-width: 100%; height: auto; }
+
+  .billing-form { margin-top: 4px; }
+  .billing-field { margin-bottom: 14px; }
+  .billing-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #16202E; }
+  /* Matched to the Stripe fields below them (STRIPE_APPEARANCE in BillingSheet.jsx), so
+     the three inputs the payer meets in one column are one column of inputs. Change either
+     and change the other. */
+  .billing-input {
+    display: block; width: 100%; height: 44px;
+    padding: 12px 14px;
+    border: 1px solid #D7DEE2; border-radius: 8px;
+    background: var(--bg);
+    font: inherit; font-size: 14px; color: #16202E;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .billing-input::placeholder { color: #9AA6AC; }
+  .billing-input:focus {
+    outline: none;
+    border-color: var(--pick-line);
+    box-shadow: 0 0 0 3px rgba(79, 199, 199, 0.18);
+  }
+  .billing-input:disabled { background: var(--surface); cursor: not-allowed; }
+  /* The invalid state colours the border rather than adding an icon: the message below it
+     says what is wrong, and the two together are the signal — colour alone would not be. */
+  .billing-input.is-invalid { border-color: #b4231f; }
+  .billing-input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(180, 35, 31, 0.15); }
+  .billing-fielderror { margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: #b4231f; }
+
+  /* The bordered block around the Stripe elements. It is a boundary as much as a frame:
+     everything inside it is rendered by Stripe, in Stripe's iframe, and is the one part of
+     this form whose contents never reach this app. */
+  .billing-stripe {
+    border: 1px solid #D7DEE2; border-radius: 10px;
+    padding: 16px;
+  }
+  /* Spacing only. The AddressElement themes itself from the appearance object, the same as
+     the PaymentElement above it — nothing here should try to restyle its insides. */
+  .billing-address { margin-top: 16px; }
+
+  /* --- 01-J · the card was saved ------------------------------------------- */
+
+  .billing-done { position: relative; }
+  /* ONE ROW: heading left, cat right, centred against each other.
+
+     It was an absolutely positioned overlay, which is why this is worth a note. That
+     version took the cat out of flow, so the row had only the heading's height while the
+     cat hung ~50px below it, into the band the body sentence sits in. Nothing collided
+     because the two are on opposite sides, but the spacing below the heading was measured
+     against the wrong thing and the pair did not read as a row.
+
+     `align-items: center` rather than the frame's exact offset: measured off the render
+     the cat sits a little lower than the heading's centre, which is within the error of
+     reading it off a raster and not worth pinning a magic number to. */
+  .billing-done-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  /* 106px is measured from the frame's RENDER, not its node coordinates — the two
+     disagree. `get_metadata` places "Minty celebrating" (2234:3281) far enough right to
+     hang two thirds of it outside the card; the rendered frame plainly shows it wholly
+     inside. The render is what the design looks like; do not "correct" this back. */
+  .billing-done-art {
+    flex: none;
+    width: 106px; height: auto;
+    pointer-events: none;
+  }
+  /* No max-width any more — the flex row is what keeps the heading clear of the cat, and
+     a fixed cap on top of it would only wrap the words earlier than the space requires. */
+  .billing-done-title {
+    margin: 0;
+    font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em;
+    color: #16202E;
+  }
+  .billing-done-title span { color: var(--pick-ink); }
+  /* 48/18/48 and a 1.2 leading are the frame's own spacing, and together with the 67px
+     top padding they add up to its 469px card exactly:
+     67 + 128.6 (the cat, tallest in the row) + 66 + 54 + 114 + 40 = 469. */
+  .billing-done-body { margin: 0; padding-top: 48px; font-size: 15px; line-height: 1.2; color: var(--sum-label); }
+  .billing-done-body + .billing-done-body { padding-top: 18px; }
+  /* The card that was saved, in its own colour so the sentence can be scanned for the
+     one fact it carries. */
+  .billing-done-card { color: #EA9713; }
+  .billing-done-actions { display: flex; justify-content: center; margin-top: 48px; }
+  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }
+
+  /* --- shared: mandate, errors, actions ------------------------------------ */
+
   /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
      key is a hundred characters with no space in it — without a break opportunity the
      paragraph refuses to wrap and runs out through the side of the dialog. */
   /* The mandate sets the type here, and the note matches it — it stands in for Stripe's
      own suppressed line (terms.card:'never'), so it is a disclosure rather than fine
      print and is not shrunk below the text around it. */
-  .buynow-note,
-  .buynow-mandate,
-  .buynow-error {
-    margin: 14px 0 0; font-size: 13px; line-height: 1.5;
+  .billing-note,
+  .billing-mandate,
+  .billing-error {
+    margin: 24px 0 0; font-size: 12.5px; line-height: 1.5;
     overflow-wrap: anywhere;
   }
   /* Half a point larger than the mandate, as it is in the payer portal. An error is read
      once, under pressure, and the mandate is standing text — they are not the same job. */
-  .buynow-error { font-size: 13.5px; }
-  .buynow-note,
-  .buynow-mandate { color: var(--muted); }
-  .buynow-mandate a {
-    color: var(--accent-ink); font-weight: 600;
-    text-decoration: underline; text-underline-offset: 2px;
+  .billing-error { font-size: 13.5px; }
+  .billing-note,
+  .billing-mandate { color: #6B7A80; }
+  /* NOT UNDERLINED, and in the design's darker teal rather than the step's bright one. It
+     is the tail of a mandate sentence, not navigation — the design marks it with colour
+     and nothing else, and the underline arrives on hover to say it is clickable. */
+  .billing-mandate a {
+    color: #128F92; font-weight: 600;
+    text-decoration: none;
   }
-  .buynow-mandate a:hover { color: var(--accent); }
-  .buynow-error {
+  .billing-mandate a:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .billing-error {
     color: #b4231f; background: #fff1f1;
     border: 1px solid #ffcccc; border-radius: var(--radius-sm);
     padding: 10px 12px;
   }
-  .buynow-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
-  .buynow-actions .btn { min-width: 108px; justify-content: center; }
-  /* Pushed to the far left, away from Back/Confirm: it is the one action here that
-     leaves the step, and it should not sit close enough to Confirm to be hit for it. */
-  .buynow-later { margin-right: auto; }
 
+  /* 01-D's pair: a narrow Cancel and a wide Save filling the form column, in the design's
+     150/270 proportion. */
+  .billing-actions { display: flex; gap: 14px; margin-top: 20px; }
+  /* 8px rather than the app's 10px --radius-sm: the design draws these at the same radius
+     as the inputs above them, which is what makes the form read as one stack rather than a
+     form with a toolbar under it. */
+  .billing-actions .btn { height: 44px; border-radius: 8px; justify-content: center; }
+  .billing-actions .btn-ghost { border-color: #D7DEE2; color: #16202E; }
+  .billing-cancel { flex: 0 0 150px; }
+  .billing-save { flex: 1 1 auto; }
+  /* 01-L has one button and it is centred, because there is nothing for it to be balanced
+     against. */
+  .billing-actions.is-single { justify-content: center; margin-top: 28px; }
+  .billing-actions.is-single .btn { min-width: 130px; }
+
+
+  /* --- narrow ---------------------------------------------------------------- */
+
+  /* Below the two-column form the cat is the first thing to go: at 250px it is more than
+     half the width of a phone dialog, and it is decoration beside a form the payer is
+     typing a card number into. */
+  @media (max-width: 900px) {
+    .billing-sheet.is-form { max-width: 481px; }
+    .billing-formwrap { display: block; }
+    .billing-formcol { flex: none; }
+    .billing-formart { display: none; }
+  }
   @media (max-width: 560px) {
-    .buynow-sheet { padding: 20px 18px; }
-    .buynow-actions { flex-direction: column-reverse; }
-    .buynow-actions .btn { width: 100%; }
-    /* Stacked: the row's auto margin would push it a full column height away. */
-    .buynow-later { margin-right: 0; }
+    .billing-sheet { padding: 22px 18px; }
+    .billing-sheet.is-form { padding: 22px 18px; }
+    .billing-sheet.is-done { padding: 30px 22px 32px; }
+    /* The row becomes a column on a phone: a 106px cat beside a 24px heading leaves the
+       heading about half a 300px dialog, which wraps it to four lines. `column-reverse`
+       puts the cat back ON TOP, which is the arrangement this had before and reads better
+       centred than a cat squeezed alongside. */
+    .billing-done-head { flex-direction: column-reverse; align-items: center; gap: 6px; }
+    .billing-done-art { width: 120px; }
+    .billing-done-title { font-size: 24px; text-align: center; }
+    .billing-done-actions { margin-top: 32px; }
+    .billing-done-btn { width: 100%; }
+    /* The brand chip and the two-line label no longer fit beside the flag rail. The flags
+       go under the label, where they still read as facts about this card. */
+    .billing-pm { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
+    .billing-pm-flags { flex-direction: row; margin-left: 0; flex-basis: 100%; justify-content: flex-start; }
+    .billing-actions { flex-direction: column-reverse; }
+    .billing-actions .btn { width: 100%; }
+    .billing-cancel, .billing-save { flex: none; }
   }
