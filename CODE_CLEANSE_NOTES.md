@@ -518,6 +518,78 @@ cleanse's recorded figures were already stale when this one started.
 The single lint change is one `no-unused-expressions` warning that lived *inside* dead code.
 No `(file, rule)` pair moved otherwise.
 
+---
+
+# The test suite (2026-09-11)
+
+Before this there was **no test framework in this repo at all** — no runner, no test files,
+no `test` script. Every verification had been a throwaway harness, written, run and deleted.
+`billing-frontend` is the same; both *backends* have pytest. So the org tested Python and did
+not test JavaScript.
+
+**280 unit + component tests** (vitest + React Testing Library, jsdom) and **17 end-to-end
+tests** (Playwright, against a live stack) now exist. New gates:
+
+| gate | result | needs |
+|---|---|---|
+| `npm test` | **280 passed** | nothing running |
+| `npm run test:e2e` | **17 passed** | the whole stack + 3 env vars |
+| `npx tsc --noEmit` | **0 errors** | — |
+| `npx eslint .` | **35 (16 err, 19 warn)** — unchanged baseline | — |
+| `next build` | passes | — |
+
+## Three things the tests changed in the source
+
+They are all type-only or contract-only. None changes runtime behaviour, and each is here
+because the tests were the first **type-checked** callers the components have ever had.
+
+1. **`StepChrome.jsx` — `style` and `isLastContentStep` now carry `= undefined`.** A `.jsx`
+   file has no other way to say a prop is OPTIONAL: a destructured parameter without a
+   default is inferred as REQUIRED, so every type-checked caller was told it had to pass
+   both. The default is a no-op at runtime — destructuring a missing key already yields
+   `undefined`. **Do not tidy these away**; `tsc` goes red if you do. (`style` turns out to
+   be passed by *no* caller at all — a dead prop, left in place for now.)
+2. **`lib/date.js` — `formatDate` gained JSDoc types.** Everything after `upper` is spread
+   straight into `Intl`, and without the annotation TypeScript infers the whole parameter as
+   `{ upper?: boolean }` and rejects `day` / `month` / `year` at every checked call site.
+3. **`scripts/check-routes.mjs` is gone.** Its 39 cases live in
+   `lib/__tests__/apiRoutes.test.ts` (now 51, plus a guard that fails if a path is added to
+   `DJANGO_PATHS` without a case). `npm run check:routes` still exists and runs just that file.
+
+`PCSection`'s `cardRef` was NOT made optional: all eight call sites pass one, so there the
+test was the odd one out and the test was fixed instead.
+
+## The suite was mutation-checked, not just run
+
+Seven deliberate one-line mutations were introduced and reverted, each caught by exactly the
+test that should catch it: `continue`→`break` in the invite skip, the Xero gate moved 4→5,
+the phone minimum 8→7, `isAll` reading `!!value.all`, `allOn` losing its `codes.length > 0`
+guard, the Bill step's raw-code search, and select-all emitting an explicit map instead of
+the compact form. A suite that has never failed has not been shown to work.
+
+## What E2E cost to learn
+
+The first authenticated run **finalized a dev entity**. `resume.spec.ts` landed the browser
+on whatever step the row held; that entity was on 9, and **arriving at step 9 runs
+`completeOnboarding`** (`OnboardingApp.jsx:1204` says the screen "commits nothing" precisely
+because arrival already did). It submitted the opening balance, POSTed `/finalize`, flipped
+`entities.status` to `active` and opened two trial subscriptions.
+
+Both were reverted, and `land()` now pins `saved_step` through the API before every
+navigation and throws if asked for 9. A dedicated entity —
+`ee72f706-49f2-4690-83d6-e5f8d284ba2c`, *"E2E Test Entity (do not use)"* — now exists so no
+real entity is in the blast radius.
+
+## What is still not covered
+
+**No automated test walks a company through onboarding end to end.** Step 4 is a live Xero
+OAuth round-trip; there is no test-account path through it, and faking the callback would
+test the fake. The wizard cannot be driven past step 4, so steps 5–9 have unit and component
+coverage only. The email OTP sign-in is uncovered for the same reason.
+
+`OnboardingApp.jsx` and `OnboardingSteps.jsx` themselves have **no direct tests** — only the
+pieces extracted out of them do. That is the gap the TypeScript conversion will narrow.
+
 ## What went
 
 - **The `&& false` substep popover** and its whole feeder chain: the JSX, `showSubs`,
@@ -558,6 +630,48 @@ Likewise, a CSS remover **must mask comments before parsing**. A first attempt t
 prose as selectors and proposed deleting half a paragraph about the Inter typeface. It was
 caught by dry-running the remover and reading its output before applying it. Dry-run first.
 
+### The CSS remover broke the build once. Read this before writing another one.
+
+The first version computed every removal range up front and applied them back-to-front. Each
+range started at the previous rule's closing `}` and then **backed up over preceding
+whitespace** to avoid leaving blank gaps. For rules written on the same line —
+
+```css
+.btn-mint-pill:disabled { ... }
+/* Method row context menu (gear) */
+.method-gear-wrap { position: relative; }
+.method-gear.active { ... }
+```
+
+— that backward reach made ADJACENT ranges overlap. Applying overlapping ranges corrupted the
+text between them: comment openers were eaten (`/* Auto Fill button ... */` became
+`Auto Fill button ... */`), rules that should have been removed survived, and three selectors
+were left truncated mid-name (`.switch.on` → `tch.on`, `.integration.connected` →
+`ntegration.connected`, `.pill-radio button.active` → `l-radio button.active`).
+
+**`next build` passed anyway** — Turbopack had cached the CSS transform. It surfaced only when
+the dev server recompiled. A green build is not proof that a CSS edit is well-formed.
+
+The fix: **remove one rule at a time, re-parsing the file after each**, so ranges cannot
+overlap by construction, and absorb only trailing whitespace, never reach backwards. Slower,
+and correct.
+
+A second bug found in the same rewrite: the original `all_dead` test asked whether EVERY class
+in a selector was unused. For a compound like `.step.has-subs` that is wrong — such a rule
+matches only elements carrying *both*, so it is dead if **any** of its classes is never
+applied. Fixing that took the removal count from 55 rules to 83.
+
+Three checks now run after any CSS pass, and all three are worth keeping:
+
+1. comment markers pair, and braces balance;
+2. no selector exists that did not exist before (an invented selector *is* corruption);
+3. every class still used in JSX still has at least one rule.
+
+Check 3 needs one caveat: extracting identifiers from `className={...}` also picks up
+JavaScript **variables**. `connected` was flagged as a live class that had lost its styling; it
+is the variable in `connected ? ' status-connected' : ''`, and the real class is
+`status-connected`, which is fine.
+
 Final safety check, worth repeating on any future CSS pass: every class still used in JSX must
 still have a rule. Compare `git show HEAD:app/globals.css` against the working copy and
 intersect with the usage set — it caught nothing this time, which is the point.
@@ -594,6 +708,71 @@ whose CORS does **not** send `Access-Control-Allow-Credentials`, so browsers wer
 request outright. It failed silently: the code falls back to the browser's own clock, so the
 date picker was capping on the browser's idea of "today" rather than the server's. Verified
 against the running service, then removed.
+
+## Extraction from OnboardingApp (group 10, first pass)
+
+`OnboardingApp.jsx` **1728 -> 1414 lines**. Moved verbatim, nothing rewritten:
+
+- **`lib/wizardSession.js`** (63) — `STORAGE_KEY`, `XERO_RESUME_KEY`, `sessionKey`,
+  `findLatestSession`, `readJwtClaims`.
+- **`lib/wizardSteps.js`** (200) — `STEPS`, `getDisplaySteps`, `getActiveStepIds`,
+  `deriveResumeStep`, `initialState`, `isStepComplete`.
+- **`components/Stepper.jsx`** (79).
+
+Proven, not assumed:
+
+- **SSR render-diff of `Stepper`**: 2 module layouts x 6 `current` values x 3 `maxReached`
+  values = **36 comparisons, byte-identical markup**. `react-dom/server`, old implementation
+  taken from `git show HEAD:` so it is the real prior code, not a retyping.
+- **Equivalence harness for the step logic**: 4 module sets, 4 state shapes, 9 `savedStep`
+  values including `null`/`undefined`/out-of-range/non-numeric, and all 9 step ids =
+  **82 comparisons, 0 differing**. This is the logic that decides where a resume lands, so it
+  got its own proof rather than riding on the build.
+
+`ACCENT_DEFAULTS` stayed in the component — it is read there, not by the extracted code.
+
+## Extraction from OnboardingSteps (group 10, second pass)
+
+`OnboardingSteps.jsx` **2301 -> 1725 lines**. Moved verbatim into `components/steps/`:
+
+- **`StepChrome.jsx`** (56) -- `SaveExitLink`, `StepNav`.
+- **`modulePricing.jsx`** (256) -- `MODULES` and everything that prices them:
+  `plansByModuleId`, `money`, `trimZeroCents`, `priceSelection`, `pricedRows`,
+  `ModuleSubscriptionSummary`.
+- **`pettyCashFields.jsx`** (294) -- `CURRENCY_CODES`, `currencyCode`, `MethodList`,
+  `MintCheck`, `AccountCodesCard`, `PCSection`.
+
+`SaveExitLink` is re-exported from `OnboardingSteps.jsx` so existing importers are unaffected.
+
+**SSR render-diff: 38 comparisons, 0 differing** -- `SaveExitLink` x disabled x className,
+`StepNav` x saving x `isLastContentStep` including the `undefined` fall-through, `MintCheck`,
+`MethodList` across three list sizes x autofilled, `PCSection` with and without a field error,
+and `AccountCodesCard` across 3 code sets x 3 value shapes x labels present/absent. Old
+implementations taken from `git show HEAD:`.
+
+Writing that harness took three attempts because I guessed the prop shapes instead of reading
+them: `AccountCodesCard` takes `codes` as an array of code STRINGS with a separate
+`labels` map, and `value` as `{ all, selected }` -- not objects with a `selected` flag. **Read
+the signature before writing the harness**; a harness that crashes is a wasted cycle, and one
+that silently renders a fallback would be worse.
+
+`no-undef` caught missing imports in all three new files on the first run, and unused ones
+left behind in the original. Without it the build would still have passed -- see below.
+
+## A gate that did not exist, and now does
+
+`no-undef` is now enabled for `**/*.{js,jsx,mjs}` in `eslint.config.mjs`.
+
+It was OFF for every `.jsx` file in this repo, and nothing else covered them:
+`eslint-config-next/typescript` disables the rule (right for `.ts/.tsx`, where the compiler
+catches it), but `tsconfig.json`'s `include` lists only `**/*.ts`, `**/*.tsx` and `**/*.mts`,
+and `checkJs` is off. So both ~2,000-line components had **no check at all** for an undefined
+identifier.
+
+That is not theoretical: a missing `toIsoDate` import passed `next build` AND `eslint` and
+failed only at runtime in the browser. Verified the new rule closes it by reintroducing the
+bug — eslint reports `'toIsoDate' is not defined` at both call sites; the build still reports
+nothing. Enabling it added **zero** new problems to the baseline.
 
 ## Still open
 

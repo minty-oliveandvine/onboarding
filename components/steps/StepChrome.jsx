@@ -7,7 +7,12 @@
 
 import { useState } from 'react';
 import Icon from '../Icon';
-export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style }) {
+// `style` and `isLastContentStep` below carry an explicit `= undefined`. It changes
+// nothing at runtime -- destructuring a key that is not there already yields
+// undefined -- but it is the only way a .jsx file can say the prop is OPTIONAL, and
+// without it every type-checked caller is told the prop is required. Do not tidy the
+// defaults away; the component tests are type-checked and will fail.
+export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style = undefined }) {
   const [exiting, setExiting] = useState(false);
   const onClick = async () => {
     if (exiting || disabled) return;
@@ -39,7 +44,7 @@ export function SaveExitLink({ saveAndExit, submitFn, disabled = false, classNam
 // StepSelectModule deliberately does NOT use this: its primary button has
 // different disabled logic and an extra sibling hint, so sharing would mean
 // parameterizing more than it saves.
-export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep }) {
+export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep = undefined }) {
   return (
     <div className="step-nav">
       <button className="btn btn-ghost" onClick={back}>

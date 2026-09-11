@@ -34,9 +34,12 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 | `npm run dev` | dev server on 3001 |
 | `npm run dev:clean` | dev server with a cleared `.next` cache |
 | `npm run dev:poke` | wake the dev server (`scripts/dev-poke.mjs`) |
-| `npm run build` | production build — **the main quality gate; there is no test suite** |
+| `npm test` | unit + component tests (vitest, jsdom) — **the per-commit gate** |
+| `npm run test:watch` | the same, in watch mode |
+| `npm run test:e2e` | end-to-end against a running stack — see [e2e/README.md](e2e/README.md) |
+| `npm run build` | production build (also type-checks) |
 | `npm run lint` | eslint |
-| `npm run check:routes` | asserts every wizard path routes to the right service |
+| `npm run check:routes` | just the routing tests — asserts every wizard path reaches the right service |
 
 ## Before changing anything
 
@@ -45,5 +48,23 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 - **[`ERROR_COPY.md`](ERROR_COPY.md)** — the user-facing error standard, shared across the Minty
   repos. A failure is a sentence, not a status.
 
-There is no test framework here. The build, `npm run lint` against its current baseline, and
-`npm run check:routes` are the gates; anything behavioural is verified by walking the wizard.
+## Testing
+
+| | |
+|---|---|
+| unit + component | **vitest** + React Testing Library, jsdom. `lib/__tests__/`, `components/__tests__/` |
+| end-to-end | **Playwright**, `e2e/` — needs the whole stack up, so it is a pre-merge gate rather than a per-commit one |
+
+`npm test` is the gate to run before every commit; it needs nothing running. `npm run
+test:e2e` needs Next, Flask, the Django onboarding service and Postgres all up, and its
+authenticated half needs three environment variables — [e2e/README.md](e2e/README.md) has
+the details, including **the one sharp edge: a test must never land on step 9**, because
+arriving at "All Set" finalizes the entity and opens trial subscriptions.
+
+Test files are written in TypeScript against the untyped `.jsx` sources on purpose, so
+`npx tsc --noEmit` covers them. That is currently the ONLY type-checked code that
+exercises the components — see `CODE_CLEANSE_NOTES.md`.
+
+**There is no CI in this repo**, so "gate" means a command somebody runs.
+
+`npm run build` and `npm run lint` (against its recorded baseline) remain gates too.
