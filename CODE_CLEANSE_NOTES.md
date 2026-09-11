@@ -562,10 +562,42 @@ Final safety check, worth repeating on any future CSS pass: every class still us
 still have a rule. Compare `git show HEAD:app/globals.css` against the working copy and
 intersect with the usage set — it caught nothing this time, which is the point.
 
+## Consolidation (second half of the pass)
+
+Four duplications collapsed into shared modules, each proven by a runtime equivalence harness
+(32 comparisons across month/year/leap/DST boundaries and 12 email cases, **0 mismatches**)
+rather than by the build alone:
+
+- **`lib/modules.js`** — the backend-code/frontend-id map existed three times, once inside a
+  component body so it was rebuilt every render, and one copy's comment referred to another
+  1,100 lines away. The inverse is now *derived*, so the two cannot disagree.
+- **`lib/validation.js`** — `EMAIL_RE` (five copies; the completion gate and the UI hint for
+  the same field were separate copies of the rule) and `UUID_RE` (two, one per-render).
+- **`lib/date.js::toIsoDate`** — the local-date-to-`YYYY-MM-DD` expression, four copies, two
+  of them 71 lines apart inside the same function.
+
+One known behaviour difference, and it is unreachable: `toIsoDate` returns `''` for an Invalid
+Date where the old inline version returned `"NaN-NaN-NaN"`. `dpParse` only ever returns `null`
+or a valid Date — out-of-range numbers roll over rather than becoming invalid — so no call site
+can reach it.
+
+Moving `UUID_RE` to module scope also made an `eslint-disable react-hooks/exhaustive-deps` in
+`MintySelect.jsx` obsolete: the regex had been declared in the component body, so it changed
+identity on every render. The suppression is gone, which is one fewer place the linter is told
+to look away.
+
+## A real bug this pass fixed
+
+`OnboardingSteps.jsx` fetched `/api/onboarding/server-time` with `credentials: 'include'` — the
+only such call in the app. After the backend repoint that path resolves to the Django service,
+whose CORS does **not** send `Access-Control-Allow-Credentials`, so browsers were blocking the
+request outright. It failed silently: the code falls back to the browser's own clock, so the
+date picker was capping on the browser's idea of "today" rather than the server's. Verified
+against the running service, then removed.
+
 ## Still open
 
-1. **`.otp-row-empty`** — now REMOVED from `confirm/page.tsx` (it had no rule anywhere).
-2. **Prettier** — still not configured. Deliberately last if ever done: its own commit, and
+1. **Prettier** — still not configured. Deliberately last if ever done: its own commit, and
    keep the large component files out of any commit carrying logic.
 3. **The 16 pre-existing eslint errors** — 12 `set-state-in-effect`, 2 `refs`, 2 `purity`.
    Untouched again. Note this is 16, not the 15 the first cleanse recorded; the extra arrived

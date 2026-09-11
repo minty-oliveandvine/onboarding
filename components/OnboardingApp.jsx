@@ -19,6 +19,9 @@ import {
 import { toAmountString } from '@/lib/amount';
 import { formatToday } from '@/lib/date';
 import { urlFor } from '../lib/apiRoutes';
+import { toIsoDate } from '../lib/date';
+import { isEmail } from '../lib/validation';
+import { MODULE_CODE_BY_ID, MODULE_ID_BY_CODE } from '../lib/modules';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -83,8 +86,6 @@ function readJwtClaims(token) {
   }
 }
 
-// Backend module codes → frontend module ids (inverse of FE_TO_BACKEND_MODULE).
-const BACKEND_TO_FE_MODULE = { PETTY_CASH: 'pettyCash', BILL: 'bills' };
 
 // Derive the frontend step id to land on from a backend /state payload. The
 // backend's own `current_step` is derived from a different ordering (modules →
@@ -227,13 +228,7 @@ const initialState = () => ({
     directorContact: '',
     cashSaleContact: '',
     discrepancyContact: '',
-    openingDate: (() => {
-      const d = new Date();
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    })(),
+    openingDate: toIsoDate(new Date()),
   },
   bills: {
     terms: 'Net 30',
@@ -253,7 +248,7 @@ function isStepComplete(id, state) {
     case 1: {
       const e = state.entity;
       // Phone and email are optional — valid only if non-empty.
-      const emailOk = e.email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.email);
+      const emailOk = e.email.trim() === '' || isEmail(e.email);
       const phoneDigits = e.phone.replace(/\D/g, '');
       const phoneOk = phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
       return e.name.trim().length > 1 && phoneOk && emailOk;
@@ -564,7 +559,7 @@ export default function OnboardingApp() {
 
     if (payload && payload.entity_id) {
       const modules = (Array.isArray(payload.modules) ? payload.modules : [])
-        .map((code) => BACKEND_TO_FE_MODULE[code])
+        .map((code) => MODULE_ID_BY_CODE[code])
         .filter(Boolean);
       // Build the FE-shaped state once so the wizard and the resume-step
       // derivation see exactly the same data (deriveResumeStep/isStepComplete
@@ -1126,11 +1121,10 @@ export default function OnboardingApp() {
     }
   };
 
-  const FE_TO_BACKEND_MODULE = { pettyCash: 'PETTY_CASH', bills: 'BILL' };
   const submitModule = async () => {
     if (!token || !state.entity.id) return { ok: true };
     const moduleCodes = (state.modules || [])
-      .map((id) => FE_TO_BACKEND_MODULE[id])
+      .map((id) => MODULE_CODE_BY_ID[id])
       .filter(Boolean);
     if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to get started — which one sounds right?" };
     try {

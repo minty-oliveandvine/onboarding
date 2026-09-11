@@ -11,6 +11,7 @@ import AuthTopbar from "@/components/AuthTopbar";
 import TermsModal from "@/components/TermsModal";
 import { FLASK_BASE } from "@/lib/flaskBase";
 import { friendlyError } from "@/lib/errorCopy";
+import { isEmail } from '@/lib/validation';
 
 function AuthContent() {
   const router = useRouter();
@@ -60,7 +61,7 @@ function AuthContent() {
   const [lastName, setLastName] = useState(recoveredLastName);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
-  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const emailValid = isEmail(email);
   const namesValid = !signupMode || (firstName.trim() !== "" && lastName.trim() !== "");
 
   const emailLocked = Boolean(inviteToken && prefilledEmail);

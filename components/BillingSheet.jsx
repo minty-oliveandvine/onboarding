@@ -20,6 +20,7 @@ import {
 } from '@/lib/billing';
 import CardBrand from './CardBrand';
 import Icon from './Icon';
+import { isEmail } from '../lib/validation';
 
 /**
  * The billing sheet — pick the card, agree to be billed for this entity.
@@ -209,7 +210,7 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
     const e = email.trim();
     const c = company.trim();
     if (!e) next.email = 'Enter the email address invoices should go to.';
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) next.email = "That email address doesn't look right.";
+    else if (!isEmail(e)) next.email = "That email address doesn't look right.";
     if (!c) next.company = 'Enter the company name to invoice.';
     setFieldErrors(next);
     return !next.email && !next.company;

@@ -3,6 +3,7 @@
 // MintyDatePicker — themed calendar dropdown matching the mint design system.
 // Usage: <MintyDatePicker value={isoString} onChange={(iso) => …} placeholder="Select a date" />
 import { useState, useRef, useEffect } from 'react';
+import { toIsoDate } from '../lib/date';
 
 const DP_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DP_DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -14,11 +15,7 @@ function dpParse(iso) {
   return new Date(y, m - 1, d);
 }
 function dpFormat(date) {
-  if (!date) return '';
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
+  return date ? toIsoDate(date) : '';
 }
 function dpPretty(date) {
   if (!date) return '';

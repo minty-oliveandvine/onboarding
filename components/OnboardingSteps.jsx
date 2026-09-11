@@ -15,6 +15,9 @@ import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amoun
 import { formatDate } from '@/lib/date';
 import { fetchBillingStatus } from '@/lib/billing';
 import { urlFor } from '../lib/apiRoutes';
+import { isEmail } from '../lib/validation';
+import { UUID_RE } from '../lib/validation';
+import { MODULE_ID_BY_CODE } from '../lib/modules';
 
 export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style }) {
   const [exiting, setExiting] = useState(false);
@@ -70,7 +73,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
   const upd = (k, v) => set({ entity: { ...s, [k]: v } });
   // Phone and email are optional — but if the user does type something, it must
   // still be valid (Module 1 create-entity: 8–11 digits; standard email shape).
-  const emailOk = s.email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.email);
+  const emailOk = s.email.trim() === '' || isEmail(s.email);
   const phoneDigits = s.phone.replace(/\D/g, '');
   const phoneOk = phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
   const canNext = s.name.trim().length > 0 && phoneOk && emailOk;
@@ -209,13 +212,12 @@ export const MODULES = [
 
 // Backend module codes → the ids used by MODULES / state.modules above, so the
 // live plan catalog from /api/onboarding/plans can be matched to the picked cards.
-const FE_MODULE_BY_CODE = { PETTY_CASH: 'pettyCash', BILL: 'bills' };
 
 /** Index the live plan catalog by frontend module id (empty when it didn't load). */
 function plansByModuleId(catalog) {
   const byId = {};
   (catalog?.plans || []).forEach((p) => {
-    const id = FE_MODULE_BY_CODE[p.code];
+    const id = MODULE_ID_BY_CODE[p.code];
     if (id) byId[id] = p;
   });
   return byId;
@@ -885,7 +887,6 @@ const CURRENCY_CODES = {
 // uuids); resolve it to the ISO code via the fetched registry. The name-based
 // map remains as a fallback for sessions saved before the uuid switch. Never
 // render a bare uuid — while the registry is still loading, show nothing.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const currencyCode = (c, registry = []) => {
   const row = registry.find((r) => r.currency_id === c);
   if (row) return row.iso_code || row.currency_name;
@@ -1199,15 +1200,15 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
     try {
       return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Hong_Kong' }).format(new Date());
     } catch {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      // Intl without the HK zone: fall back to the browser's own local date.
+      return toIsoDate(new Date());
     }
   })();
   const openingMaxDate = serverToday || hkTodayFallback;
   const dateIsFuture = !!p.openingDate && p.openingDate > openingMaxDate;
   useEffect(() => {
     let cancelled = false;
-    fetch(urlFor(`/api/onboarding/server-time`), { credentials: 'include' })
+    fetch(urlFor(`/api/onboarding/server-time`))
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!cancelled && d && d.today) setServerToday(d.today);
@@ -1269,10 +1270,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   };
   const DEFAULT_ELECTRONIC = ['Visa', 'Alipay', 'WeChat Pay', 'Mastercard', 'UnionPay', 'Amex', 'Octopus'];
   const DEFAULT_DELIVERY = ['Foodpanda', 'Deliveroo', 'KeeTa'];
-  const todayIso = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
+  const todayIso = toIsoDate(new Date());
   const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
   const isAutofilled = sameList(p.electronicMethods || [], DEFAULT_ELECTRONIC) && sameList(p.deliveryMethods || [], DEFAULT_DELIVERY);
 
@@ -1808,7 +1806,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   // field, so a pristine empty form doesn't start out shouting an error.
   const [emailTouched, setEmailTouched] = useState(false);
 
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
+  const emailOk = isEmail(form.email);
   const emailInvalid = emailTouched && form.email.trim() !== '' && !emailOk;
   // Don't gate the button on email format — let the user click Send and get an
   // explicit toast explaining why, instead of a silently-disabled button.

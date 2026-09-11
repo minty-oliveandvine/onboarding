@@ -4,6 +4,7 @@
 // `searchable` turns the field itself into a type-to-filter combobox
 // (like Module 1 create-entity: type in the field, suggestions filter below).
 import { useState, useRef, useEffect, useMemo } from 'react';
+import { UUID_RE } from '../lib/validation';
 
 export default function MintySelect({ value, onChange, options, placeholder = 'Select an option', disabled = false, searchable = false, onCreate = null, createNoun = 'contact', clearable = false }) {
   const [open, setOpen] = useState(false);
@@ -131,12 +132,11 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   // fall back to the raw value for free-text/legacy selections — but never
   // render a bare uuid: while the registry options are still loading there is
   // no label yet, so show the placeholder instead of flashing the id.
-  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   const selectedLabel = useMemo(() => {
     const match = items.find((o) => o.value === value);
     if (match) return match.label;
     return UUID_RE.test(value || '') ? '' : value;
-  }, [items, value]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [items, value]);
   const display = selectedLabel || placeholder;
   const hasValue = !!value;
 
