@@ -18,6 +18,7 @@ import {
 } from './OnboardingSteps';
 import { toAmountString } from '@/lib/amount';
 import { formatToday } from '@/lib/date';
+import { urlFor } from '../lib/apiRoutes';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -449,8 +450,7 @@ export default function OnboardingApp() {
   useEffect(() => {
     if (!token) return;
     let cancelled = false;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    fetch(`${base}/api/onboarding/plans`, { headers: { Authorization: `Bearer ${token}` } })
+    fetch(urlFor(`/api/onboarding/plans`), { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!cancelled && data && Array.isArray(data.plans) && data.plans.length > 0) {
@@ -513,9 +513,8 @@ export default function OnboardingApp() {
   // saved_step > 4 but Xero isn't connected. Best-effort: never block the UI.
   const persistSavedStep = (step) => {
     if (!token || !state.entity.id) return;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      fetch(`${base}/api/onboarding/saved-step`, {
+      fetch(urlFor(`/api/onboarding/saved-step`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, saved_step: step }),
@@ -610,11 +609,10 @@ export default function OnboardingApp() {
   // fallback used if the fetch fails. `resumeToken` is the fresh JWT the resume
   // redirect minted; it authorizes calls for this entity_id (membership-checked).
   const resumeFromServer = async (entityId, resumeToken) => {
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     let payload = null;
     try {
       const res = await fetch(
-        `${base}/api/onboarding/state?entity_id=${encodeURIComponent(entityId)}`,
+        urlFor(`/api/onboarding/state?entity_id=${encodeURIComponent(entityId)}`),
         { headers: { Authorization: `Bearer ${resumeToken}` } },
       );
       if (res.ok) payload = await res.json().catch(() => null);
@@ -954,13 +952,12 @@ export default function OnboardingApp() {
     } catch {
       /* ignore quota / serialization errors */
     }
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     // Pass the entity context so the backend resolves the exact entity on the
     // OAuth callback (it embeds this into the OAuth state). entity_id is the
     // preferred exact match; entity_name is the fallback. Passing neither falls
     // back to the user's latest in-progress entity — safe, but not exact.
     window.location.href =
-      `${base}/xero_connect?from=onboarding` +
+      urlFor(`/xero_connect?from=onboarding`) +
       `&entity_id=${encodeURIComponent(state.entity.id)}` +
       `&entity_name=${encodeURIComponent(state.entity.name || '')}`;
   };
@@ -974,9 +971,8 @@ export default function OnboardingApp() {
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     }
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/xero/disconnect`, {
+      const res = await fetch(urlFor(`/api/onboarding/xero/disconnect`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id }),
@@ -1005,10 +1001,9 @@ export default function OnboardingApp() {
   // unknown.
   const verifyXeroConnection = async () => {
     if (!token || !state.entity.id) return null;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
       const res = await fetch(
-        `${base}/api/onboarding/state?entity_id=${encodeURIComponent(state.entity.id)}`,
+        urlFor(`/api/onboarding/state?entity_id=${encodeURIComponent(state.entity.id)}`),
         { headers: { Authorization: `Bearer ${token}` } },
       );
       // 401 → the session token lapsed (typically ~30 min past step 4). Surface
@@ -1094,7 +1089,6 @@ export default function OnboardingApp() {
   // still runs.
   const submitEntity = async () => {
     if (!token) return { ok: true }; // standalone / no Module 1 handoff
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     const payload = {
       entity_name: state.entity.name,
       country: state.entity.country,
@@ -1127,7 +1121,7 @@ export default function OnboardingApp() {
         // 409 on a name collision with a *different* entity. Accepts the same
         // field aliases as /create (entity_name|name, country|country_code,
         // currency|currency_code); we send the canonical names.
-        const res = await fetch(`${base}/api/onboarding/entity/${encodeURIComponent(state.entity.id)}`, {
+        const res = await fetch(urlFor(`/api/onboarding/entity/${encodeURIComponent(state.entity.id)}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload),
@@ -1156,7 +1150,7 @@ export default function OnboardingApp() {
 
     // --- First time through: create the entity. ---
     try {
-      const res = await fetch(`${base}/api/onboarding/create`, {
+      const res = await fetch(urlFor(`/api/onboarding/create`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
@@ -1198,9 +1192,8 @@ export default function OnboardingApp() {
       .map((id) => FE_TO_BACKEND_MODULE[id])
       .filter(Boolean);
     if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to get started — which one sounds right?" };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/modules`, {
+      const res = await fetch(urlFor(`/api/onboarding/modules`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, modules: moduleCodes }),
@@ -1215,9 +1208,8 @@ export default function OnboardingApp() {
 
   const submitSalesMethods = async () => {
     if (!token || !state.entity.id) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/sales-methods`, {
+      const res = await fetch(urlFor(`/api/onboarding/sales-methods`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1239,9 +1231,8 @@ export default function OnboardingApp() {
     const p = state.pettyCash;
     const empty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
     if (empty) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/opening-balance`, {
+      const res = await fetch(urlFor(`/api/onboarding/opening-balance`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -1267,8 +1258,7 @@ export default function OnboardingApp() {
     if ((current !== 5 && current !== 6 && current !== 7) || accountLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     accountLoadedRef.current = true;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    fetch(`${base}/api/onboarding/account-codes?entity_id=${encodeURIComponent(state.entity.id)}`, {
+    fetch(urlFor(`/api/onboarding/account-codes?entity_id=${encodeURIComponent(state.entity.id)}`), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -1321,7 +1311,6 @@ export default function OnboardingApp() {
 
   const submitAccountCodes = async () => {
     if (!token || !state.entity.id) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     const p = state.pettyCash;
     const idFor = (list, label) => {
       const found = label ? (list || []).find((o) => o.label === label) : null;
@@ -1340,7 +1329,7 @@ export default function OnboardingApp() {
     const sel = ec.selected || {};
     const selectedCodes = allCodes.filter((c) => (isAll ? sel[c] !== false : sel[c] === true));
     try {
-      const res = await fetch(`${base}/api/onboarding/account-codes`, {
+      const res = await fetch(urlFor(`/api/onboarding/account-codes`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, expense_codes: selectedCodes, mapping }),
@@ -1355,7 +1344,6 @@ export default function OnboardingApp() {
 
   const submitContacts = async () => {
     if (!token || !state.entity.id) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     const p = state.pettyCash;
     const idFor = (label) => {
       const found = label ? (accountOptions.contacts || []).find((o) => o.label === label) : null;
@@ -1367,7 +1355,7 @@ export default function OnboardingApp() {
       discrepancy: idFor(p.discrepancyContact),
     };
     try {
-      const res = await fetch(`${base}/api/onboarding/contacts`, {
+      const res = await fetch(urlFor(`/api/onboarding/contacts`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, contacts }),
@@ -1393,9 +1381,8 @@ export default function OnboardingApp() {
       setAccountOptions((prev) => ({ ...prev, contacts: [...(prev.contacts || []), option] }));
       return { ok: true, option };
     }
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/contacts/create`, {
+      const res = await fetch(urlFor(`/api/onboarding/contacts/create`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, name: trimmed }),
@@ -1423,8 +1410,7 @@ export default function OnboardingApp() {
     if (current !== 8 || billLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     billLoadedRef.current = true;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    fetch(`${base}/api/onboarding/bill-codes?entity_id=${encodeURIComponent(state.entity.id)}`, {
+    fetch(urlFor(`/api/onboarding/bill-codes?entity_id=${encodeURIComponent(state.entity.id)}`), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -1451,14 +1437,13 @@ export default function OnboardingApp() {
 
   const submitBills = async () => {
     if (!token || !state.entity.id) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     const allCodes = (accountOptions.bill || []).map((e) => e.code);
     const bc = state.bills.billCodes || { all: true, selected: {} };
     const isAll = bc.all !== false;
     const sel = bc.selected || {};
     const selectedCodes = allCodes.filter((c) => (isAll ? sel[c] !== false : sel[c] === true));
     try {
-      const res = await fetch(`${base}/api/onboarding/bill-codes`, {
+      const res = await fetch(urlFor(`/api/onboarding/bill-codes`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, selected_codes: selectedCodes }),
@@ -1474,9 +1459,8 @@ export default function OnboardingApp() {
   const submitInvite = async ({ email, role, first_name, last_name }) => {
     // Standalone prototype (no Module 1 handoff): keep the invite local-only.
     if (!token || !state.entity.id) return { ok: true, invitation: { email, role, first_name, last_name } };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/invite`, {
+      const res = await fetch(urlFor(`/api/onboarding/invite`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, email, role, first_name, last_name }),
@@ -1502,9 +1486,8 @@ export default function OnboardingApp() {
 
   const cancelInvite = async (invitationId) => {
     if (!token || !invitationId) return { ok: true };
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/invite/cancel`, {
+      const res = await fetch(urlFor(`/api/onboarding/invite/cancel`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ invitation_id: invitationId }),
@@ -1522,8 +1505,7 @@ export default function OnboardingApp() {
     if (current !== 8 || invitesLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     invitesLoadedRef.current = true;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    fetch(`${base}/api/onboarding/invite?entity_id=${encodeURIComponent(state.entity.id)}`, {
+    fetch(urlFor(`/api/onboarding/invite?entity_id=${encodeURIComponent(state.entity.id)}`), {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => (res.ok ? res.json() : null))
@@ -1582,11 +1564,10 @@ export default function OnboardingApp() {
       const result = await submitOpeningBalance();
       if (!result?.ok) return result;
     }
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     // Clears the mid-onboarding flag so the entity routes to its dashboard on the next
     // entity-list click instead of bouncing back here, and starts the module trials.
     try {
-      const res = await fetch(`${base}/api/onboarding/finalize`, {
+      const res = await fetch(urlFor(`/api/onboarding/finalize`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id }),
@@ -1600,8 +1581,7 @@ export default function OnboardingApp() {
 
   /** Leave the wizard. Commits nothing — `completeOnboarding` already did, on arrival. */
   const exitToEntityList = () => {
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    window.location.href = `${base}/entity`;
+    window.location.href = urlFor(`/entity`);
   };
 
   // Save-and-exit from any step: best-effort save of the current step's data
@@ -1615,13 +1595,12 @@ export default function OnboardingApp() {
     } catch {
       /* best-effort — never block the exit on a save failure */
     }
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     // Record the FE step the user is leaving from so a later resume can land
     // them right back here (see deriveResumeStep). Best-effort: a failure here
     // must never block the exit, and resume falls back to the derived step.
     if (token && state.entity.id) {
       try {
-        await fetch(`${base}/api/onboarding/saved-step`, {
+        await fetch(urlFor(`/api/onboarding/saved-step`), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ entity_id: state.entity.id, saved_step: current }),
@@ -1630,14 +1609,13 @@ export default function OnboardingApp() {
         /* best-effort — ignore and exit anyway */
       }
     }
-    window.location.href = `${base}/entity`;
+    window.location.href = urlFor(`/entity`);
   };
 
   const fetchExistingSalesMethods = async () => {
     if (!token || !state.entity.id) return null;
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     try {
-      const res = await fetch(`${base}/api/onboarding/sales-methods?entity_id=${encodeURIComponent(state.entity.id)}`, {
+      const res = await fetch(urlFor(`/api/onboarding/sales-methods?entity_id=${encodeURIComponent(state.entity.id)}`), {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return null;

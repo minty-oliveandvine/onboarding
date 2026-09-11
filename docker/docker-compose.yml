@@ -13,6 +13,8 @@ services:
       # (never hardcoded) so the orchestrator can inject shared values later.
       # Primary base URL used across the app:
       - NEXT_PUBLIC_MODULE1_API_URL=${NEXT_PUBLIC_MODULE1_API_URL}
+      # The extracted onboarding API. See lib/apiRoutes.js.
+      - NEXT_PUBLIC_ONBOARDING_API_URL=${NEXT_PUBLIC_ONBOARDING_API_URL}
       # Legacy fallback still read by the auth pages:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
       # Improves file-watching reliability for hot-reload inside containers.

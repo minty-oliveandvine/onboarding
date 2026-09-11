@@ -32,6 +32,7 @@ point the frontend at a different backend:
 | ---------------------------- | ----------------------- | --------------------------------------------------- |
 | `NEXT_PUBLIC_MODULE1_API_URL`| `http://localhost:5001` | Primary base URL of the pettycash (Flask) backend.  |
 | `NEXT_PUBLIC_API_URL`        | `http://localhost:5001` | Legacy fallback read by the auth pages.             |
+| `NEXT_PUBLIC_ONBOARDING_API_URL` | `http://localhost:8001` | The extracted onboarding API (Django). Routing lives in `lib/apiRoutes.js`. |
 
 `.env.example` ships with safe local defaults — a new dev just copies it.
 

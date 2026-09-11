@@ -14,6 +14,7 @@ import { fetchCountries, fetchCurrencies } from '@/lib/refData';
 import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amount';
 import { formatDate } from '@/lib/date';
 import { fetchBillingStatus } from '@/lib/billing';
+import { urlFor } from '../lib/apiRoutes';
 
 // --- Reusable bits ---
 export function Switch({ on, onChange }) {
@@ -159,8 +160,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
   };
 
   const backToEntityList = () => {
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    window.location.href = `${base}/entity`;
+    window.location.href = urlFor(`/entity`);
   };
   return (
     <>
@@ -1228,9 +1228,8 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   const openingMaxDate = serverToday || hkTodayFallback;
   const dateIsFuture = !!p.openingDate && p.openingDate > openingMaxDate;
   useEffect(() => {
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     let cancelled = false;
-    fetch(`${base}/api/onboarding/server-time`, { credentials: 'include' })
+    fetch(urlFor(`/api/onboarding/server-time`), { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!cancelled && d && d.today) setServerToday(d.today);

@@ -8,7 +8,8 @@
     "dev:clean": "node -e \"require('fs').rmSync('.next/dev',{recursive:true,force:true})\" && next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "eslint"
+    "lint": "eslint",
+    "check:routes": "node scripts/check-routes.mjs"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.8.1",

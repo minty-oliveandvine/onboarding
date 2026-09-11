@@ -5,6 +5,7 @@
 // placeholders for the onboarding flow (they close the drawer, no navigation).
 import { useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { urlFor } from '../lib/apiRoutes';
 
 // Spelled out rather than inherited because these styles are inline objects on a
 // portalled menu; it is the same Inter the app now uses everywhere.
@@ -32,8 +33,7 @@ export default function NavMenu({ companyName = 'Minty', companyAbbreviation, sh
 
   const handleLogout = () => {
     setOpen(false);
-    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    window.location.href = `${base}/logout`;
+    window.location.href = urlFor(`/logout`);
   };
 
   const abbr = !showFullMenu
