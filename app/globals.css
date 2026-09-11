@@ -82,10 +82,6 @@
   }
   .step + .step { border-left: 1px solid var(--bg); }
   .step.is-squishing { animation: none; }
-  @keyframes waveDrift {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
-  }
   .step {
     position: relative;
     padding: 12px 8px;
@@ -102,10 +98,7 @@
     transition: color .2s ease, background .25s ease;
     white-space: nowrap;
     overflow: hidden;
-  }
-  .step-wave { display: none; }
-  @keyframes waveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .step > .num, .step > .label { position: relative; z-index: 3; }
+  }  .step > .num, .step > .label { position: relative; z-index: 3; }
   .step:hover:not(.locked):not(.not-clickable) { background: #e6e9ed; }
   .step.locked { cursor: not-allowed; opacity: 0.55; }
   /* On the final "All Set" step every step is frozen: no pointer, no hover
@@ -147,24 +140,6 @@
   .step.active:hover,
   .step.active:focus,
   .step.active:active { color: #054b44; background: #46D8CC; filter: none; transform: none; }
-  @keyframes stepPulse {
-    0%, 100% {
-      box-shadow:
-        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
-        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
-        0 4px 14px rgba(70, 216, 204, 0.45),
-        0 0 0 2px rgba(70, 216, 204, 0.25);
-    }
-    50% {
-      box-shadow:
-        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
-        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
-        0 6px 22px rgba(70, 216, 204, 0.55),
-        0 0 0 3px rgba(70, 216, 204, 0.35);
-    }
-  }
   .step.active .num {
     background: transparent;
     color: #054b44;
@@ -199,62 +174,6 @@
   }
   .step .check { color: inherit; flex-shrink: 0; }
 
-  /* Petty Cash Settings popover — slides out below the step tile, stays anchored */
-  .step.has-subs { overflow: visible; position: relative; }
-  .stepper { overflow-x: visible; overflow-y: visible; }
-  .substep-popover {
-    position: absolute;
-    top: 50%;
-    right: calc(100% + 12px);
-    transform: translateY(-50%) translateX(8px);
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 14px;
-    padding: 8px;
-    min-width: 200px;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12), 0 2px 8px rgba(15, 23, 42, 0.06);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .22s ease, transform .25s cubic-bezier(.34, 1.56, .64, 1);
-    z-index: 50;
-  }
-  .substep-popover.open {
-    opacity: 1;
-    transform: translateY(-50%) translateX(0);
-    pointer-events: auto;
-  }
-  .substep-popover::before { display: none; }
-  .substep {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 18px 9px 10px;
-    border-radius: 12px;
-    border: 1.5px solid var(--line-strong);
-    background: var(--bg);
-    color: var(--ink-2);
-    font-family: inherit;
-    font-size: 13.5px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background .15s ease, border-color .15s ease, color .15s ease, transform .12s ease;
-    flex-shrink: 0;
-    width: 100%;
-    text-align: left;
-    justify-content: flex-start;
-  }
-  .substep:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
-  .substep:disabled { cursor: not-allowed; opacity: 0.55; }
-  .substep.active {
-    background: #46D8CC;
-    border-color: transparent;
-    color: #054b44;
-    box-shadow: 0 4px 12px rgba(70, 216, 204, 0.35);
-  }
-  .substep.done { color: var(--ink); border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong)); }
   .substep-circle {
     width: 20px; height: 20px;
     border-radius: 50%;
@@ -270,14 +189,6 @@
     flex-shrink: 0;
     transition: background .2s ease, border-color .2s ease, transform .15s ease;
   }
-  .substep.active .substep-circle { border-color: rgba(5, 75, 68, 0.4); background: rgba(255, 255, 255, 0.85); }
-  .substep.done .substep-circle {
-    background: linear-gradient(135deg, #00CBC6 0%, #00D5BF 100%);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 203, 198, 0.35);
-  }
-
   /* Petty Cash side menu — left-anchored vertical card */
   .pc-side-menu {
     position: fixed;
@@ -351,9 +262,6 @@
     color: #fff;
     box-shadow: 0 2px 6px rgba(0, 203, 198, 0.35);
   }
-  @media (max-width: 1180px) {
-    .pc-side-menu { display: none; }
-  }
 
   /* Page */
   .page { max-width: 720px; margin: 0 auto; padding: 56px 28px 120px; }
@@ -413,12 +321,7 @@
     0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent); }
     60%  { box-shadow: 0 0 0 10px color-mix(in oklab, var(--accent) 0%, transparent); }
     100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
-  }
-
-  .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-
-  /* Buttons */
+  }  /* Buttons */
   .btn {
     border: 0; border-radius: var(--radius-sm);
     padding: 12px 20px;
@@ -432,8 +335,6 @@
   .btn-primary[disabled] { background: var(--line-strong); color: white; cursor: not-allowed; box-shadow: none; transform: none; }
   .btn-ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line-strong); }
   .btn-ghost:hover { background: var(--surface-2); }
-  .btn-link { background: transparent; color: var(--accent-ink); padding: 0; }
-
   .btn-block { width: 100%; padding: 15px 20px; font-size: 15px; border-radius: 999px; }
   .btn-link-center {
     background: transparent; border: 0; color: var(--accent-ink);
@@ -497,13 +398,6 @@
     border-radius: var(--radius);
     padding: 18px;
   }
-  .card-soft {
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px;
-  }
-
   /* Petty cash settings cards */
   .pc-stack { display: flex; flex-direction: column; gap: 14px; }
   .pc-card { border: 1.5px solid var(--line); border-radius: 14px; padding: 18px 20px; background: var(--bg); transition: border-color .2s ease, box-shadow .2s ease; }
@@ -596,9 +490,7 @@
     color: #00CBC6;
     animation: autofillSparkle 4.5s ease-in-out infinite;
   }
-  .method-sparkle svg { width: 100%; height: 100%; }
-  .method-caret { color: var(--muted); display: inline-flex; transition: transform .25s ease; }
-  .method-card.open .method-caret { transform: rotate(180deg); color: var(--accent-ink); }
+  .method-sparkle svg { width: 100%; height: 100%; }  .method-card.open .method-caret { transform: rotate(180deg); color: var(--accent-ink); }
   .method-body { padding: 0 20px 16px; }
   .method-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
   .method-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid var(--line); transition: background .15s ease; }
@@ -629,11 +521,7 @@
   .method-drag:hover { color: var(--ink); background: var(--surface-2); }
   .method-drag:active { cursor: grabbing; background: var(--surface-2); }
   .method-row.is-dragging { opacity: 0.45; }
-  .method-row.is-drag-over { background: var(--accent-soft); border-radius: 8px; }
-  /* legacy/old gear styles — keep specs so any stray element renders sanely */
-  .method-gear { background: transparent; border: 0; color: var(--muted); padding: 6px; border-radius: 8px; cursor: pointer; display: inline-flex; transition: color .15s ease, background .15s ease; }
-  .method-gear:hover { color: var(--accent-ink); background: var(--accent-soft); }
-  .method-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; font-size: 14.5px; border-radius: 12px; cursor: pointer; transition: background .15s ease, transform .12s ease; }
+  .method-row.is-drag-over { background: var(--accent-soft); border-radius: 8px; } .method-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; font-size: 14.5px; border-radius: 12px; cursor: pointer; transition: background .15s ease, transform .12s ease; }
   .method-add:hover { background: var(--accent-soft); }
   .method-add:active { transform: scale(0.99); }
 
@@ -668,81 +556,9 @@
     transition: background .15s ease, opacity .15s ease;
   }
   .btn-mint-pill:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); }
-  .btn-mint-pill:disabled { opacity: 0.55; cursor: not-allowed; }
-
-  /* Method row context menu (gear) */
-  .method-gear-wrap { position: relative; }
-  .method-gear.active { background: var(--accent-soft); color: var(--accent-ink); }
-  .method-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    right: 0;
-    z-index: 30;
-    min-width: 160px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 6px;
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.05);
-    animation: methodMenuIn .15s ease;
-  }
-  @keyframes methodMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-  .method-menu-item {
-    display: block; width: 100%;
-    text-align: left;
-    background: transparent;
-    border: 0;
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-family: inherit;
-    color: var(--ink);
-    cursor: pointer;
-    transition: background .12s ease, color .12s ease;
-  }
-  .method-menu-item:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent-ink); }
-  .method-menu-item:disabled { color: var(--muted-2); cursor: not-allowed; }
-  .method-menu-item.danger { color: var(--ink); }
-  .method-menu-item.danger:hover { background: rgba(217, 83, 79, 0.10); color: var(--danger); }
-
-  /* Default-state button (resets a section back to original) */
+  .btn-mint-pill:disabled { opacity: 0.55; cursor: not-allowed; }  .method-gear.active { background: var(--accent-soft); color: var(--accent-ink); }* Default-state button (resets a section back to original) */
   .pc-head-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-  .pc-head-row h2 { margin: 0; }
-  .default-btn {
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 13px;
-    letter-spacing: -0.005em;
-    padding: 9px 22px;
-    border-radius: 999px;
-    cursor: pointer;
-    border: 1.5px solid transparent;
-    transition: background .2s ease, color .2s ease, box-shadow .2s ease, transform .12s ease;
-    line-height: 1;
-  }
-  .default-btn.is-default {
-    background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%);
-    color: #fff;
-    border-color: transparent;
-    box-shadow: 0 4px 12px rgba(0, 203, 198, 0.28);
-    cursor: default;
-  }
-  .default-btn.is-default:hover { box-shadow: 0 4px 12px rgba(0, 203, 198, 0.28); }
-  .default-btn.is-changed {
-    background:
-      linear-gradient(#fff, #fff) padding-box,
-      linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%) border-box;
-    color: var(--accent-ink);
-    border: 1.5px solid transparent;
-  }
-  .default-btn.is-changed:hover {
-    background:
-      linear-gradient(var(--accent-soft), var(--accent-soft)) padding-box,
-      linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%) border-box;
-  }
-  .default-btn.is-changed:active { transform: scale(0.97); }
-
-  /* Auto Fill button (Sales Setting top of page) */
+  .pc-head-row h2 { margin: 0; } Auto Fill button (Sales Setting top of page) */
   .autofill-row {
     display: flex;
     align-items: center;
@@ -871,24 +687,7 @@
     8%   { transform: translate(calc(var(--end-x) * 0.08), calc(var(--start-y) + 30px)) rotate(calc(var(--rot-start) * 0.6 + var(--rot-end) * 0.05)) scale(1); opacity: 1; }
     75%  { opacity: 1; }
     100% { transform: translate(var(--end-x), var(--end-y)) rotate(var(--rot-end)) scale(0.9); opacity: 0; }
-  }
-
-  /* Account Name Setup (Others step) */
-  .ans-stack { display: flex; flex-direction: column; gap: 16px; }
-  .ans-card {
-    border: 1.5px solid var(--line);
-    border-radius: 14px;
-    padding: 18px 20px;
-    background: var(--bg);
-  }
-  .ans-label {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.005em;
-    margin-bottom: 10px;
-  }
-  .ans-card .field input {
+  }.ans-card .field input {
     padding: 13px 15px;
     border-radius: 10px;
     font-size: 14.5px;
@@ -1192,13 +991,7 @@
   .notice-icon svg { width: 18px; height: 18px; }
   .notice-body { font-size: 13.5px; color: #1e3a8a; line-height: 1.55; }
   .notice-title { font-weight: 700; margin-bottom: 2px; color: #1e3a8a; }
-  .notice-body p { margin: 0; color: #2347a3; }
-
-  /* Card heads + status */
-  .card-head { display: flex; flex-direction: column; gap: 4px; }
-  .card-title { font-weight: 700; font-size: 15px; color: var(--ink); }
-  .card-sub { font-size: 13px; color: var(--muted); }
-  .status-card { border-color: var(--line-strong); }
+  .notice-body p { margin: 0; color: #2347a3; }  .card-title { font-weight: 700; font-size: 15px; color: var(--ink); }  .status-card { border-color: var(--line-strong); }
   .status-connected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 18%, transparent); }
   .status-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
   .status-meta { margin-top: 6px; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 2px; }
@@ -1734,75 +1527,9 @@
     .sub-plan-art { width: 120px; top: 30px; right: -8px; }
     .sub-plan.is-bundle { min-height: 150px; }
     .sub-plan.is-bundle .sub-plan-value { margin-top: 28px; }
-  }
-
-  /* NO font-size here on purpose. The design draws this at about 12.5px, but the
-     "Minimum text sizing" block further down lists .module-caption and floors it at
-     16px — an accessibility decision this app already took, and one that outranks a
-     caption being small. Declaring a size here would simply be overridden and read as
-     though it worked. */
-  .module {
-    position: relative;
-    border: 1.5px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px;
-    background: var(--bg);
-    cursor: pointer;
-    transition: border-color .12s ease, background .12s ease, transform .05s ease;
-    display: flex; flex-direction: column; gap: 10px;
-  }
-  .module:hover { border-color: var(--line-strong); }
-  .module.selected { border-color: var(--accent); background: var(--accent-soft); }
-  .module.disabled { opacity: 0.55; cursor: not-allowed; }
-  .module .m-icon { width: 36px; height: 36px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; color: var(--ink-2); }
-  .module.selected .m-icon { background: white; color: var(--accent-ink); }
-  .module .m-title { font-weight: 700; font-size: 14.5px; letter-spacing: -0.01em; }
-  .module .m-desc { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
-  .module .m-check {
-    position: absolute; top: 14px; right: 14px;
-    width: 20px; height: 20px; border-radius: 50%;
-    border: 1.5px solid var(--line-strong);
-    background: var(--bg);
-    display: grid; place-items: center;
-    color: white;
-  }
-  .module.selected .m-check { background: var(--accent); border-color: var(--accent); }
-  .badge-soft { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 600; }
-
-  /* Toggle */
-  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--line); }
-  .toggle-row:last-child { border-bottom: 0; }
-  .toggle-row .t-label { font-size: 14px; font-weight: 600; color: var(--ink); }
-  .toggle-row .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
-  .switch { width: 38px; height: 22px; border-radius: 999px; background: var(--line-strong); position: relative; cursor: pointer; transition: background .15s ease; flex-shrink: 0; border: 0; padding: 0; }
-  .switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: white; transition: left .15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
-  .switch.on { background: var(--accent); }
-  .switch.on::after { left: 18px; }
-
-  /* Xero card */
-  .integration {
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 22px;
-    display: flex; align-items: center; gap: 18px;
-    background: var(--bg);
-  }
-  .integration .logo {
-    width: 56px; height: 56px; border-radius: 14px;
-    background: #13b5ea; /* generic blue for the integration tile */
-    display: grid; place-items: center;
-    color: white; font-weight: 700; font-size: 22px;
-    letter-spacing: -0.02em;
-    flex-shrink: 0;
-  }
-  .integration .meta { flex: 1; }
-  .integration .meta h4 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
-  .integration .meta p { margin: 0; font-size: 13px; color: var(--muted); }
-  .integration.connected { border-color: var(--accent); background: var(--accent-soft); }
-
-  /* User invite rows */
-  .invite-row { display: grid; grid-template-columns: 1fr 160px 36px; gap: 10px; align-items: center; }
-  .invite-row .icon-x { background: transparent; border: 0; color: var(--muted); padding: 8px; border-radius: 8px; }
+  } .module.selected { border-color: var(--accent); background: var(--accent-soft); }
+  .module.disabled { opacity: 0.55; cursor: not-allowed; }  .module.selected .m-icon { background: white; color: var(--accent-ink); }.module.selected .m-check { background: var(--accent); border-color: var(--accent); }tch.on { background: var(--accent); }
+  .switch.on::after { left: 18px; }ntegration.connected { border-color: var(--accent); background: var(--accent-soft); }  .invite-row .icon-x { background: transparent; border: 0; color: var(--muted); padding: 8px; border-radius: 8px; }
   .invite-row .icon-x:hover { background: var(--surface-2); color: var(--ink); }
 
   /* All set */
@@ -1913,32 +1640,16 @@
     .allset-grid { grid-template-columns: 1fr; gap: 0; }
     .allset-grid dd { margin-bottom: 10px; }
     .allset-pay, .allset-exit { width: 100%; }
-  }
-
-  /* small helpers */
-  .stack > * + * { margin-top: 14px; }
-  .mono { font-family: "JetBrains Mono", monospace; font-size: 12px; }
-  .divider-label { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin: 4px 0 8px; }
-  .divider-label::before, .divider-label::after { content: ''; flex: 1; height: 1px; background: var(--line); }
-  .helper-line { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .pill-radio { display: flex; gap: 6px; flex-wrap: wrap; }
-  .pill-radio button { background: var(--bg); border: 1px solid var(--line-strong); padding: 8px 14px; border-radius: 999px; font-size: 13px; color: var(--ink-2); font-weight: 500; }
-  .pill-radio button.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
+  }l-radio button.active { background: var(--accent); border-color: var(--accent); color: white; font-weight: 600; }
 
   /* Responsive */
   @media (max-width: 760px) {
     .stepper { grid-template-columns: repeat(var(--step-count, 7), minmax(120px, 1fr)); overflow-x: auto; }
-    .module-grid { grid-template-columns: 1fr; }
-    .row-2, .row-3 { grid-template-columns: 1fr; }
-    .summary { grid-template-columns: 1fr; }
-    .invite-row { grid-template-columns: 1fr; }
-    .page { padding: 36px 18px 80px; }
+    .module-grid { grid-template-columns: 1fr; }  .page { padding: 36px 18px 80px; }
   }
   /* ---- Minimum text sizing ---- */
   .page-head h2 { font-size: 30px; }
-  .page-head p { font-size: 16px; }
-  /* Field labels & helper / sub text */
-  .field label,
+  .page-head p { font-size: 16px; }.field label,
   .field .hint,
   .pc-sub,
   .pc-section-sub,
@@ -1948,7 +1659,6 @@
   .acc-name,
   .acc-empty,
   .method-name,
-  .ans-label,
   .ans-card .field input,
   .invite-name,
   .invite-email,
@@ -1967,7 +1677,6 @@
   .status-meta,
   .status-meta b,
   .card-title,
-  .card-sub,
   .pill-status,
   .field-required,
   .acc-search input { font-size: 16px; }
@@ -2266,27 +1975,14 @@
      one fact it carries. */
   .billing-done-card { color: #EA9713; }
   .billing-done-actions { display: flex; justify-content: center; margin-top: 48px; }
-  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }
-
-  /* --- shared: mandate, errors, actions ------------------------------------ */
-
-  /* Breaks anywhere: Stripe's failures quote the offending value back, and a masked
-     key is a hundred characters with no space in it — without a break opportunity the
-     paragraph refuses to wrap and runs out through the side of the dialog. */
-  /* The mandate sets the type here, and the note matches it — it stands in for Stripe's
-     own suppressed line (terms.card:'never'), so it is a disclosure rather than fine
-     print and is not shrunk below the text around it. */
-  .billing-note,
-  .billing-mandate,
+  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }.billing-mandate,
   .billing-error {
     margin: 24px 0 0; font-size: 12.5px; line-height: 1.5;
     overflow-wrap: anywhere;
   }
   /* Half a point larger than the mandate, as it is in the payer portal. An error is read
      once, under pressure, and the mandate is standing text — they are not the same job. */
-  .billing-error { font-size: 13.5px; }
-  .billing-note,
-  .billing-mandate { color: #6B7A80; }
+  .billing-error { font-size: 13.5px; }.billing-mandate { color: #6B7A80; }
   /* NOT UNDERLINED, and in the design's darker teal rather than the step's bright one. It
      is the tail of a mandate sentence, not navigation — the design marks it with colour
      and nothing else, and the underline arrives on hover to say it is clickable. */

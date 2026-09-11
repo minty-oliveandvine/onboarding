@@ -16,28 +16,6 @@ import { formatDate } from '@/lib/date';
 import { fetchBillingStatus } from '@/lib/billing';
 import { urlFor } from '../lib/apiRoutes';
 
-// --- Reusable bits ---
-export function Switch({ on, onChange }) {
-  return <button type="button" className={'switch' + (on ? ' on' : '')} onClick={() => onChange(!on)} aria-pressed={on} />;
-}
-export function ToggleRow({ title, sub, on, onChange }) {
-  return (
-    <div className="toggle-row">
-      <div>
-        <div className="t-label">{title}</div>
-        {sub && <div className="t-sub">{sub}</div>}
-      </div>
-      <Switch on={on} onChange={onChange} />
-    </div>
-  );
-}
-
-// Shared "Save & Exit" control shown in every step's footer. Saves the current
-// step's data best-effort (via the step's submit fn) then leaves to the entity
-// list dashboard. The actual save+redirect lives in OnboardingApp's saveAndExit;
-// here we just manage the local "Saving…" state. `submitFn` is optional — steps
-// without a per-step save (Invite, Connect Xero) pass nothing and we exit after
-// persisting via localStorage.
 export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style }) {
   const [exiting, setExiting] = useState(false);
   const onClick = async () => {

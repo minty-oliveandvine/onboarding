@@ -496,3 +496,81 @@ be a behavior change).
   here. Verify with `grep -rn` before concluding something is unused.
 - Multi-line `import { a, b } from "..."` statements defeat single-line import
   regexes — `lib/pendingInvite.js` looked unused until checked per-symbol.
+
+---
+
+# Second cleanse — 2026-09-11
+
+Run against `Minty-Onboarding` after the backend extraction. The repo had grown **~4,200
+lines past the first cleanse** (`BillingSheet.jsx` 955, `TermsModal.jsx` 418, `CardBrand.jsx`
+118, three new `lib/` modules, six assets), and `app/globals.css` had gone from 1,527 lines to
+2,351 — so none of that had ever been cleansed.
+
+Same gates as the first cleanse. **Re-measure before trusting the numbers below**; the first
+cleanse's recorded figures were already stale when this one started.
+
+| gate | at start | at end |
+|---|---|---|
+| `next build` | passes, 6 routes | **passes, 6 routes** |
+| `npx eslint .` | 36 (16 err, 20 warn) | **35 (16 err, 19 warn)** |
+| `npm run check:routes` | 39 paths, 0 wrong | **39 paths, 0 wrong** |
+
+The single lint change is one `no-unused-expressions` warning that lived *inside* dead code.
+No `(file, rule)` pair moved otherwise.
+
+## What went
+
+- **The `&& false` substep popover** and its whole feeder chain: the JSX, `showSubs`,
+  `hoverPettyCash` + both mouse handlers, the `subs:` array in `getDisplaySteps`, and
+  ~78 lines of CSS. The live replacement is the `pc-side-menu` aside. `hasSubs` and
+  `.step.has-subs` went with it — that rule existed only to anchor the popover.
+- `ToggleRow` + `Switch` (`Switch` was used only by `ToggleRow`), `restart`, 10 of 23 `Icon`
+  members, `pulseId`/`prevCountRef` (no `[data-pulse]` selector has ever existed),
+  `STEPS[].short`, `idx` from `getDisplaySteps`, `NavMenu`'s `companyAbbreviation`.
+- `public/info-cat.png` — md5-identical to `public/assets/basic-info-cat.png`, and
+  unreferenced.
+- **35 CSS class names**, 55 rule blocks, 3 dead `@keyframes` (`waveDrift` was defined twice
+  and referenced never), and a byte-identical duplicate `@media (max-width: 1180px)` block.
+
+## What was KEPT, and why — do not "finish the job"
+
+- **`MintySelect`'s `disabled` and `MintyDatePicker`'s `minDate`.** No call site passes
+  either, but both are conventional optional props on reusable components, woven through 7–9
+  sites including native element attributes. `minDate` is the exact counterpart of `maxDate`,
+  which *is* used — removing it would leave `isAfterMax` alone in expressions that currently
+  read as a pair. Highest risk, lowest value: left alone deliberately, unlike
+  `companyAbbreviation`, which is a single-use component's unused override.
+- **All nine `STEP_*` constants in the backend**, even the two nothing references. The
+  numbering is a fact about the product; a gap at 6 and 7 would read as though those steps did
+  not exist.
+- **The `.field .hint` rule.** `.hint` is unused so the rule is inert, but it is scoped under
+  a live `.field`; the conservative rule was "only remove a selector when *every* class in it
+  is dead".
+
+## Method note, learned the hard way
+
+A class-usage census by regex **cannot see interpolated class names**. Four classes looked
+dead and are live: `is-form` / `is-done` / `is-list` (built as `` `billing-sheet is-${stage}` ``
+in `BillingSheet.jsx:752`) and `is-wide` (`OnboardingSteps.jsx:585`). The first cleanse's notes
+already warned "don't trust a census loop" — it is still true.
+
+Likewise, a CSS remover **must mask comments before parsing**. A first attempt treated comment
+prose as selectors and proposed deleting half a paragraph about the Inter typeface. It was
+caught by dry-running the remover and reading its output before applying it. Dry-run first.
+
+Final safety check, worth repeating on any future CSS pass: every class still used in JSX must
+still have a rule. Compare `git show HEAD:app/globals.css` against the working copy and
+intersect with the usage set — it caught nothing this time, which is the point.
+
+## Still open
+
+1. **`.otp-row-empty`** — now REMOVED from `confirm/page.tsx` (it had no rule anywhere).
+2. **Prettier** — still not configured. Deliberately last if ever done: its own commit, and
+   keep the large component files out of any commit carrying logic.
+3. **The 16 pre-existing eslint errors** — 12 `set-state-in-effect`, 2 `refs`, 2 `purity`.
+   Untouched again. Note this is 16, not the 15 the first cleanse recorded; the extra arrived
+   with `BillingSheet.jsx`.
+4. **`public/all-set.png` is 4.3 MB** — 73% of the 5.9 MB `public/` folder, shipped to every
+   visitor who finishes the wizard. Live, so not a cleanse item, but worth recompressing.
+5. **The two large components are still large** (`OnboardingApp.jsx` ~1.7k,
+   `OnboardingSteps.jsx` ~2.3k). Extraction-only, SSR render-diff per move, own commits.

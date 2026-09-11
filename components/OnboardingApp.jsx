@@ -148,15 +148,15 @@ function deriveResumeStep(s, savedStep) {
 }
 
 const STEPS = [
-  { id: 1, label: 'Basic Information', short: 'Basic Information', tiny: 'Basic' },
-  { id: 2, label: 'Select Module', short: 'Select Module', tiny: 'Module' },
-  { id: 3, label: 'User Invite', short: 'User Invite', tiny: 'Invite' },
-  { id: 4, label: 'Connect to Accounting System', short: 'Connect to Accounting System', tiny: 'Accounting' },
-  { id: 5, label: 'Sales Setting', short: 'Sales Setting', tiny: 'Sales' },
-  { id: 6, label: 'Account Code Setting', short: 'Account Code Setting', tiny: 'Account Code' },
-  { id: 7, label: 'Others', short: 'Others', tiny: 'Others' },
-  { id: 8, label: 'Payment Settings', short: 'Payment Settings', tiny: 'Payment' },
-  { id: 9, label: 'All Set', short: 'All Set', tiny: 'All Set' },
+  { id: 1, label: 'Basic Information' },
+  { id: 2, label: 'Select Module' },
+  { id: 3, label: 'User Invite' },
+  { id: 4, label: 'Connect to Accounting System' },
+  { id: 5, label: 'Sales Setting' },
+  { id: 6, label: 'Account Code Setting' },
+  { id: 7, label: 'Others' },
+  { id: 8, label: 'Payment Settings' },
+  { id: 9, label: 'All Set' },
 ];
 
 // Display-only structure: collapses Sales (5) + Account Code (6) + Others (7)
@@ -176,18 +176,13 @@ function getDisplaySteps(modules) {
       label: 'Petty Cash Settings',
       tiny: 'Petty Cash',
       ids: [5, 6, 7],
-      subs: [
-        { id: 5, label: 'Sales' },
-        { id: 6, label: 'Account Code' },
-        { id: 7, label: 'Others' },
-      ],
     });
   }
   if (hasBills) {
     out.push({ label: 'Payment Settings', tiny: 'Payment', ids: [8] });
   }
   out.push({ label: 'All Set', tiny: 'All Set', ids: [9] });
-  return out.map((d, i) => ({ idx: i + 1, ...d }));
+  return out;
 }
 
 // Flat list of step ids that are part of the active flow given the selected modules.
@@ -286,9 +281,6 @@ function isStepComplete(id, state) {
 
 function Stepper({ current, onClick, maxReached, displaySteps }) {
   const ref = useRef(null);
-  const [hoverPettyCash, setHoverPettyCash] = useState(false);
-
-  // (Step-entry / squish animations removed.)
 
   useEffect(() => {
     if (!ref.current) return;
@@ -317,17 +309,6 @@ function Stepper({ current, onClick, maxReached, displaySteps }) {
     };
   }, [current, maxReached]);
 
-  // When the number of visible steps changes, trigger a brief jello squeeze
-  // on existing (non-newly-mounted) tiles to match the grid reflow.
-  const prevCountRef = useRef(displaySteps.length);
-  const [pulseId, setPulseId] = useState(0);
-  useEffect(() => {
-    if (prevCountRef.current !== displaySteps.length) {
-      setPulseId((n) => n + 1);
-      prevCountRef.current = displaySteps.length;
-    }
-  }, [displaySteps.length]);
-
   return (
     <div className="stepper" ref={ref} data-screen-label="Stepper" style={{ '--step-count': displaySteps.length }}>
       {displaySteps.map((d) => {
@@ -339,8 +320,6 @@ function Stepper({ current, onClick, maxReached, displaySteps }) {
         // Once on "All Set" (9), onboarding is finished — no step is clickable
         // anymore, but completed steps keep their "done" look (not the lock).
         const clickable = reachable && current !== 9;
-        const hasSubs = !!d.subs;
-        const showSubs = hasSubs && (isActive || hoverPettyCash);
         // For a grouped tile (e.g. Petty Cash = steps 5,6,7), land on the
         // sub-step the user was actually on rather than always the first: the
         // current sub-step if we're inside the group, otherwise the furthest
@@ -352,11 +331,8 @@ function Stepper({ current, onClick, maxReached, displaySteps }) {
           <div
             key={d.ids[0]}
             data-step-key={d.ids[0]}
-            data-pulse={pulseId}
-            className={'step ' + status + (reachable ? '' : ' locked') + (clickable ? '' : ' not-clickable') + (hasSubs ? ' has-subs' : '')}
+            className={'step ' + status + (reachable ? '' : ' locked') + (clickable ? '' : ' not-clickable')}
             onClick={() => clickable && onClick(targetId)}
-            onMouseEnter={() => hasSubs && setHoverPettyCash(true)}
-            onMouseLeave={() => hasSubs && setHoverPettyCash(false)}
             title={reachable ? undefined : 'Complete the previous steps first'}
           >
             {(isDone || !reachable) && <span className="num">{isDone ? <Icon.Check /> : <Icon.Lock />}</span>}
@@ -366,30 +342,6 @@ function Stepper({ current, onClick, maxReached, displaySteps }) {
             <span className="label label-tiny">
               <span className="label-inner">{d.tiny}</span>
             </span>
-            {hasSubs && false && (
-              <div className={'substep-popover' + (showSubs ? ' open' : '')}>
-                {d.subs.map((sub) => {
-                  const isSubActive = current === sub.id;
-                  const isSubDone = current > sub.id;
-                  const subReachable = sub.id <= maxReached;
-                  return (
-                    <button
-                      type="button"
-                      key={sub.id}
-                      className={'substep' + (isSubActive ? ' active' : '') + (isSubDone ? ' done' : '')}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        subReachable && onClick(sub.id);
-                      }}
-                      disabled={!subReachable}
-                    >
-                      <span className="substep-circle">{isSubDone && <Icon.CheckSm />}</span>
-                      <span className="substep-label">{sub.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
           </div>
         );
       })}
@@ -413,11 +365,6 @@ export default function OnboardingApp() {
   // summary. Stays null until loaded (and if the fetch fails), which hides the
   // summary rather than showing invented figures.
   const [modulePlans, setModulePlans] = useState(null);
-  // Has the payer agreed to be billed for this entity? Step 2's billing sheet is offered until
-  // they have. Deliberately NOT "do they have a card": the card belongs to the payer and
-  // is shared by every entity they pay for, so it says nothing about this one. Consent is
-  // per (entity, payer), and it is what makes this entity's trial convert to paid at term
-  // end instead of lapsing. It gates nothing — a payer who skips the sheet still onboards.
   // Set on resume when the user landed past step 4 but Xero isn't connected in
   // the DB — drives the "connect to accounting first" pop-up.
   const [needsXeroPrompt, setNeedsXeroPrompt] = useState(false);
@@ -545,12 +492,6 @@ export default function OnboardingApp() {
     }
     setCurrent(id);
   };
-  const restart = () => {
-    setState(initialState());
-    setCurrent(1);
-    setMaxReached(1);
-  };
-
   // If the user toggles a module off after reaching a step belonging to it,
   // snap back to a still-active step so we never sit on a hidden one.
   useEffect(() => {
@@ -1657,7 +1598,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, restart, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
 
   return (
     <>

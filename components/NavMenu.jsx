@@ -26,7 +26,7 @@ const SECTIONS = [
   },
 ];
 
-export default function NavMenu({ companyName = 'Minty', companyAbbreviation, showFullMenu = false }) {
+export default function NavMenu({ companyName = 'Minty', showFullMenu = false }) {
   const [open, setOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const panelId = useId();
@@ -38,8 +38,7 @@ export default function NavMenu({ companyName = 'Minty', companyAbbreviation, sh
 
   const abbr = !showFullMenu
     ? '---'
-    : companyAbbreviation ||
-      (companyName || 'Minty')
+    : (companyName || 'Minty')
         .trim()
         .split(/\s+/)
         .filter(Boolean)

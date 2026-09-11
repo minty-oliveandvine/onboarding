@@ -289,7 +289,7 @@ function ConfirmContent() {
             </p>
           </div>
 
-          <div className="otp-row otp-row-empty">
+          <div className="otp-row">
             {digits.map((d, i) => (
               <input
                 key={i}

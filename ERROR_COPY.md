@@ -21,8 +21,12 @@ House fallback: `Something went wrong on my end. Mind trying again?`
 
 ## The mechanism
 
-This app talks to the **Minty Flask backend only** (`NEXT_PUBLIC_MODULE1_API_URL`)
--- not the Django billing backend, despite sharing Stripe with billing-frontend.
+This app talks to **two** backends: the Minty Flask app (`NEXT_PUBLIC_MODULE1_API_URL`)
+for auth, legal and the Xero hand-off, and the extracted onboarding service
+(`NEXT_PUBLIC_ONBOARDING_API_URL`) for `/api/onboarding/*`. Which one answers a given path
+is decided in `lib/apiRoutes.js`. Both speak the same `{error}` shape, so the copy rules
+below are unchanged -- and the onboarding service deliberately uses `error` rather than
+Django's conventional `detail` for exactly that reason.
 
 There is one wrapper (`lib/billing.js`) and ~26 hand-rolled `fetch` calls, so
 `lib/errorCopy.js` is the shared seam instead:
