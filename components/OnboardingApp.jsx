@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import Icon from './Icon';
 import { friendlyError } from '../lib/errorCopy';
@@ -16,7 +16,6 @@ import {
   StepInvite,
   StepAllSet,
 } from './OnboardingSteps';
-import { fetchBillingStatus } from '@/lib/billing';
 import { toAmountString } from '@/lib/amount';
 import { formatToday } from '@/lib/date';
 
@@ -418,7 +417,6 @@ export default function OnboardingApp() {
   // is shared by every entity they pay for, so it says nothing about this one. Consent is
   // per (entity, payer), and it is what makes this entity's trial convert to paid at term
   // end instead of lapsing. It gates nothing — a payer who skips the sheet still onboards.
-  const [hasBillingConsent, setHasBillingConsent] = useState(false);
   // Set on resume when the user landed past step 4 but Xero isn't connected in
   // the DB — drives the "connect to accounting first" pop-up.
   const [needsXeroPrompt, setNeedsXeroPrompt] = useState(false);
@@ -465,32 +463,20 @@ export default function OnboardingApp() {
     };
   }, [token]);
 
-  // What does this entity's billing already look like? (Resume, or billing confirmed on
-  // an earlier pass.) Re-read whenever the sheet reports consent, so the button reflects
-  // the server rather than only the optimistic local flip.
-  const [billingNonce, setBillingNonce] = useState(0);
-  useEffect(() => {
-    if (!token || !state.entity.id) return;
-    let cancelled = false;
-    fetchBillingStatus(token, state.entity.id)
-      .then((data) => {
-        if (cancelled || !data) return;
-        setHasBillingConsent(!!data.has_billing_consent);
-      })
-      // Silent: this only decides which label Step 2 shows. A failed read must not throw
-      // the user out of a wizard they can still finish without ever touching billing.
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [token, state.entity.id, billingNonce]);
-
-  // Billing was confirmed. The flag is flipped locally so the button settles immediately, and
-  // the read above is re-run to confirm it against the server.
-  const onBillingConsent = useCallback(() => {
-    setHasBillingConsent(true);
-    setBillingNonce((n) => n + 1);
-  }, []);
+  /* THIS USED TO HOLD `hasBillingConsent`, and it is gone on purpose.
+   *
+   * A `fetchBillingStatus` ran here on every wizard load, a `billingNonce` re-ran it after
+   * a confirmation, and `onBillingConsent` flipped the flag optimistically — all so
+   * step 2's Save & Next could decide whether to open the billing sheet. It stopped
+   * deciding that when the card became optional, and the two screens that still care
+   * (the subscription summary, and All Set's nudge) each read the status for themselves
+   * against the entity they are describing.
+   *
+   * So this was a request per load answering a question nobody asked. Do not reinstate it
+   * as shared state: consent is per (entity, payer), and a wizard-level flag is exactly
+   * the shape that made the summary panel show a card for an entity that had never been
+   * authorised.
+   */
 
   const activeIds = useMemo(() => getActiveStepIds(state.modules), [state.modules]);
   const displaySteps = useMemo(() => getDisplaySteps(state.modules), [state.modules]);
@@ -1572,31 +1558,50 @@ export default function OnboardingApp() {
   // selection), finalizes onboarding, then redirects to the entity list.
   // Bill-only users skip the opening-balance commit. Returns { ok, redirect }
   // so All Set can show errors / stay put.
-  const finishOnboarding = async () => {
+  /* COMMIT ONBOARDING — WITHOUT LEAVING IT.
+   *
+   * This and `exitToEntityList` below were one `finishOnboarding` that committed and
+   * navigated on the same click. They had to come apart: the All Set screen now states
+   * the trial's real end date, and a trial that only starts as the payer leaves gives
+   * that screen nothing true to print. So the commit runs when All Set is REACHED, and
+   * leaving is just leaving.
+   *
+   * Returns the trial end for the screen to show. Finalize stays BEST-EFFORT: a failure
+   * must not strand the payer on a dead end, so it resolves ok with a null date and the
+   * screen drops that one row.
+   */
+  const completeOnboarding = async () => {
     // Onboarding done — drop this entity's saved session (and any bare draft).
     try {
       window.localStorage.removeItem(sessionKey(state.entity.id));
       window.localStorage.removeItem(STORAGE_KEY);
     } catch { /* ignore */ }
-    if (!token || !state.entity.id) return { ok: true, redirect: false };
+    if (!token || !state.entity.id) return { ok: true, trialEnd: null };
     const chosen = state.modules[0]; // 'pettyCash' | 'bills' | undefined
     if (chosen !== 'bills') {
       const result = await submitOpeningBalance();
       if (!result?.ok) return result;
     }
     const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
-    // Clear the mid-onboarding flag so the entity routes to its dashboard
-    // on the next entity-list click instead of bouncing back here.
-    // Best-effort — even if it fails we still navigate the user out.
+    // Clears the mid-onboarding flag so the entity routes to its dashboard on the next
+    // entity-list click instead of bouncing back here, and starts the module trials.
     try {
-      await fetch(`${base}/api/onboarding/finalize`, {
+      const res = await fetch(`${base}/api/onboarding/finalize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
-    } catch { /* ignore */ }
+      const data = await res.json().catch(() => ({}));
+      return { ok: true, trialEnd: data?.trial_end || null };
+    } catch {
+      return { ok: true, trialEnd: null };
+    }
+  };
+
+  /** Leave the wizard. Commits nothing — `completeOnboarding` already did, on arrival. */
+  const exitToEntityList = () => {
+    const base = (process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001').replace(/\/$/, '');
     window.location.href = `${base}/entity`;
-    return { ok: true, redirect: true };
   };
 
   // Save-and-exit from any step: best-effort save of the current step's data
@@ -1674,7 +1679,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, restart, submitEntity, submitModule, modulePlans, token, hasBillingConsent, onBillingConsent, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, finishOnboarding, saveAndExit, isLastContentStep };
+  const stepProps = { state, set, next, back, restart, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
 
   return (
     <>

@@ -1587,17 +1587,17 @@
     border-radius: 999px;
     background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
     background-size: 400% 100%;
-    animation: subPayShimmer 1.4s ease-in-out infinite;
+    animation: skeletonShimmer 1.4s ease-in-out infinite;
   }
   .sub-pay-bar.is-short { width: 58px; height: 9px; }
-  @keyframes subPayShimmer {
+  @keyframes skeletonShimmer {
     0%   { background-position: 100% 50%; }
     100% { background-position: 0 50%; }
   }
   /* Asked not to move, it does not move — the bars still reserve the space, they simply
      stop travelling. */
   @media (prefers-reduced-motion: reduce) {
-    .sub-pay-bar { animation: none; background: var(--surface-2); }
+    .sub-pay-bar, .skel-bar { animation: none; background: var(--surface-2); }
   }
 
   /* The one figure on this step, and it is labelled with WHEN rather than with a
@@ -1806,14 +1806,99 @@
   .check-circle::before { inset: -14px; opacity: 0.6; }
   .check-circle::after { inset: -28px; opacity: 0.3; }
 
-  .summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 28px; text-align: left; }
-  .summary .s-item { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--surface); }
-  .summary .s-item .s-check { width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: white; display: grid; place-items: center; flex-shrink: 0; margin-top: 1px; }
-  .summary .s-item .s-text { font-size: 13px; }
-  .summary .s-item .s-text b { display: block; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
-  .summary .s-item .s-text span { color: var(--muted); font-size: 12px; }
+  /* --- 01-E · All Set ------------------------------------------------------
+     The frame is 1440 wide and lays its content in a 446px column centred on the page.
+     Inside that column everything is LEFT-aligned — the sentence, the label/value pair
+     and the nudge share an edge — while the buttons below centre on the page rather than
+     on the column. Checked against the render, not just the node boxes. */
+  .allset-title { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
+  .allset-facts {
+    width: 446px; max-width: 100%;
+    margin: 55px auto 0;
+    text-align: left;
+    font-size: 15px; line-height: normal; color: #16202E;
+  }
+  .allset-lede { margin: 0; }
+  /* A definition list because that is what it is: three labels and their values. Grid
+     rather than the browser's default dl layout, so the values line up in a column.
+     146px + 15px is the frame's own gutter. */
+  .allset-grid {
+    display: grid;
+    grid-template-columns: 146px auto;
+    align-content: start;
+    gap: 0 15px;
+    margin: 18px 0 0;
+  }
+  .allset-grid dt { font-weight: 700; }
+  .allset-grid dd { margin: 0; }
+  /* The entity's own name is the one value the frame colours — it is the thing the payer
+     came here to create. */
+  .allset-grid dd.is-entity { color: var(--pick-ink); }
+  .allset-nudge { margin: 14px 0 0; }
 
-  .conf-actions { display: flex; gap: 12px; justify-content: center; margin-top: 32px; }
+  .allset-actions {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; margin-top: 36px;
+  }
+
+  /* THE SAME BLOCK, BEFORE IT KNOWS WHAT IT SAYS.
+     Two requests feed the facts — the commit, for the trial's end date, and the billing
+     status, for whether there is anything left to nudge about — and the shapes below stand
+     in for every line either of them decides: the lede, three label/value rows, the nudge
+     and both buttons. Geometry deliberately mirrors the real thing, so the block resolves
+     into its content instead of content arriving where there was nothing. */
+  .allset-skeleton { width: 446px; max-width: 100%; margin: 55px auto 0; }
+  /* 10px of bar in 18px of line keeps the real text rhythm, so nothing below shifts when
+     the words arrive. */
+  .skel-bar {
+    display: block; height: 10px; margin: 4px 0;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
+    background-size: 400% 100%;
+    animation: skeletonShimmer 1.4s ease-in-out infinite;
+  }
+  .allset-skeleton .sk-lede { width: 64%; }
+  .allset-skeleton .sk-rows {
+    display: grid; grid-template-columns: 146px auto;
+    gap: 0 15px; margin-top: 18px;
+  }
+  /* Labels then values, alternating — the label column is the narrower of the pair, as it
+     is in the real grid. */
+  .allset-skeleton .sk-rows .skel-bar:nth-child(odd) { width: 76%; }
+  .allset-skeleton .sk-rows .skel-bar:nth-child(even) { width: 58%; }
+  .allset-skeleton .sk-nudge { width: 82%; margin-top: 18px; }
+  .allset-skeleton .sk-actions {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; margin-top: 36px;
+  }
+  .allset-skeleton .sk-btn { width: 166px; height: 41px; margin: 0; border-radius: 10px; }
+  .allset-skeleton .sk-btn.is-link { width: 132px; height: 20px; }
+  /* 166×41 in the frame; the height comes from .btn's own padding, so only the width is
+     set here. Gradient rather than the frame's flat fill — one primary button, one
+     treatment, as everywhere else in this section. */
+  .allset-pay { min-width: 166px; }
+  /* The frame builds this from the same Button/Primary with its fill alpha at zero, which
+     is why the metadata calls both of them primary. It is a text button. */
+  .allset-exit {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    border: 0; background: none;
+    padding: 12px 20px; border-radius: 10px;
+    font-size: 14px; color: var(--pick-ink);
+    cursor: pointer;
+  }
+  .allset-exit:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .allset-exit:disabled { cursor: not-allowed; opacity: .5; }
+
+  @media (max-width: 560px) {
+    .allset-facts, .allset-skeleton { margin-top: 32px; }
+    .allset-skeleton .sk-rows { grid-template-columns: 1fr; }
+    .allset-skeleton .sk-btn, .allset-skeleton .sk-btn.is-link { width: 100%; }
+    /* The label column stops being worth 146px of a phone, and "Module enabled" beside a
+       value leaves neither room. Stacked, with the label above its value. */
+    .allset-grid { grid-template-columns: 1fr; gap: 0; }
+    .allset-grid dd { margin-bottom: 10px; }
+    .allset-pay, .allset-exit { width: 100%; }
+  }
 
   /* small helpers */
   .stack > * + * { margin-top: 14px; }

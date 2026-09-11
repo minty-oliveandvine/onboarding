@@ -418,13 +418,15 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
  * A CONFIRMATION, NOT A RECEIPT. It is shown after the card is attached and this entity's
  * consent is recorded, and it still has to be true that nothing was charged.
  *
- * THE "default payment method" LINE IS CONDITIONAL, and that is not a styling choice. This
- * sheet saves cards with `make_default: false` on purpose — the default is account-wide,
- * so promoting every captured card would silently re-point the payer's other companies.
- * The card here IS the default only when it is the payer's first, which Minty promotes
- * itself so dunning has something to point at. The design prints the sentence
- * unconditionally; printing it when it is false would tell a payer with two cards that
- * their older card had been replaced.
+ * THE "default payment method" LINE IS TRUE, WHICH IS WHY IT IS HERE. Saving sends
+ * `make_default: true`, so the card the payer just added is the account default by the
+ * time this renders.
+ *
+ * It reads off `isDefault` anyway rather than being printed unconditionally. That is a
+ * belt, not the old design decision: this sentence is a statement about which card gets
+ * charged, and if promoting ever stops happening — Stripe refusing the customer update,
+ * someone flipping the flag back — the sentence should disappear rather than quietly
+ * become a lie on the screen that confirms the payer's billing.
  */
 function CardAdded({ card, isDefault, onDone }) {
   // Done is the only control on this card, and the button that was focused a moment ago
@@ -520,7 +522,7 @@ export default function BillingSheet({
   const [saved, setSaved] = useState(null);
   const closeRef = useRef(null);
 
-  /* Read the wallet. Called on open, and again after a card is added.
+  /* Read the wallet, on open.
    *
    * ACCOUNTS RATHER THAN LOOSE CARDS, in ONE request: `/billing/accounts` returns the flat
    * wallet as well (`methods`, `default_id`), so it is a strict superset of
@@ -529,25 +531,19 @@ export default function BillingSheet({
    * has never opened one — that is not an empty wallet, it is no wallet, and the only
    * thing to show is the card form.
    *
-   * RE-READ RATHER THAN PATCHED IN. The confirm response looks like it would save this
-   * trip — it carries `methods` and `default_id` — but it has no `accounts` key, so
-   * splicing it into state leaves `companyByCard` stale and the new card's row missing the
-   * company it invoices. `keep` preserves an already-made choice across the refresh; only
-   * the first read picks a default.
+   * It used to run a second time, after a card was added, and took a `keep` option so that
+   * refresh did not hand the payer's just-made choice back to the account default. Saving
+   * a card now finishes the dialog outright, so there is no second read and no choice to
+   * preserve across one.
    */
-  const loadWallet = useCallback(
-    async ({ keep } = {}) => {
-      const data = await fetchBillingAccounts(token);
-      const list = data.methods || [];
-      setMethods(list);
-      setAccounts(data.accounts || []);
-      setChosen((current) =>
-        keep && current ? current : data.default_id || (list[0] ? list[0].id : ''),
-      );
-      return list;
-    },
-    [token],
-  );
+  const loadWallet = useCallback(async () => {
+    const data = await fetchBillingAccounts(token);
+    const list = data.methods || [];
+    setMethods(list);
+    setAccounts(data.accounts || []);
+    setChosen(data.default_id || (list[0] ? list[0].id : ''));
+    return list;
+  }, [token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -567,42 +563,17 @@ export default function BillingSheet({
     };
   }, [loadWallet]);
 
-  /* Back to the picker from the success card, and it resets FOUR things rather than one.
-   *
-   * `intent` is the one that matters, and it is only a hazard because of this route. The
-   * SetupIntent effect below is guarded by `if (!adding || intent) return;`, so leaving a
-   * spent intent in state means a second "Add New Card" in the same dialog session mounts
-   * the form against a SetupIntent Stripe has already consumed — which fails at confirm,
-   * after the payer has typed a whole card in. Until now the dialog always unmounted after
-   * a save, so the state reset itself and this could not happen. */
-  const backToPicker = useCallback(async () => {
-    setError('');
-    setIntent(null);
-    setStripePromise(null);
-    setSaved(null);
-    setAdding(false);
-    try {
-      // `keep`: the new card was just selected for them, and a refresh must not hand the
-      // choice back to whichever card happens to be the account default.
-      await loadWallet({ keep: true });
-    } catch {
-      // The card IS saved; a failed refresh is a stale list, not a lost card. The rows
-      // already on screen stay, and the payer can still confirm one of them.
-    }
-  }, [loadWallet]);
-
-  /* HOW THIS DIALOG IS DISMISSED, and it is not one answer.
+  /* HOW THIS DIALOG IS DISMISSED, and it is two answers because there are two things the
+   * payer can be looking at.
    *
    * ON EITHER FORM, closing is "not now, I'm still reading": it must not navigate, because
    * a stray click outside a dialog is not a decision about billing. `onClose`.
    *
-   * ON THE SUCCESS CARD IT DEPENDS on whether that save also nominated (see
-   * `saveNewCard`). When it did, the work is done and the dialog is only reporting it:
-   * `onDone`, or the caller is left offering "Add card" over a card that exists. When it
-   * did not, NOTHING IS CONSENTED — `onDone` would claim a consent never given and
-   * `onClose` would strand a card the summary has not been told about — so it goes back
-   * to the picker, where Confirm is waiting. */
-  const dismiss = saved ? (saved.needsConfirm ? backToPicker : onDone) : onClose;
+   * ON THE SUCCESS CARD the card is attached AND this entity's consent is recorded — the
+   * work is done and the dialog is only reporting it. Closing through `onClose` there
+   * would leave the caller offering "Add card" over a card that exists, and the payer
+   * would add it twice. `onDone`. */
+  const dismiss = saved ? onDone : onClose;
 
   // Esc closes, and focus starts inside the dialog — it covers the wizard, so leaving the
   // focus behind it would let a keyboard user tab through a form they can't see. (The
@@ -692,55 +663,43 @@ export default function BillingSheet({
    * keeps the older behaviour: the card is saved, and that is all that happens.
    */
   const saveNewCard = async (setupIntentId, paymentMethodId, account) => {
-    /* WHETHER SAVING ALSO SETS depends on whether the payer had a BILLING ACCOUNT before
-     * this one — not on whether they had cards.
+    /* ADDING A CARD *IS* CHOOSING IT, so saving nominates — every time, whether or not the
+     * payer already had a billing account.
      *
-     * Read BEFORE the confirm call, because the confirm is what makes it untrue.
+     * The picker's rule and this one are not in tension, though they used to be tangled
+     * together. "Ask the payer to choose" is about choosing BETWEEN CARDS THEY ALREADY
+     * HOLD, which is what the list is for. Someone who has just typed a card number in has
+     * answered that question; sending them back to a list to point at the card they only
+     * just created asks it again.
      *
-     * NO EXISTING ACCOUNT: opening their first billing account and putting this company
-     * on it are one act. There is no arrangement to disturb and nothing to choose
-     * between, so it is nominated here and the dialog finishes.
+     * This replaced a round trip — Done returned to the picker with the new row ticked and
+     * Confirm did the nominating — which carried a state nothing could design away: close
+     * from that picker without pressing Confirm and the payer ends with a card on file, NO
+     * CONSENT, and a trial that lapses instead of converting. There is no such gap now.
      *
-     * AN EXISTING ACCOUNT: they already have billing set up somewhere, and nominating the
-     * new account just because it is new would move this company onto it on the strength
-     * of "I added a card" — which is a different statement. So the flow returns to the
-     * picker with the new card selected, and Confirm does the nominating.
-     *
-     * ACCOUNTS, NOT CARDS, and the distinction is load-bearing: a payer can hold cards
-     * with no billing account at all (saved before accounts existed, or through the payer
-     * portal). Nothing is nominated in that state — a nomination needs a group — so
-     * there is no arrangement to protect, and asking them to choose would be asking about
-     * a decision they have never made. */
-    const hadAccounts = accounts.length > 0;
-
+     * The card is NAMED EXPLICITLY on `authorizeBilling` rather than inferred from the
+     * account default. That is unaffected by any of the above and must stay: it is what
+     * stops confirming one company from moving another company's billing. */
     const fresh = await confirmCardSetup(token, setupIntentId, true, account);
-
-    if (!hadAccounts) {
-      // Named explicitly rather than left to Minty's account-default inference, which is
-      // what put one card on every company in the first place.
-      await authorizeBilling(token, entityId, paymentMethodId);
-    }
+    await authorizeBilling(token, entityId, paymentMethodId);
 
     // 01-J names the card that was saved, so it is only shown when we can actually say
     // which one that was. Unidentifiable — no payment method id came back, or the fresh
-    // list doesn't contain it — and the dialog ends the way that path would have ended
-    // anyway rather than showing a success card with a blank in it.
+    // list doesn't contain it — and the dialog finishes rather than showing a success
+    // card with a blank in it. The consent above has already been recorded either way.
     const card = (fresh?.methods || []).find((m) => m.id === paymentMethodId);
     if (!card) {
-      if (hadAccounts) await backToPicker();
-      else onDone();
+      onDone();
       return;
     }
-    // Selected, not nominated. The picker returns with it ticked, so Confirm is one press.
-    if (hadAccounts) setChosen(card.id);
-    setSaved({ card, isDefault: fresh.default_id === card.id, needsConfirm: hadAccounts });
+    setSaved({ card, isDefault: fresh.default_id === card.id });
   };
 
   /**
    * Consent for a card already on file.
    *
    * The card is NOMINATED first and the consent recorded only if that succeeded — the same
-   * guarantee the old `setDefaultPaymentMethod` call gave, one level down and confined to
+   * guarantee the account-wide default-setting call once gave, one level down and confined to
    * this company. The payer agreed to be billed on the card this sheet named; recording
    * consent while the company still points at a different card would authorise a charge
    * they were never shown. Both happen inside `authorizeBilling`, in that order.
@@ -834,11 +793,7 @@ export default function BillingSheet({
         {loading ? (
           <p className="billing-loading">Loading your payment methods…</p>
         ) : stage === 'done' ? (
-          <CardAdded
-            card={saved.card}
-            isDefault={saved.isDefault}
-            onDone={saved.needsConfirm ? backToPicker : onDone}
-          />
+          <CardAdded card={saved.card} isDefault={saved.isDefault} onDone={onDone} />
         ) : adding ? (
           <div className="billing-formwrap">
             <div className="billing-formcol">

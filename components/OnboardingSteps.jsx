@@ -12,6 +12,7 @@ import CardBrand from './CardBrand';
 import { useToast } from './Toast';
 import { fetchCountries, fetchCurrencies } from '@/lib/refData';
 import { acceptAmountInput, formatAmount, toAmountEditString } from '@/lib/amount';
+import { formatDate } from '@/lib/date';
 import { fetchBillingStatus } from '@/lib/billing';
 
 // --- Reusable bits ---
@@ -451,7 +452,7 @@ function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onAdd
   );
 }
 
-export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, onBillingConsent, saveAndExit }) {
+export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, saveAndExit }) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
   // No per-card price lookup any more: the cards carry a trial status, not a figure,
   // and the ONE price on this step is the summary's "After trial" tile. It reads the
@@ -702,7 +703,6 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
             // Re-read the wallet: the card the payer just saved is what the summary's
             // Payment method row should now name.
             setCardEpoch((n) => n + 1);
-            if (typeof onBillingConsent === 'function') onBillingConsent();
             toast.success("Card saved — we'll bill this entity when the trial ends.");
           }}
         />
@@ -1164,7 +1164,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   // Save everything on this step: sales methods AND the opening balance/date.
   // submitOpeningBalance no-ops when the balance is empty, so a blank balance
   // never blocks Save & Next / Save & Exit — we persist whatever's filled in.
-  // finishOnboarding re-submits the opening balance later; that's idempotent.
+  // completeOnboarding re-submits the opening balance later; that's idempotent.
   const stepSubmit = async () => {
     const methodsResult = await submitSalesMethods();
     if (!methodsResult?.ok) return methodsResult;
@@ -2048,45 +2048,260 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
 }
 
 // --- Step 9: All Set ---
-export function StepAllSet({ state, finishOnboarding }) {
-  const [finishing, setFinishing] = useState(false);
+/**
+ * Step 9 — All Set. Figma 01-E (`1705:1355`).
+ *
+ * THIS SCREEN COMMITS ONBOARDING, which is new and is the whole reason it can say what it
+ * says. The frame states the trial HAS STARTED and names the day it ends; that was
+ * unprintable while the trials only began as the payer left, so `completeOnboarding()`
+ * now runs on arrival and hands back the committed `trial_end`. "Go to entity list" is
+ * afterwards only a redirect.
+ *
+ * Nothing here predicts. If the date does not come back the row is dropped rather than
+ * filled with today + 30 — a wrong date about billing is worse than a missing one.
+ */
+export function StepAllSet({
+  state,
+  token,
+  modulePlans,
+  completeOnboarding,
+  exitToEntityList,
+}) {
+  const [trialEnd, setTrialEnd] = useState(null);
+  const [committing, setCommitting] = useState(true);
+  const [billingOpen, setBillingOpen] = useState(false);
+  // `null` while unknown, so the nudge renders in NEITHER state until the answer is in.
+  // Showing "add a payment method" and then retracting it is the flicker the subscription
+  // summary was just fixed for.
+  const [hasConsent, setHasConsent] = useState(null);
   const toast = useToast();
 
-  const onContinue = async () => {
-    if (finishing) return;
-    if (typeof finishOnboarding !== 'function') return;
-    setFinishing(true);
-    const result = await finishOnboarding();
-    if (!result?.ok) {
-      toast.error(result.error);
-      setFinishing(false);
-    } else if (!result.redirect) {
-      setFinishing(false);
+  /* COMMITTED ONCE, AND THE HANDLE IS KEPT. This ref does two jobs.
+   *
+   * It is the run-once guard: StrictMode invokes effects twice in development and this one
+   * POSTs. Both halves are idempotent — finalize is guarded server-side by
+   * `status == "onboarding"` and the opening balance is documented as re-submittable — so
+   * a double call is survivable rather than fine, which is not a reason to make one.
+   *
+   * AND IT IS THE PROMISE ANYTHING THAT NAVIGATES MUST WAIT ON, which is the half that
+   * matters. Committing is two round trips, and the billing dialog on this screen now
+   * LEAVES THE PAGE when it finishes. A payer quick enough to confirm a card before
+   * finalize returns would unload the tab out from under that request: consent recorded,
+   * the entity still `onboarding`, and no trial ever started — silently, and precisely the
+   * state this screen tells them is impossible. The exit button is already held by
+   * `committing`; the dialog's exit is held by awaiting this.
+   *
+   * It never rejects. `completeOnboarding` reports failure by resolving `{ok: false}`, and
+   * anything thrown is caught below — so a failed commit still lets the payer leave rather
+   * than trapping them on a screen whose buttons no longer work.
+   */
+  const commit = useRef(null);
+  useEffect(() => {
+    if (commit.current) return;
+    if (typeof completeOnboarding !== 'function') {
+      commit.current = Promise.resolve();
+      setCommitting(false);
+      return;
     }
-  };
+    commit.current = (async () => {
+      try {
+        const result = await completeOnboarding();
+        if (!result?.ok) toast.error(result?.error || "Couldn't finish setting up.");
+        setTrialEnd(result?.trialEnd || null);
+      } catch {
+        toast.error("Couldn't finish setting up.");
+      } finally {
+        setCommitting(false);
+      }
+    })();
+  }, [completeOnboarding, toast]);
+
+  // Whether this entity is already authorised. Re-read after the billing sheet reports a
+  // confirmation, which is the only thing here that can change the answer.
+  useEffect(() => {
+    if (!token || !state?.entity?.id) return;
+    let live = true;
+    fetchBillingStatus(token, state.entity.id)
+      .then((res) => {
+        if (live) setHasConsent(!!res?.has_billing_consent);
+      })
+      // A payer with no Stripe customer is the ordinary case here, not an error. Treated
+      // as "no consent", which is the truth and shows the nudge.
+      .catch(() => {
+        if (live) setHasConsent(false);
+      });
+    return () => {
+      live = false;
+    };
+    // Read ONCE. It used to re-run after a confirmation, through a `cardEpoch` counter the
+    // billing sheet's onDone bumped — but confirming now leaves the page, so there is no
+    // longer a moment where this screen has to notice the answer changing under it.
+  }, [token, state?.entity?.id]);
+
+  /* "Petty Cash", "Payment Request", or — with both — "SuperMinty", the name step 2 gives
+     the pair. One line covers the sentence and the Module enabled row, so the two cannot
+     drift into describing the same choice differently. */
+  const picked = state.modules || [];
+  const moduleLabel =
+    picked.length > 1
+      ? 'SuperMinty'
+      : (MODULES.find((m) => m.id === picked[0]) || {}).title || 'your module';
+
+  const trialDays = Number(modulePlans?.trial_period_days || 30);
+  // Formatted from the SERVER's date. This is not the `firstChargeLabel` that was deleted:
+  // that one added days to today in the browser and called the result a fact.
+  /* Both requests in, so the block can be drawn. `committing` covers the trial date and
+     `hasConsent === null` covers the nudge and the buttons; either outstanding means part
+     of what is about to be shown is still unknown. */
+  const ready = !committing && hasConsent !== null;
+
+  const trialEndLabel = trialEnd
+    ? formatDate(new Date(trialEnd), {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        upper: false,
+      })
+    : null;
 
   return (
     <>
+      {/* Not in the frame, because a still frame cannot draw it. This is the one screen in
+          the flow that has earned it. */}
       <Confetti count={42} />
       <div className="celebrate">
         <div className="check-circle">
           <Icon.CheckBig />
         </div>
-        <h2 style={{ margin: 0, fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em' }}>You&apos;re all set!</h2>
-        <p style={{ margin: '12px 0 0', color: 'var(--muted)', fontSize: 15 }}>
-          <b style={{ color: 'var(--ink)' }}>{state.entity.name || ''}</b> Your Minty Entity is set! You are now good to go.
-        </p>
+        <h2 className="allset-title">You&apos;re all set!</h2>
       </div>
 
       <div className="mascot-video-wrap">
-        <img className="mascot-video" src="/all-set.png" alt="Minty mascot" />
+        <img className="mascot-video" src="/all-set.png" alt="" aria-hidden="true" />
       </div>
 
-      <div className="conf-actions" style={{ flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-        <button className="btn btn-primary" onClick={onContinue} disabled={finishing}>
-          {finishing ? 'Saving…' : <>Go to entity list <Icon.Arrow /></>}
-        </button>
+      {/* NOTHING HERE APPEARS OUT OF NOWHERE. Everything below waits on two requests — the
+          commit, which returns the trial's end date, and the billing status, which decides
+          whether there is anything left to nudge about — and until both land the block is
+          drawn as a skeleton of the same shape.
+
+          It used to resolve in pieces: the facts rendered instantly with a missing date
+          row, then the nudge appeared, then "Add Payment Now" appeared above an exit button
+          that had already been sitting there as a text link and now became a filled one.
+          Each part was individually correct and the whole thing read as a glitch. */}
+      {ready ? null : (
+        <div
+          className="allset-skeleton"
+          role="status"
+          aria-label="Finishing setting up your entity"
+        >
+          <span className="skel-bar sk-lede" aria-hidden="true" />
+          <div className="sk-rows" aria-hidden="true">
+            <span className="skel-bar" />
+            <span className="skel-bar" />
+            <span className="skel-bar" />
+            <span className="skel-bar" />
+            <span className="skel-bar" />
+            <span className="skel-bar" />
+          </div>
+          <span className="skel-bar sk-nudge" aria-hidden="true" />
+          <div className="sk-actions" aria-hidden="true">
+            <span className="skel-bar sk-btn" />
+            <span className="skel-bar sk-btn is-link" />
+          </div>
+        </div>
+      )}
+
+      {/* One left-aligned column, centred on the page. The sentence, the label/value pair
+          and the nudge share a left edge; only the buttons below are centred. */}
+      {ready ? (
+      <div className="allset-facts">
+        <p className="allset-lede">
+          Your {trialDays}-day {moduleLabel} trial has started.
+        </p>
+
+        <dl className="allset-grid">
+          <dt>Entity</dt>
+          <dd className="is-entity">{state.entity.name || '—'}</dd>
+          <dt>Module enabled</dt>
+          <dd>{moduleLabel}</dd>
+          {/* Dropped entirely when the server gave us no date — see the note above. */}
+          {trialEndLabel ? (
+            <>
+              <dt>Trial period until</dt>
+              <dd>{trialEndLabel}</dd>
+            </>
+          ) : null}
+        </dl>
+
+        {/* Nothing to nudge someone about who has already authorised this entity. Gated on
+            CONSENT, not on owning a card: a payer can hold a card this entity was never
+            authorised against, and only consent decides whether the trial converts. */}
+        {hasConsent === false ? (
+          <p className="allset-nudge">
+            Avoid interruption by adding a payment method today.
+          </p>
+        ) : null}
       </div>
+      ) : null}
+
+      {/* Both buttons or neither: which of them belongs here is one of the things the
+          billing status decides, so the row arrives assembled with the facts above it. */}
+      {ready ? (
+        <div className="allset-actions">
+          {hasConsent ? null : (
+            <button
+              type="button"
+              className="btn btn-primary allset-pay"
+              onClick={() => setBillingOpen(true)}
+            >
+              Add Payment Now
+            </button>
+          )}
+          {/* A text button beneath the primary, as the frame draws it — and promoted to
+              the filled one when it is the only action left, so the screen does not end on
+              a link. */}
+          <button
+            type="button"
+            className={hasConsent ? 'btn btn-primary allset-pay' : 'allset-exit'}
+            onClick={exitToEntityList}
+            disabled={committing}
+          >
+            Go to entity list <Icon.Arrow />
+          </button>
+        </div>
+      ) : null}
+
+      {billingOpen && state.entity?.id ? (
+        <BillingSheet
+          token={token}
+          entityId={state.entity.id}
+          onClose={() => setBillingOpen(false)}
+          /* CONFIRMING HERE FINISHES ONBOARDING. All Set is the terminal screen — a card
+             was the last outstanding thing on it, and leaving is all that follows — so
+             both routes through this dialog go straight to the entity list rather than
+             returning to a screen whose only remaining button says the same.
+
+             Both routes, deliberately: Done after adding a card and Confirm after picking
+             a saved one each record consent, so neither is less finished than the other.
+
+             CLOSING IS STILL NOT FINISHING. The X, Esc and the backdrop go through
+             `onClose` above and leave the payer here, which is the distinction this dialog
+             has protected from the start.
+
+             No toast and no state refresh: `exitToEntityList` assigns
+             `window.location.href`, so a toast fired first is never read and the state it
+             would refresh belongs to a screen that is going away. */
+          onDone={async () => {
+            setBillingOpen(false);
+            // NOT before the commit lands — see `commit` above. Navigating here while
+            // finalize is still in flight cancels it, and the payer leaves with a card
+            // authorised against an entity whose trial never started.
+            await commit.current;
+            exitToEntityList();
+          }}
+        />
+      ) : null}
     </>
   );
 }
