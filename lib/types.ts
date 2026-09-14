@@ -172,8 +172,14 @@ export type WizardUser = {
 
 //  ── Step props ──────────────────────────────────────────────────────
 
-/** A partial update merged into the wizard state. */
-export type SetState = (patch: Partial<WizardState>) => void;
+/**
+ * Merge a patch into the wizard state. The functional form receives the LATEST state,
+ * for writers that fire from an effect and must not replay the render they closed over
+ * -- the cold resume can land between that render and the effect.
+ */
+export type SetState = (
+  patch: Partial<WizardState> | ((prev: WizardState) => Partial<WizardState>),
+) => void;
 
 /** A step's own save, handed to Save & Exit so it can persist before leaving. */
 export type SubmitFn = () => Promise<Result | EntityResult | null | undefined>;

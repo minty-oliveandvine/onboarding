@@ -76,20 +76,29 @@ export function StepCreateEntity({
   // Migrate legacy name values (the pre-registry defaults like 'Hong Kong' /
   // 'Hong Kong Dollar', or an old saved session) to their registry uuids once
   // the options are in, so submits always carry uuids.
+  //
+  // Read the entity from the LATEST state, not from `s`. This step is mounted while
+  // a cold resume is still in flight, and the registries and GET /state answer at
+  // about the same time: when the resume landed between this effect's render and
+  // the effect itself, writing `...s` back replayed the pre-resume entity over the
+  // resumed one -- id and name gone, modules kept -- and the wizard carried on as
+  // the standalone prototype, faking the Xero connection and saving nothing.
   useEffect(() => {
+    if (countryOptions.length === 0 && currencyOptions.length === 0) return;
     const byLabel = (opts: { value: string; label: string }[], v: string) =>
       v && !opts.some((o) => o.value === v) ? opts.find((o) => o.label === v) : null;
-    const country = byLabel(countryOptions, s.country);
-    const currency = byLabel(currencyOptions, s.currency);
-    if (country || currency) {
-      set({
+    set((prev) => {
+      const country = byLabel(countryOptions, prev.entity.country);
+      const currency = byLabel(currencyOptions, prev.entity.currency);
+      if (!country && !currency) return {};
+      return {
         entity: {
-          ...s,
+          ...prev.entity,
           ...(country ? { country: country.value } : {}),
           ...(currency ? { currency: currency.value } : {}),
         },
-      });
-    }
+      };
+    });
   }, [countryOptions, currencyOptions]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleNext = async () => {

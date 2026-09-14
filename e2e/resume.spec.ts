@@ -21,18 +21,18 @@
 // module. An earlier version of this spec landed on whatever step the database held,
 // finalized a dev entity, and created two trial rows.
 //
-// So `land()` PINS saved_step to a safe step before every navigation and never trusts
-// the stored value. Do not add a navigation that skips it.
+// So `land()` (e2e/onboardingApi.ts) PINS saved_step to a safe step before every
+// navigation and never trusts the stored value. Do not add a navigation that skips it.
 //
-// WHAT IT CANNOT COVER
+// WHAT IT DOES NOT COVER
 //
-// The full nine-step walk to finalize. Step 4 is a live Xero OAuth round-trip against
-// Xero's own servers; there is no test account path through it, and faking the callback
-// would be testing the fake. The wizard cannot be driven past step 4 by a test, so the
-// later steps are covered by the unit and component suites only.
+// Anything past step 4. Step 4 is the Xero OAuth round-trip; xero.spec.ts fakes it at
+// the browser and walk.spec.ts clicks from there to All Set. This spec stays on the
+// resume contract only.
 
 import { expect, test, type APIRequestContext, type Page } from '@playwright/test';
 import { mintToken, reachable, requireCredentials, type Credentials } from './helpers';
+import * as api from './onboardingApi';
 import { ONBOARDING_API_URL } from './urls';
 
 let creds: Credentials;
@@ -46,58 +46,17 @@ test.beforeEach(async () => {
 });
 
 const auth = () => ({ Authorization: `Bearer ${creds.token}` });
+const SAFE_STEP = api.SAFE_STEP;
 
-async function readState(request: APIRequestContext) {
-  const res = await request.get(
-    `${ONBOARDING_API_URL}/api/onboarding/state?entity_id=${creds.entityId}`,
-    { headers: auth() },
-  );
-  expect(res.status(), 'GET /state').toBe(200);
-  return res.json();
-}
-
-async function writeSavedStep(request: APIRequestContext, step: number) {
-  const res = await request.post(`${ONBOARDING_API_URL}/api/onboarding/saved-step`, {
-    headers: auth(),
-    data: { entity_id: creds.entityId, saved_step: step },
-  });
-  expect(res.status(), `POST /saved-step ${step}`).toBe(200);
-  return res.json();
-}
-
-/** A step the browser may safely be shown. Never 9 -- see the module header. */
-const SAFE_STEP = 2;
-
-/**
- * Land on the wizard the way Minty does: token in the query string.
- *
- * `step` is PINNED through the API first, so the browser can never arrive at whatever
- * the row currently holds. That is not tidiness -- landing on 9 finalizes the entity.
- */
-async function land(page: Page, request: APIRequestContext, step: number = SAFE_STEP) {
-  if (step === 9) throw new Error('refusing to land on step 9: arrival there finalizes the entity');
-  await writeSavedStep(request, step);
-  await page.goto(`/?token=${creds.token}&entity_id=${creds.entityId}`);
-  await expect(page.locator('.stepper')).toBeVisible();
-  await page.waitForLoadState('networkidle');
-}
-
-/** The stored saved_step, so a test can put it back. */
-async function stashSavedStep(request: APIRequestContext): Promise<number | null> {
-  const state = await readState(request);
-  return state.saved_step ?? null;
-}
-
-/** Put the stored saved_step back, if there was one. */
-async function restoreSavedStep(request: APIRequestContext, original: number | null) {
-  if (original !== null) await writeSavedStep(request, original);
-}
-
-/** The step id of the tile the stepper is showing as active. */
-async function activeStep(page: Page): Promise<number> {
-  const key = await page.locator('.step.active').first().getAttribute('data-step-key');
-  return Number(key);
-}
+const readState = (request: APIRequestContext) => api.readState(request, creds);
+const writeSavedStep = (request: APIRequestContext, step: number) =>
+  api.writeSavedStep(request, creds, step);
+const land = (page: Page, request: APIRequestContext, step: number = SAFE_STEP) =>
+  api.land(page, request, creds, step);
+const stashSavedStep = (request: APIRequestContext) => api.stashSavedStep(request, creds);
+const restoreSavedStep = (request: APIRequestContext, original: number | null) =>
+  api.restoreSavedStep(request, creds, original);
+const activeStep = api.activeStep;
 
 test('a valid launch token opens the wizard rather than the sign-in screen', async ({
   page,

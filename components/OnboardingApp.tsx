@@ -56,7 +56,7 @@ import type {
   Result,
   SalesMethods,
 } from '../lib/api';
-import type { AccountOptions, StepProps, SubmitFn, WizardState } from '../lib/types';
+import type { AccountOptions, StepProps, SubmitFn, WizardState, SetState } from '../lib/types';
 import { inviteRows } from '../lib/invites';
 import { useMounted } from '../lib/useMounted';
 
@@ -169,7 +169,8 @@ export default function OnboardingApp() {
     return activeIds[i - 1];
   };
 
-  const set = (patch: Partial<WizardState>) => setState((prev) => ({ ...prev, ...patch }));
+  const set: SetState = (patch) =>
+    setState((prev) => ({ ...prev, ...(typeof patch === 'function' ? patch(prev) : patch) }));
 
   // Latest `state` mirrored into a ref for async flows (cold resume) that must
   // both write the state AND keep using the value they wrote. Reading it inside
