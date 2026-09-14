@@ -32,10 +32,10 @@
 * {
   box-sizing: border-box;
 }
-/* Inter, matching the design and Module 2. This is the ONLY place the typeface is
+/* Inter, matching the design and Module 2. This is the ONLY place the body typeface is
      set — every other rule says font-family: inherit — so the app changes face here and
-     nowhere else. Plus Jakarta Sans was the previous default and is no longer requested
-     in layout.tsx; do not reintroduce it in a single component. */
+     nowhere else. The one exception is the "Minty" wordmark in the topbar (.topbar .brand),
+     which is set in Plus Jakarta Sans as a brand mark, not a text style. */
 html,
 body {
   margin: 0;
@@ -91,6 +91,12 @@ textarea {
   align-items: center;
   gap: 10px;
   color: var(--ink);
+  /* Plus Jakarta Sans for the wordmark only — see the note on html, body above. */
+  font-family:
+    'Plus Jakarta Sans',
+    Inter,
+    system-ui,
+    sans-serif;
   font-weight: 700;
   font-size: 15px;
   letter-spacing: -0.005em;
