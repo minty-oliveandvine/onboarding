@@ -154,9 +154,7 @@ describe('the properties the list alone does not show', () => {
     const { baseFor, urlFor } = await loadRoutes();
     expect(baseFor('/api/onboarding/state?entity_id=abc#frag')).toBe(DJANGO);
     // ...and urlFor puts them back untouched.
-    expect(urlFor('/api/onboarding/state?a=1&b=2')).toBe(
-      DJANGO + '/api/onboarding/state?a=1&b=2',
-    );
+    expect(urlFor('/api/onboarding/state?a=1&b=2')).toBe(DJANGO + '/api/onboarding/state?a=1&b=2');
   });
 
   it('matches :entityId against exactly one segment', async () => {

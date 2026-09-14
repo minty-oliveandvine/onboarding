@@ -3,7 +3,7 @@
 // Confetti pieces for the "All Set" celebration page.
 // Each piece is an SVG drawn in a 100×100 viewBox so they scale uniformly.
 // Shapes are inspired by the colourful squiggles & dots in the brand palette.
-import { useMemo, type CSSProperties } from 'react';
+import { useState, type CSSProperties } from 'react';
 
 type Shape = { c: string; d: string; solid?: boolean };
 
@@ -41,31 +41,38 @@ function ConfettiPiece({ shape, style }: { shape: Shape; style: PieceStyle }) {
   );
 }
 
+/** Randomised once per mount. Called from a lazy initialiser, never during render. */
+function scatter(count: number) {
+  const rand = (a: number, b: number) => a + Math.random() * (b - a);
+  return Array.from({ length: count }, (_, i) => {
+    const shape = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length];
+    const size = rand(28, 62);
+    return {
+      key: i,
+      shape,
+      style: {
+        left: `${rand(2, 96)}%`,
+        width: size,
+        height: size,
+        // launch-up offset (negative) so they "pop" from above before falling
+        '--start-y': `${-rand(40, 140)}px`,
+        '--end-y': `${rand(620, 880)}px`,
+        '--end-x': `${rand(-90, 90)}px`,
+        '--rot-start': `${rand(-90, 90)}deg`,
+        '--rot-end': `${rand(540, 1080) * (Math.random() > 0.5 ? 1 : -1)}deg`,
+        animationDuration: `${rand(4.4, 7.2)}s`,
+        animationDelay: `${rand(0, 1.4)}s`,
+      },
+    };
+  });
+}
+
 export default function Confetti({ count = 36 }: { count?: number }) {
-  const pieces = useMemo(() => {
-    const rand = (a: number, b: number) => a + Math.random() * (b - a);
-    return Array.from({ length: count }, (_, i) => {
-      const shape = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length];
-      const size = rand(28, 62);
-      return {
-        key: i,
-        shape,
-        style: {
-          left: `${rand(2, 96)}%`,
-          width: size,
-          height: size,
-          // launch-up offset (negative) so they "pop" from above before falling
-          '--start-y': `${-rand(40, 140)}px`,
-          '--end-y': `${rand(620, 880)}px`,
-          '--end-x': `${rand(-90, 90)}px`,
-          '--rot-start': `${rand(-90, 90)}deg`,
-          '--rot-end': `${rand(540, 1080) * (Math.random() > 0.5 ? 1 : -1)}deg`,
-          animationDuration: `${rand(4.4, 7.2)}s`,
-          animationDelay: `${rand(0, 1.4)}s`,
-        },
-      };
-    });
-  }, [count]);
+  // State with a lazy initialiser rather than useMemo: Math.random is impure, and a
+  // memo still runs during render. The burst is generated once when the component
+  // mounts and never re-rolled -- which is also what a burst should do. `count` is
+  // fixed by the one caller (StepAllSet), so it is read once on purpose.
+  const [pieces] = useState(() => scatter(count));
 
   return (
     <div className="confetti-stage" aria-hidden>

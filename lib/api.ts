@@ -145,7 +145,9 @@ export type AccountCodesResponse = {
   expense_codes?: CodeOption[];
   contacts?: AccountOption[];
   /** Saved mapping, by role -> account id. */
-  mapping_defaults?: Partial<Record<'pettycash' | 'deposit' | 'director' | 'cash_sale' | 'discrepancy', string>>;
+  mapping_defaults?: Partial<
+    Record<'pettycash' | 'deposit' | 'director' | 'cash_sale' | 'discrepancy', string>
+  >;
   /** Saved contacts, by role -> contact id. */
   contact_defaults?: Partial<Record<'director' | 'cash_sale' | 'discrepancy', string>>;
   default_all?: boolean;
@@ -223,8 +225,7 @@ export type EntityResult = Result | { ok: false; error: string; duplicate: true 
 
 /** Creating a contact inline can fail because Xero is not connected. */
 export type ContactResult =
-  | { ok: true; option: AccountOption }
-  | { ok: false; error: string; notConnected?: boolean };
+  { ok: true; option: AccountOption } | { ok: false; error: string; notConnected?: boolean };
 
 /** `invitation` is absent when the server answered without one; the step tolerates that. */
 export type InviteResult = Result<{ invitation?: Invitation | InvitePayload; emailSent?: boolean }>;

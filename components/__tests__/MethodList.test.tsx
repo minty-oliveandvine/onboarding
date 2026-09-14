@@ -21,10 +21,19 @@ function setup(props = {}) {
   const onAdd = vi.fn();
   const onChange = vi.fn();
   const utils = render(
-    <MethodList title="Electronic" methods={METHODS} onAdd={onAdd} onChange={onChange} {...props} />,
+    <MethodList
+      title="Electronic"
+      methods={METHODS}
+      onAdd={onAdd}
+      onChange={onChange}
+      {...props}
+    />,
   );
   const rows = () => Array.from(utils.container.querySelectorAll('.method-row'));
-  const names = () => rows().map((r) => within(r as HTMLElement).getByText(/.+/, { selector: '.method-name' }).textContent);
+  const names = () =>
+    rows().map(
+      (r) => within(r as HTMLElement).getByText(/.+/, { selector: '.method-name' }).textContent,
+    );
   return { onAdd, onChange, rows, names, ...utils };
 }
 
@@ -45,7 +54,13 @@ describe('rendering', () => {
     const { container, rerender } = setup();
     expect(container.querySelector('.method-sparkle')).toBeNull();
     rerender(
-      <MethodList title="Electronic" methods={METHODS} onAdd={vi.fn()} onChange={vi.fn()} autoFilled />,
+      <MethodList
+        title="Electronic"
+        methods={METHODS}
+        onAdd={vi.fn()}
+        onChange={vi.fn()}
+        autoFilled
+      />,
     );
     expect(container.querySelector('.method-sparkle')).toBeTruthy();
   });
@@ -172,10 +187,17 @@ describe('removing', () => {
 
 describe('reordering by drag', () => {
   /** jsdom has no DragEvent, so the transfer object is supplied by hand. */
-  const transfer = () => ({ effectAllowed: '', dropEffect: '', setData: vi.fn(), getData: vi.fn() });
+  const transfer = () => ({
+    effectAllowed: '',
+    dropEffect: '',
+    setData: vi.fn(),
+    getData: vi.fn(),
+  });
 
   function drag(rows: Element[], from: number, to: number) {
-    const handle = within(rows[from] as HTMLElement).getByRole('button', { name: /Drag to reorder/ });
+    const handle = within(rows[from] as HTMLElement).getByRole('button', {
+      name: /Drag to reorder/,
+    });
     fireEvent.dragStart(handle, { dataTransfer: transfer() });
     fireEvent.dragOver(rows[to], { dataTransfer: transfer() });
     fireEvent.drop(rows[to], { dataTransfer: transfer() });
@@ -207,7 +229,9 @@ describe('reordering by drag', () => {
 
   it('marks the dragged row and the row under the cursor', () => {
     const { rows } = setup();
-    const handle = within(rows()[0] as HTMLElement).getByRole('button', { name: /Drag to reorder/ });
+    const handle = within(rows()[0] as HTMLElement).getByRole('button', {
+      name: /Drag to reorder/,
+    });
     fireEvent.dragStart(handle, { dataTransfer: transfer() });
     fireEvent.dragOver(rows()[2], { dataTransfer: transfer() });
     expect(rows()[0].className).toContain('is-dragging');
@@ -219,7 +243,9 @@ describe('reordering by drag', () => {
 
   it('clears the markers when the drag ends without a drop', () => {
     const { rows, container } = setup();
-    const handle = within(rows()[0] as HTMLElement).getByRole('button', { name: /Drag to reorder/ });
+    const handle = within(rows()[0] as HTMLElement).getByRole('button', {
+      name: /Drag to reorder/,
+    });
     fireEvent.dragStart(handle, { dataTransfer: transfer() });
     fireEvent.dragOver(rows()[1], { dataTransfer: transfer() });
     fireEvent.dragEnd(handle);
@@ -229,7 +255,9 @@ describe('reordering by drag', () => {
 
   it('clears the hover marker on drag leave', () => {
     const { rows, container } = setup();
-    const handle = within(rows()[0] as HTMLElement).getByRole('button', { name: /Drag to reorder/ });
+    const handle = within(rows()[0] as HTMLElement).getByRole('button', {
+      name: /Drag to reorder/,
+    });
     fireEvent.dragStart(handle, { dataTransfer: transfer() });
     fireEvent.dragOver(rows()[1], { dataTransfer: transfer() });
     fireEvent.dragLeave(rows()[1]);
@@ -239,7 +267,9 @@ describe('reordering by drag', () => {
   it('survives a drag event with no dataTransfer at all', () => {
     // Some browsers and some synthetic events omit it; the guards exist for that.
     const { rows, onChange } = setup();
-    const handle = within(rows()[0] as HTMLElement).getByRole('button', { name: /Drag to reorder/ });
+    const handle = within(rows()[0] as HTMLElement).getByRole('button', {
+      name: /Drag to reorder/,
+    });
     expect(() => {
       fireEvent.dragStart(handle);
       fireEvent.dragOver(rows()[1]);

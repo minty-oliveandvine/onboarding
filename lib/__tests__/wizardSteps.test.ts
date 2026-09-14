@@ -68,10 +68,13 @@ describe('deriveResumeStep -- with a persisted savedStep', () => {
     },
   );
 
-  it.each([5, 6, 7, 8, 9])('does not flag needsXero for step %i when Xero IS connected', (saved) => {
-    const s = payload({ xero: { connected: true, org: 'Acme' } });
-    expect(deriveResumeStep(s, saved)).toEqual({ step: saved, needsXero: false });
-  });
+  it.each([5, 6, 7, 8, 9])(
+    'does not flag needsXero for step %i when Xero IS connected',
+    (saved) => {
+      const s = payload({ xero: { connected: true, org: 'Acme' } });
+      expect(deriveResumeStep(s, saved)).toEqual({ step: saved, needsXero: false });
+    },
+  );
 
   it('accepts a numeric string, because the column round-trips through JSON', () => {
     expect(deriveResumeStep(payload(), '3')).toEqual({ step: 3, needsXero: false });
@@ -105,10 +108,12 @@ describe('deriveResumeStep -- deriving with no persisted step', () => {
   const NONE = null;
 
   it('lands on 1 when nothing is saved', () => {
-    expect(deriveResumeStep(payload({ entity: { name: '', phone: '', email: '' } }), NONE)).toEqual({
-      step: 1,
-      needsXero: false,
-    });
+    expect(deriveResumeStep(payload({ entity: { name: '', phone: '', email: '' } }), NONE)).toEqual(
+      {
+        step: 1,
+        needsXero: false,
+      },
+    );
   });
 
   it('lands on 1 when only basic info is saved', () => {
@@ -209,11 +214,21 @@ describe('getDisplaySteps', () => {
 
   it('orders Petty Cash before Payment when both are chosen', () => {
     const tiny = getDisplaySteps(['bills', 'pettyCash']).map((d) => d.tiny);
-    expect(tiny).toEqual(['Basic', 'Module', 'Invite', 'Accounting', 'Petty Cash', 'Payment', 'All Set']);
+    expect(tiny).toEqual([
+      'Basic',
+      'Module',
+      'Invite',
+      'Accounting',
+      'Petty Cash',
+      'Payment',
+      'All Set',
+    ]);
   });
 
   it('ignores the order the modules were selected in', () => {
-    expect(getDisplaySteps(['pettyCash', 'bills'])).toEqual(getDisplaySteps(['bills', 'pettyCash']));
+    expect(getDisplaySteps(['pettyCash', 'bills'])).toEqual(
+      getDisplaySteps(['bills', 'pettyCash']),
+    );
   });
 
   it('always ends on All Set', () => {
@@ -235,7 +250,10 @@ describe('getActiveStepIds', () => {
     [[], [1, 2, 3, 4, 9]],
     [['pettyCash'], [1, 2, 3, 4, 5, 6, 7, 9]],
     [['bills'], [1, 2, 3, 4, 8, 9]],
-    [['pettyCash', 'bills'], [1, 2, 3, 4, 5, 6, 7, 8, 9]],
+    [
+      ['pettyCash', 'bills'],
+      [1, 2, 3, 4, 5, 6, 7, 8, 9],
+    ],
   ])('for modules %j gives %j', (modules, expected) => {
     expect(getActiveStepIds(modules)).toEqual(expected);
   });

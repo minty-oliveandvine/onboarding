@@ -11,10 +11,10 @@ npm run dev                          # http://localhost:3001
 
 ## It talks to two backends
 
-| Paths | Service | Base URL |
-|---|---|---|
-| `/api/onboarding/*` | the extracted onboarding service (Django, port 8001) | `NEXT_PUBLIC_ONBOARDING_API_URL` |
-| `/auth/email/*`, `/legal/*`, `/xero_auth`, `/xero_connect`, `/logout`, `/entity` | Minty (Flask, port 5001) | `NEXT_PUBLIC_MODULE1_API_URL` |
+| Paths                                                                            | Service                                              | Base URL                         |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------- |
+| `/api/onboarding/*`                                                              | the extracted onboarding service (Django, port 8001) | `NEXT_PUBLIC_ONBOARDING_API_URL` |
+| `/auth/email/*`, `/legal/*`, `/xero_auth`, `/xero_connect`, `/logout`, `/entity` | Minty (Flask, port 5001)                             | `NEXT_PUBLIC_MODULE1_API_URL`    |
 
 **Which service answers a path is decided in exactly one place — [`lib/apiRoutes.js`](lib/apiRoutes.js).**
 Nothing else reads a base URL. Moving an endpoint between the two is adding or deleting one line
@@ -29,17 +29,18 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 
 ## Scripts
 
-| | |
-|---|---|
-| `npm run dev` | dev server on 3001 |
-| `npm run dev:clean` | dev server with a cleared `.next` cache |
-| `npm run dev:poke` | wake the dev server (`scripts/dev-poke.mjs`) |
-| `npm test` | unit + component tests (vitest, jsdom) — **the per-commit gate** |
-| `npm run test:watch` | the same, in watch mode |
-| `npm run test:e2e` | end-to-end against a running stack — see [e2e/README.md](e2e/README.md) |
-| `npm run build` | production build (also type-checks) |
-| `npm run lint` | eslint |
-| `npm run check:routes` | just the routing tests — asserts every wizard path reaches the right service |
+|                                   |                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `npm run dev`                     | dev server on 3001                                                           |
+| `npm run dev:clean`               | dev server with a cleared `.next` cache                                      |
+| `npm run dev:poke`                | wake the dev server (`scripts/dev-poke.mjs`)                                 |
+| `npm test`                        | unit + component tests (vitest, jsdom) — **the per-commit gate**             |
+| `npm run test:watch`              | the same, in watch mode                                                      |
+| `npm run test:e2e`                | end-to-end against a running stack — see [e2e/README.md](e2e/README.md)      |
+| `npm run build`                   | production build (also type-checks)                                          |
+| `npm run lint`                    | eslint — **0 errors** is the baseline now                                    |
+| `npm run format` / `format:check` | prettier (single quotes, width 100)                                          |
+| `npm run check:routes`            | just the routing tests — asserts every wizard path reaches the right service |
 
 ## Before changing anything
 
@@ -50,10 +51,10 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 
 ## Testing
 
-| | |
-|---|---|
-| unit + component | **vitest** + React Testing Library, jsdom. `lib/__tests__/`, `components/__tests__/` |
-| end-to-end | **Playwright**, `e2e/` — needs the whole stack up, so it is a pre-merge gate rather than a per-commit one |
+|                  |                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| unit + component | **vitest** + React Testing Library, jsdom. `lib/__tests__/`, `components/__tests__/`                      |
+| end-to-end       | **Playwright**, `e2e/` — needs the whole stack up, so it is a pre-merge gate rather than a per-commit one |
 
 `npm test` is the gate to run before every commit; it needs nothing running. `npm run
 test:e2e` needs Next, Flask, the Django onboarding service and Postgres all up, and its
@@ -68,4 +69,4 @@ the wizard holds live in [`lib/types.ts`](lib/types.ts) and the API contract in
 
 **There is no CI in this repo**, so "gate" means a command somebody runs.
 
-`npm run build` and `npm run lint` (against its recorded baseline) remain gates too.
+`npm run build`, `npm run lint` (zero errors) and `npm run format:check` remain gates too.

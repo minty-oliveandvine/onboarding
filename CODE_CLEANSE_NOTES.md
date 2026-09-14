@@ -660,6 +660,74 @@ made**. These are the findings, in order of consequence:
 - `lib/date.js`'s JSDoc annotation, superseded by a real signature.
 - The `= undefined` defaults in `StepChrome`, superseded by a real props type.
 
+---
+
+# Part 3 (2026-09-14)
+
+## The two bugs the conversion found — fixed
+
+1. **Cold resume showed invitees with no name.** `resumeFromServer` wrote the API's
+   `first_name`/`last_name` rows into `state.invites` unconverted, and the cards read
+   `first`/`last`. One converter now, `lib/invites.ts::inviteRows`, used by both the resume
+   and the step-8 refetch — which had its own version of the same mistake, preferring a
+   name typed this session over the one the API actually sent. 9 tests.
+2. **Loading account codes dropped the bill codes.** `setAccountOptions({...})` replaced the
+   whole object; now `(prev) => ({ ...prev, ... })`. No direct test — OnboardingApp is not
+   unit-renderable and steps 5/8 sit behind the Xero gate.
+
+## Backend: the suite was not hermetic
+
+**`tests/conftest.py` now blocks `requests` for every test.** Four `test_state.py` tests
+set `xero_org_id` without stubbing the Xero path, so `access_token_for` really POSTed to
+the token service — and with a dev Flask on 5001 (there was one) the result depended on
+what was listening. Those four now use an `xero_unverifiable` fixture. Suite time fell
+10.6s → 2.4s; that was the network timeouts.
+
+New: `test_minty_client.py` (26), `test_xero_tokens.py` (33), `test_policy.py` (43) — all
+stubbing at the `requests` boundary, never at our own functions. **261 → 362 tests.**
+
+The `is_member` vs `has_entity_access` divergence is **deliberate** and now documented in
+`core/permissions.py`: the door checks membership alone because Flask's
+`_entity_for_member` does, so an unapproved member can still resume; approval is enforced
+per permission. `test_policy.py` pins both halves.
+
+One surprise pinned: a legacy `role="superuser"` is NOT a superuser — the pre-split column
+only ever held `admin`/`super_admin` for that.
+
+## The 16 lint errors — 0
+
+| rule | was | how |
+|---|---|---|
+| `set-state-in-effect` | 12 | 3 → React's *adjust state during render* pattern (auth page sync ×3, module snap-back, select highlight); 4 mount guards → one `lib/useMounted.ts` on `useSyncExternalStore`; 1 → derived `cardLoading`; 1 dead branch removed (`completeOnboarding` is always a function); 1 kept with a directive and its reason (sessionStorage must be read post-hydration) |
+| `purity` | 2 | Confetti's `Math.random` moved from `useMemo` into a `useState` lazy initialiser |
+| `refs` | 2 | Toast's build-once-into-a-ref API → `useMemo` over two stable callbacks |
+
+Each was checked in the browser: E2E 17/17, plus a probe of the select highlight (present
+on the first open frame) and module toggling, zero console errors. One near-miss: a
+case-sensitive grep for `cardEpoch` missed `setCardEpoch`, so the wallet re-read after
+saving a card was briefly deleted as dead. It is not; `tsc` caught it. The loading reset
+now lives in the same click that bumps the epoch.
+
+## `all-set.png` → `all-set.webp`
+
+2526px / 4.2 MB → 1260px (3× the 420px slot) / **106 KB**. `public/` 5.9 MB → 1.5 MB.
+Compared side by side at display size before swapping.
+
+## Prettier — last, and its own commit
+
+`.prettierrc`: single quotes, width 100, trailing commas. 63 files reflowed. Every gate
+green afterwards. `CODE_CLEANSE_NOTES.md` and `ERROR_COPY.md` are ignored so their prose
+is not reflowed.
+
+| gate | result |
+|---|---|
+| `tsc --noEmit` | 0 |
+| `npm test` | 289 |
+| `npm run test:e2e` | 17 |
+| `npx eslint .` | **0 errors**, 19 warnings |
+| `npm run format:check` | clean |
+| backend `pytest` | 362, hermetic |
+
 ## What went
 
 - **The `&& false` substep popover** and its whole feeder chain: the JSX, `showSubs`,

@@ -5,7 +5,20 @@
 import { useState, useRef, useEffect } from 'react';
 import { toIsoDate } from '../lib/date';
 
-const DP_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DP_MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
 const DP_DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 function dpParse(iso: string | null | undefined): Date | null {
@@ -22,7 +35,13 @@ function dpPretty(date: Date | null): string {
   return `${String(date.getDate()).padStart(2, '0')} ${DP_MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`;
 }
 function dpSameDay(a: Date | null, b: Date | null): boolean {
-  return !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return (
+    !!a &&
+    !!b &&
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
 }
 
 type MintyDatePickerProps = {
@@ -35,7 +54,13 @@ type MintyDatePickerProps = {
   maxDate?: string | number | Date | null;
 };
 
-export default function MintyDatePicker({ value, onChange, placeholder = 'Select a date', minDate, maxDate }: MintyDatePickerProps) {
+export default function MintyDatePicker({
+  value,
+  onChange,
+  placeholder = 'Select a date',
+  minDate,
+  maxDate,
+}: MintyDatePickerProps) {
   const selected = dpParse(value);
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -45,16 +70,27 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
   const ref = useRef<HTMLDivElement>(null);
 
   const minD = minDate ? new Date(minDate) : null;
-  const isBeforeMin = (d: Date): boolean => !!minD && d < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
-  const canStepPrev = !minD || new Date(view.getFullYear(), view.getMonth(), 1) > new Date(minD.getFullYear(), minD.getMonth(), 1);
+  const isBeforeMin = (d: Date): boolean =>
+    !!minD && d < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
+  const canStepPrev =
+    !minD ||
+    new Date(view.getFullYear(), view.getMonth(), 1) >
+      new Date(minD.getFullYear(), minD.getMonth(), 1);
 
   // maxDate caps how far forward the user can go — e.g. the server's "today" in
   // Hong Kong time — so future dates cannot be selected. Parse 'YYYY-MM-DD' via
   // dpParse (local midnight) to avoid the UTC shift of new Date('YYYY-MM-DD').
-  const maxD = maxDate ? (typeof maxDate === 'string' ? dpParse(maxDate) : new Date(maxDate)) : null;
+  const maxD = maxDate
+    ? typeof maxDate === 'string'
+      ? dpParse(maxDate)
+      : new Date(maxDate)
+    : null;
   const maxDay = maxD ? new Date(maxD.getFullYear(), maxD.getMonth(), maxD.getDate()) : null;
   const isAfterMax = (d: Date): boolean => !!maxDay && d > maxDay;
-  const canStepNext = !maxDay || new Date(view.getFullYear(), view.getMonth(), 1) < new Date(maxDay.getFullYear(), maxDay.getMonth(), 1);
+  const canStepNext =
+    !maxDay ||
+    new Date(view.getFullYear(), view.getMonth(), 1) <
+      new Date(maxDay.getFullYear(), maxDay.getMonth(), 1);
   // The "Today" shortcut must stay within the cap (browser clock may be ahead).
   const effectiveToday = maxDay && todayMid > maxDay ? maxDay : todayMid;
 
@@ -96,11 +132,26 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
 
   return (
     <div className="mdp" ref={ref}>
-      <button type="button" className={'mdp-trigger' + (open ? ' open' : '')} onClick={() => setOpen((o) => !o)}>
-        <span className={'mdp-value' + (selected ? '' : ' placeholder')}>{selected ? dpPretty(selected) : placeholder}</span>
+      <button
+        type="button"
+        className={'mdp-trigger' + (open ? ' open' : '')}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={'mdp-value' + (selected ? '' : ' placeholder')}>
+          {selected ? dpPretty(selected) : placeholder}
+        </span>
         {isToday && <span className="mdp-today-tag">Today</span>}
         <span className="mdp-cal-icon" aria-hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="3" y="5" width="18" height="16" rx="3" />
             <path d="M3 9h18M8 3v4M16 3v4" />
           </svg>
@@ -109,16 +160,46 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
       {open && (
         <div className="mdp-pop">
           <div className="mdp-head">
-            <button type="button" className="mdp-nav" onClick={() => stepMonth(-1)} aria-label="Previous month" disabled={!canStepPrev}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              type="button"
+              className="mdp-nav"
+              onClick={() => stepMonth(-1)}
+              aria-label="Previous month"
+              disabled={!canStepPrev}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M15 18l-6-6 6-6" />
               </svg>
             </button>
             <div className="mdp-title">
               {DP_MONTHS[month]} {year}
             </div>
-            <button type="button" className="mdp-nav" onClick={() => stepMonth(1)} aria-label="Next month" disabled={!canStepNext}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <button
+              type="button"
+              className="mdp-nav"
+              onClick={() => stepMonth(1)}
+              aria-label="Next month"
+              disabled={!canStepNext}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M9 6l6 6-6 6" />
               </svg>
             </button>
@@ -138,13 +219,18 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
                 <button
                   key={i}
                   type="button"
-                  className={'mdp-cell' + (dpSameDay(d, selected) ? ' selected' : '') + (dpSameDay(d, today) ? ' today' : '') + (isBeforeMin(d) || isAfterMax(d) ? ' disabled' : '')}
+                  className={
+                    'mdp-cell' +
+                    (dpSameDay(d, selected) ? ' selected' : '') +
+                    (dpSameDay(d, today) ? ' today' : '') +
+                    (isBeforeMin(d) || isAfterMax(d) ? ' disabled' : '')
+                  }
                   onClick={() => pick(d)}
                   disabled={isBeforeMin(d) || isAfterMax(d)}
                 >
                   {d.getDate()}
                 </button>
-              )
+              ),
             )}
           </div>
           <div className="mdp-foot">

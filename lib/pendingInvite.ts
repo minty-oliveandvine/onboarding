@@ -20,7 +20,7 @@ export type PendingInvite = {
   ts: number;
 };
 
-const KEY = "pendingInvite";
+const KEY = 'pendingInvite';
 // Recovery is only meant to bridge the Xero round-trip, which is seconds to a
 // couple of minutes. Cap it so an abandoned invite can't resurface hours later
 // on a normal visit to /auth and wrongly show "accept invitation as <X>".
@@ -28,18 +28,24 @@ const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
 // Stash the invite just before the Xero hop. `ts` is passed in by the caller
 // (Date.now() isn't available everywhere) so this stays a pure writer.
-export function savePendingInvite({ invite, email, firstName, lastName, ts }: Partial<PendingInvite> & { invite?: string | null }): void {
-  if (typeof window === "undefined" || !invite) return;
+export function savePendingInvite({
+  invite,
+  email,
+  firstName,
+  lastName,
+  ts,
+}: Partial<PendingInvite> & { invite?: string | null }): void {
+  if (typeof window === 'undefined' || !invite) return;
   try {
     window.sessionStorage.setItem(
       KEY,
       JSON.stringify({
         invite,
-        email: email || "",
-        firstName: firstName || "",
-        lastName: lastName || "",
+        email: email || '',
+        firstName: firstName || '',
+        lastName: lastName || '',
         ts: ts || 0,
-      })
+      }),
     );
   } catch {
     // Storage can throw (private mode / quota). Recovery is best-effort — the
@@ -50,13 +56,13 @@ export function savePendingInvite({ invite, email, firstName, lastName, ts }: Pa
 // Read the stashed invite, or null if absent/expired/malformed. `now` is passed
 // in by the caller for the same reason as `ts` above.
 export function readPendingInvite(now?: number): PendingInvite | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null;
   try {
     const raw = window.sessionStorage.getItem(KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as Partial<PendingInvite> | null;
     if (!data || !data.invite) return null;
-    if (typeof now === "number" && data.ts && now - data.ts > MAX_AGE_MS) {
+    if (typeof now === 'number' && data.ts && now - data.ts > MAX_AGE_MS) {
       window.sessionStorage.removeItem(KEY);
       return null;
     }
@@ -67,7 +73,7 @@ export function readPendingInvite(now?: number): PendingInvite | null {
 }
 
 export function clearPendingInvite(): void {
-  if (typeof window === "undefined") return;
+  if (typeof window === 'undefined') return;
   try {
     window.sessionStorage.removeItem(KEY);
   } catch {

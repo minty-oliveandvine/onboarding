@@ -177,7 +177,8 @@ export function isStepComplete(id: number, state: WizardState): boolean {
       // Phone and email are optional — valid only if non-empty.
       const emailOk = e.email.trim() === '' || isEmail(e.email);
       const phoneDigits = e.phone.replace(/\D/g, '');
-      const phoneOk = phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
+      const phoneOk =
+        phoneDigits.length === 0 || (phoneDigits.length >= 8 && phoneDigits.length <= 11);
       return e.name.trim().length > 1 && phoneOk && emailOk;
     }
     case 2:

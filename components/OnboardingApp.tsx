@@ -20,8 +20,21 @@ import { toAmountString } from '@/lib/amount';
 import { formatToday } from '@/lib/date';
 import { urlFor } from '../lib/apiRoutes';
 import { MODULE_CODE_BY_ID, MODULE_ID_BY_CODE } from '../lib/modules';
-import { STORAGE_KEY, XERO_RESUME_KEY, findLatestSession, readJwtClaims, sessionKey } from '../lib/wizardSession';
-import { STEPS, deriveResumeStep, getActiveStepIds, getDisplaySteps, initialState, isStepComplete } from '../lib/wizardSteps';
+import {
+  STORAGE_KEY,
+  XERO_RESUME_KEY,
+  findLatestSession,
+  readJwtClaims,
+  sessionKey,
+} from '../lib/wizardSession';
+import {
+  STEPS,
+  deriveResumeStep,
+  getActiveStepIds,
+  getDisplaySteps,
+  initialState,
+  isStepComplete,
+} from '../lib/wizardSteps';
 import Stepper from './Stepper';
 import type {
   AccountCodesResponse,
@@ -43,7 +56,9 @@ import type {
   Result,
   SalesMethods,
 } from '../lib/api';
-import type { AccountOptions, InviteRow, StepProps, SubmitFn, WizardState } from '../lib/types';
+import type { AccountOptions, StepProps, SubmitFn, WizardState } from '../lib/types';
+import { inviteRows } from '../lib/invites';
+import { useMounted } from '../lib/useMounted';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -58,12 +73,24 @@ export default function OnboardingApp() {
   const [maxReached, setMaxReached] = useState(1);
   // Logged-in user, passed in by Module 1 on the launch URL after entity creation
   // (e.g. /?first=Dan&last=Smith or /?name=Dan%20Smith). No backend call needed.
-  const [user, setUser] = useState<{ first: string; last: string; name: string }>({ first: '', last: '', name: '' });
+  const [user, setUser] = useState<{ first: string; last: string; name: string }>({
+    first: '',
+    last: '',
+    name: '',
+  });
   // Short-lived JWT from Module 1 used to create the entity on Step 1.
   const [token, setToken] = useState('');
   // Module 2 profile handoff URL (no entity context) passed in by Module 1.
   const [profileUrl, setProfileUrl] = useState('');
-  const [accountOptions, setAccountOptions] = useState<AccountOptions>({ bank: [], cashSale: [], director: [], discrepancy: [], expense: [], contacts: [], bill: [] });
+  const [accountOptions, setAccountOptions] = useState<AccountOptions>({
+    bank: [],
+    cashSale: [],
+    director: [],
+    discrepancy: [],
+    expense: [],
+    contacts: [],
+    bill: [],
+  });
   // Live module prices + bulk-discount unit from Stripe, for Step 2's subscription
   // summary. Stays null until loaded (and if the fetch fails), which hides the
   // summary rather than showing invented figures.
@@ -74,7 +101,9 @@ export default function OnboardingApp() {
   // Why the needs-Xero pop-up is showing: 'not-connected' (the entity isn't
   // connected in the DB) or 'expired' (the /state re-check came back 401 — the
   // session lapsed, typically after ~30 min past step 4). Drives the modal copy.
-  const [xeroPromptReason, setXeroPromptReason] = useState<'not-connected' | 'expired'>('not-connected');
+  const [xeroPromptReason, setXeroPromptReason] = useState<'not-connected' | 'expired'>(
+    'not-connected',
+  );
   // Set when the Xero OAuth round-trip returns `xero=mismatch` — the user logged
   // in with a Xero account whose email differs from the onboarding initiator's,
   // so the backend refused to connect the entity. Holds the email they MUST use
@@ -88,10 +117,7 @@ export default function OnboardingApp() {
   // string = no conflict.
   const [xeroConflict, setXeroConflict] = useState('');
   // Guard the portal for SSR — document.body isn't there during server render.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   // Module price catalog for Step 2's subscription summary. Fetched once the token
   // is in hand; it's entity-independent, so it doesn't wait on entity creation.
@@ -190,38 +216,31 @@ export default function OnboardingApp() {
     if (id > maxReached) return;
     // Block forward jumps from a step that isn't complete (e.g. sub-step "Account Code" from "Sales")
     if (id > current && !isStepComplete(current, state)) {
-      window.dispatchEvent(new CustomEvent('onb-validation-blocked', { detail: { from: current, to: id } }));
+      window.dispatchEvent(
+        new CustomEvent('onb-validation-blocked', { detail: { from: current, to: id } }),
+      );
       return;
     }
     setCurrent(id);
   };
-  // If the user toggles a module off after reaching a step belonging to it,
-  // snap back to a still-active step so we never sit on a hidden one.
-  useEffect(() => {
-    if (!activeIds.includes(current)) {
-      // walk backwards to the closest still-active id
-      let target = 1;
-      for (let i = current - 1; i >= 1; i--) {
-        if (activeIds.includes(i)) {
-          target = i;
-          break;
-        }
-      }
-      setCurrent(target);
-    }
-    // Also clamp maxReached so we don't leave it pointing at a removed step
-    if (!activeIds.includes(maxReached)) {
-      let mt = 1;
-      for (let i = maxReached; i >= 1; i--) {
-        if (activeIds.includes(i)) {
-          mt = i;
-          break;
-        }
-      }
-      setMaxReached(Math.max(mt, current));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeIds.join(',')]);
+  // If the user toggles a module off after reaching a step belonging to it, snap back
+  // to a still-active step so we never sit on a hidden one.
+  //
+  // Done DURING RENDER (React's "adjusting state when a prop changes"), not in an
+  // effect: the condition is false again as soon as the state is corrected, so this
+  // settles in one extra render and the hidden step never paints. The effect version
+  // committed the hidden step first and corrected it a frame later.
+  const closestActiveAtOrBelow = (id: number) => {
+    for (let i = id; i >= 1; i--) if (activeIds.includes(i)) return i;
+    return 1;
+  };
+  if (!activeIds.includes(current)) {
+    setCurrent(closestActiveAtOrBelow(current - 1));
+  }
+  // Also clamp maxReached so it never points at a removed step.
+  if (!activeIds.includes(maxReached)) {
+    setMaxReached(Math.max(closestActiveAtOrBelow(maxReached), current));
+  }
 
   // Without this gate the persist effect fires on first mount with the empty
   // initialState and overwrites the saved session before the load effect can
@@ -236,7 +255,15 @@ export default function OnboardingApp() {
       const key = sessionKey(state.entity.id);
       window.localStorage.setItem(
         key,
-        JSON.stringify({ current, maxReached, state, token, profileUrl, user, savedAt: Date.now() }),
+        JSON.stringify({
+          current,
+          maxReached,
+          state,
+          token,
+          profileUrl,
+          user,
+          savedAt: Date.now(),
+        }),
       );
       // Once an id exists, the pre-id draft under the bare key is obsolete —
       // drop it so it can't be replayed by a later fresh load.
@@ -309,13 +336,19 @@ export default function OnboardingApp() {
         xero: payload.xero?.connected
           ? { connected: true, org: payload.xero.org || prev.xero.org }
           : prev.xero,
-        invites: Array.isArray(payload.invites) ? payload.invites : prev.invites,
+        // Converted: the API says first_name/last_name, the cards read first/last.
+        // Written in raw, a resumed wizard showed every invitee with no name.
+        invites: Array.isArray(payload.invites)
+          ? inviteRows(payload.invites, prev.invites)
+          : prev.invites,
         pettyCash: {
           ...prev.pettyCash,
           ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),
           ...(Array.isArray(sm.delivery) ? { deliveryMethods: sm.delivery } : {}),
           ...(ob?.opening_date ? { openingDate: ob.opening_date } : {}),
-          ...(obAmount !== undefined && obAmount !== null ? { openingBalance: String(obAmount) } : {}),
+          ...(obAmount !== undefined && obAmount !== null
+            ? { openingBalance: String(obAmount) }
+            : {}),
         },
       };
       stateRef.current = nextState;
@@ -367,7 +400,8 @@ export default function OnboardingApp() {
         if (sameEntity) {
           setState(saved.state);
           if (typeof saved.current === 'number' && saved.current >= 1) setCurrent(saved.current);
-          if (typeof saved.maxReached === 'number' && saved.maxReached >= 1) setMaxReached(saved.maxReached);
+          if (typeof saved.maxReached === 'number' && saved.maxReached >= 1)
+            setMaxReached(saved.maxReached);
         }
       }
     } catch {
@@ -380,198 +414,231 @@ export default function OnboardingApp() {
   // nothing if absent, so running the app standalone still works.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    try { hydrateOnce(); } finally { hydratedRef.current = true; }
+    try {
+      hydrateOnce();
+    } finally {
+      hydratedRef.current = true;
+    }
     function hydrateOnce() {
-    const p = new URLSearchParams(window.location.search);
+      const p = new URLSearchParams(window.location.search);
 
-    // Module 1 sends ?fresh=1 when the user clicks "+" (create new entity).
-    // fresh and entity_id are mutually exclusive. Start clean: drop any saved
-    // pre-id draft so we never resume the last in-progress entity. Per-entity
-    // sessions (minty_onboarding_session:<id>) are left intact so other
-    // in-progress entities keep their saved progress.
-    const isFresh = p.get('fresh') === '1';
-    if (isFresh) {
-      try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-    }
+      // Module 1 sends ?fresh=1 when the user clicks "+" (create new entity).
+      // fresh and entity_id are mutually exclusive. Start clean: drop any saved
+      // pre-id draft so we never resume the last in-progress entity. Per-entity
+      // sessions (minty_onboarding_session:<id>) are left intact so other
+      // in-progress entities keep their saved progress.
+      const isFresh = p.get('fresh') === '1';
+      if (isFresh) {
+        try {
+          window.localStorage.removeItem(STORAGE_KEY);
+        } catch {
+          /* ignore */
+        }
+      }
 
-    // Returning from the real Xero OAuth round-trip (Module 1 → Xero → here).
-    // Restore the progress we stashed before leaving and land on the
-    // Accounting step (3). Cleared immediately so a later refresh won't resume.
-    const xeroParam = (p.get('xero') || '').trim();
-    if (xeroParam) {
-      let resumed = null;
-      try {
-        resumed = JSON.parse(window.sessionStorage.getItem(XERO_RESUME_KEY) || 'null');
-      } catch {
-        /* ignore corrupt storage */
-      }
-      try {
-        window.sessionStorage.removeItem(XERO_RESUME_KEY);
-      } catch {
-        /* ignore */
-      }
-      const today = formatToday();
-      // The Xero tenant/org name reported back by Xero (real connected entity).
-      const xeroOrg = (p.get('org') || '').trim();
-      // Wrong-account block: the backend refused to connect because the Xero
-      // login email didn't match the onboarding initiator. `expected` carries
-      // the email the user must log in with (URL-encoded). Record it so the
-      // Accounting step can message it; connection state stays false below.
-      if (xeroParam === 'mismatch') {
-        setXeroMismatch((p.get('expected') || '').trim() || 'unknown');
-      } else {
-        setXeroMismatch('');
-      }
-      // One-org-one-entity block: the org the user picked is already linked to
-      // another entity. `conflict_entity` names it (URL-encoded; searchParams
-      // decodes) so the step can say which one to disconnect first. It can be
-      // absent in edge cases, so fall back to 'unknown' and render generic copy.
-      if (xeroParam === 'conflict') {
-        setXeroConflict((p.get('conflict_entity') || '').trim() || 'unknown');
-      } else {
-        setXeroConflict('');
-      }
-      // A blocked attempt (mismatch/conflict) leaves the entity unconnected
-      // backend-side. Force disconnected rather than restoring the stashed
-      // state, which would wrongly show "connected" for a user who was already
-      // linked to one org and tried to switch to a conflicting one.
-      const blocked = xeroParam === 'mismatch' || xeroParam === 'conflict';
-      if (resumed) {
-        if (resumed.token) setToken(resumed.token);
-        if (resumed.profileUrl) setProfileUrl(resumed.profileUrl);
-        if (resumed.user) setUser(resumed.user);
-        setState((prev) => ({
-          ...prev,
-          ...(resumed.state || {}),
-          xero:
-            xeroParam === 'connected'
-              ? { connected: true, org: xeroOrg, lastConnected: today }
-              : blocked
-                ? { ...((resumed.state && resumed.state.xero) || prev.xero), connected: false, org: '' }
-                : (resumed.state && resumed.state.xero) || prev.xero,
-        }));
-        setMaxReached((m) => Math.max(m, resumed.maxReached || 4, 4));
-      } else if (blocked) {
-        setState((prev) => ({ ...prev, xero: { ...prev.xero, connected: false, org: '' } }));
-      } else if (xeroParam === 'connected') {
-        setState((prev) => ({
-          ...prev,
-          xero: { connected: true, org: xeroOrg, lastConnected: today },
-        }));
-      }
-      setCurrent(4);
-      setMaxReached((m) => Math.max(m, 4));
-      // Strip the params so an ordinary refresh doesn't re-trigger the resume.
-      try {
-        const url = new URL(window.location.href);
-        url.searchParams.delete('xero');
-        url.searchParams.delete('step');
-        url.searchParams.delete('org');
-        url.searchParams.delete('expected');
-        url.searchParams.delete('conflict');
-        url.searchParams.delete('conflict_entity');
-        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-
-    // Cold resume from the backend. The resume redirect carries both
-    // entity_id and a fresh token. When present, the DB row is authoritative —
-    // set identity from the URL synchronously, kick off the async server fetch,
-    // and skip the localStorage path (resumeFromServer falls back to it on
-    // failure). This is what makes resume survive empty localStorage.
-    const resumeEntityId = (p.get('entity_id') || '').trim();
-    const resumeUrlToken = (p.get('token') || '').trim();
-    if (resumeEntityId && resumeUrlToken) {
-      setToken(resumeUrlToken);
-      const rFirst = (p.get('first') || '').trim();
-      const rLast = (p.get('last') || '').trim();
-      const rName = (p.get('name') || '').trim();
-      if (rFirst || rLast || rName) {
-        setUser({ first: rFirst, last: rLast, name: rName || `${rFirst} ${rLast}`.trim() });
-      }
-      const rEntityName = (p.get('entity_name') || p.get('entity') || '').trim();
-      if (rEntityName) {
-        setState((prev) => ({ ...prev, entity: { ...prev.entity, name: rEntityName } }));
-      }
-      // Not awaited — the init effect stays synchronous; setters land on the
-      // next render. Strip resume params so a later refresh doesn't replay.
-      resumeFromServer(resumeEntityId, resumeUrlToken);
-      try {
-        const url = new URL(window.location.href);
-        ['entity_id', 'token', 'entity_name', 'entity', 'first', 'last', 'name', 'profile_url'].forEach((k) =>
-          url.searchParams.delete(k),
-        );
-        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-
-    const urlToken = (p.get('token') || '').trim();
-    // No URL entity_id reached here (the resume branch above returns early), so
-    // this is the pre-id draft under the bare global key. On a fresh launch it
-    // was just cleared, so `saved` will be null and we start clean.
-    let saved = null;
-    if (!isFresh) {
-      try {
-        saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
-      } catch {
-        /* ignore corrupt storage */
-      }
-      // No pre-id draft under the bare key? Once an entity exists the session
-      // moves to `minty_onboarding_session:<id>` (and the bare key is cleared),
-      // so an ordinary refresh — which has no entity_id in the URL — must fall
-      // back to the most recent per-entity session or it resets to zero.
-      if (!saved) saved = findLatestSession();
-    }
-    if (saved) {
-      const savedClaims = readJwtClaims(saved.token);
-      const urlClaims = readJwtClaims(urlToken);
-      const now = Math.floor(Date.now() / 1000);
-      const savedExpired = !!(savedClaims && savedClaims.exp && savedClaims.exp <= now);
-      const differentUser = !!(urlClaims && savedClaims && urlClaims.user_id !== savedClaims.user_id);
-      // A launch URL that names an entity is an explicit "onboard THIS entity"
-      // intent from Module 1. If the saved blob is for a different entity, it's
-      // stale (e.g. a prior abandoned session) — discard it so the new entity
-      // wins instead of replaying the old id/name and 403-ing on its modules.
-      const urlEntityName = (p.get('entity_name') || p.get('entity') || '').trim();
-      const savedEntityName = ((saved.state && saved.state.entity && saved.state.entity.name) || '').trim();
-      const differentEntity = !!(urlEntityName && savedEntityName &&
-        urlEntityName.toLowerCase() !== savedEntityName.toLowerCase());
-      if (savedExpired || differentUser || differentEntity) {
-        try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-      } else {
-        if (urlToken) setToken(urlToken);
-        else if (saved.token) setToken(saved.token);
-        if (saved.profileUrl) setProfileUrl(saved.profileUrl);
-        if (saved.user) setUser(saved.user);
-        if (saved.state) setState(saved.state);
-        if (typeof saved.current === 'number' && saved.current >= 1) setCurrent(saved.current);
-        if (typeof saved.maxReached === 'number' && saved.maxReached >= 1) {
-          setMaxReached(saved.maxReached);
+      // Returning from the real Xero OAuth round-trip (Module 1 → Xero → here).
+      // Restore the progress we stashed before leaving and land on the
+      // Accounting step (3). Cleared immediately so a later refresh won't resume.
+      const xeroParam = (p.get('xero') || '').trim();
+      if (xeroParam) {
+        let resumed = null;
+        try {
+          resumed = JSON.parse(window.sessionStorage.getItem(XERO_RESUME_KEY) || 'null');
+        } catch {
+          /* ignore corrupt storage */
+        }
+        try {
+          window.sessionStorage.removeItem(XERO_RESUME_KEY);
+        } catch {
+          /* ignore */
+        }
+        const today = formatToday();
+        // The Xero tenant/org name reported back by Xero (real connected entity).
+        const xeroOrg = (p.get('org') || '').trim();
+        // Wrong-account block: the backend refused to connect because the Xero
+        // login email didn't match the onboarding initiator. `expected` carries
+        // the email the user must log in with (URL-encoded). Record it so the
+        // Accounting step can message it; connection state stays false below.
+        if (xeroParam === 'mismatch') {
+          setXeroMismatch((p.get('expected') || '').trim() || 'unknown');
+        } else {
+          setXeroMismatch('');
+        }
+        // One-org-one-entity block: the org the user picked is already linked to
+        // another entity. `conflict_entity` names it (URL-encoded; searchParams
+        // decodes) so the step can say which one to disconnect first. It can be
+        // absent in edge cases, so fall back to 'unknown' and render generic copy.
+        if (xeroParam === 'conflict') {
+          setXeroConflict((p.get('conflict_entity') || '').trim() || 'unknown');
+        } else {
+          setXeroConflict('');
+        }
+        // A blocked attempt (mismatch/conflict) leaves the entity unconnected
+        // backend-side. Force disconnected rather than restoring the stashed
+        // state, which would wrongly show "connected" for a user who was already
+        // linked to one org and tried to switch to a conflicting one.
+        const blocked = xeroParam === 'mismatch' || xeroParam === 'conflict';
+        if (resumed) {
+          if (resumed.token) setToken(resumed.token);
+          if (resumed.profileUrl) setProfileUrl(resumed.profileUrl);
+          if (resumed.user) setUser(resumed.user);
+          setState((prev) => ({
+            ...prev,
+            ...(resumed.state || {}),
+            xero:
+              xeroParam === 'connected'
+                ? { connected: true, org: xeroOrg, lastConnected: today }
+                : blocked
+                  ? {
+                      ...((resumed.state && resumed.state.xero) || prev.xero),
+                      connected: false,
+                      org: '',
+                    }
+                  : (resumed.state && resumed.state.xero) || prev.xero,
+          }));
+          setMaxReached((m) => Math.max(m, resumed.maxReached || 4, 4));
+        } else if (blocked) {
+          setState((prev) => ({ ...prev, xero: { ...prev.xero, connected: false, org: '' } }));
+        } else if (xeroParam === 'connected') {
+          setState((prev) => ({
+            ...prev,
+            xero: { connected: true, org: xeroOrg, lastConnected: today },
+          }));
+        }
+        setCurrent(4);
+        setMaxReached((m) => Math.max(m, 4));
+        // Strip the params so an ordinary refresh doesn't re-trigger the resume.
+        try {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('xero');
+          url.searchParams.delete('step');
+          url.searchParams.delete('org');
+          url.searchParams.delete('expected');
+          url.searchParams.delete('conflict');
+          url.searchParams.delete('conflict_entity');
+          window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        } catch {
+          /* ignore */
         }
         return;
       }
-    }
 
-    const first = (p.get('first') || '').trim();
-    const last = (p.get('last') || '').trim();
-    const name = (p.get('name') || '').trim();
-    if (first || last || name) {
-      setUser({ first, last, name: name || `${first} ${last}`.trim() });
-    }
-    const entityName = (p.get('entity_name') || p.get('entity') || '').trim();
-    if (entityName) {
-      setState((prev) => ({ ...prev, entity: { ...prev.entity, name: entityName } }));
-    }
-    const t = (p.get('token') || '').trim();
-    if (t) setToken(t);
-    const pu = (p.get('profile_url') || '').trim();
-    if (pu) setProfileUrl(pu);
+      // Cold resume from the backend. The resume redirect carries both
+      // entity_id and a fresh token. When present, the DB row is authoritative —
+      // set identity from the URL synchronously, kick off the async server fetch,
+      // and skip the localStorage path (resumeFromServer falls back to it on
+      // failure). This is what makes resume survive empty localStorage.
+      const resumeEntityId = (p.get('entity_id') || '').trim();
+      const resumeUrlToken = (p.get('token') || '').trim();
+      if (resumeEntityId && resumeUrlToken) {
+        setToken(resumeUrlToken);
+        const rFirst = (p.get('first') || '').trim();
+        const rLast = (p.get('last') || '').trim();
+        const rName = (p.get('name') || '').trim();
+        if (rFirst || rLast || rName) {
+          setUser({ first: rFirst, last: rLast, name: rName || `${rFirst} ${rLast}`.trim() });
+        }
+        const rEntityName = (p.get('entity_name') || p.get('entity') || '').trim();
+        if (rEntityName) {
+          setState((prev) => ({ ...prev, entity: { ...prev.entity, name: rEntityName } }));
+        }
+        // Not awaited — the init effect stays synchronous; setters land on the
+        // next render. Strip resume params so a later refresh doesn't replay.
+        resumeFromServer(resumeEntityId, resumeUrlToken);
+        try {
+          const url = new URL(window.location.href);
+          [
+            'entity_id',
+            'token',
+            'entity_name',
+            'entity',
+            'first',
+            'last',
+            'name',
+            'profile_url',
+          ].forEach((k) => url.searchParams.delete(k));
+          window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+
+      const urlToken = (p.get('token') || '').trim();
+      // No URL entity_id reached here (the resume branch above returns early), so
+      // this is the pre-id draft under the bare global key. On a fresh launch it
+      // was just cleared, so `saved` will be null and we start clean.
+      let saved = null;
+      if (!isFresh) {
+        try {
+          saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) || 'null');
+        } catch {
+          /* ignore corrupt storage */
+        }
+        // No pre-id draft under the bare key? Once an entity exists the session
+        // moves to `minty_onboarding_session:<id>` (and the bare key is cleared),
+        // so an ordinary refresh — which has no entity_id in the URL — must fall
+        // back to the most recent per-entity session or it resets to zero.
+        if (!saved) saved = findLatestSession();
+      }
+      if (saved) {
+        const savedClaims = readJwtClaims(saved.token);
+        const urlClaims = readJwtClaims(urlToken);
+        const now = Math.floor(Date.now() / 1000);
+        const savedExpired = !!(savedClaims && savedClaims.exp && savedClaims.exp <= now);
+        const differentUser = !!(
+          urlClaims &&
+          savedClaims &&
+          urlClaims.user_id !== savedClaims.user_id
+        );
+        // A launch URL that names an entity is an explicit "onboard THIS entity"
+        // intent from Module 1. If the saved blob is for a different entity, it's
+        // stale (e.g. a prior abandoned session) — discard it so the new entity
+        // wins instead of replaying the old id/name and 403-ing on its modules.
+        const urlEntityName = (p.get('entity_name') || p.get('entity') || '').trim();
+        const savedEntityName = (
+          (saved.state && saved.state.entity && saved.state.entity.name) ||
+          ''
+        ).trim();
+        const differentEntity = !!(
+          urlEntityName &&
+          savedEntityName &&
+          urlEntityName.toLowerCase() !== savedEntityName.toLowerCase()
+        );
+        if (savedExpired || differentUser || differentEntity) {
+          try {
+            window.localStorage.removeItem(STORAGE_KEY);
+          } catch {
+            /* ignore */
+          }
+        } else {
+          if (urlToken) setToken(urlToken);
+          else if (saved.token) setToken(saved.token);
+          if (saved.profileUrl) setProfileUrl(saved.profileUrl);
+          if (saved.user) setUser(saved.user);
+          if (saved.state) setState(saved.state);
+          if (typeof saved.current === 'number' && saved.current >= 1) setCurrent(saved.current);
+          if (typeof saved.maxReached === 'number' && saved.maxReached >= 1) {
+            setMaxReached(saved.maxReached);
+          }
+          return;
+        }
+      }
+
+      const first = (p.get('first') || '').trim();
+      const last = (p.get('last') || '').trim();
+      const name = (p.get('name') || '').trim();
+      if (first || last || name) {
+        setUser({ first, last, name: name || `${first} ${last}`.trim() });
+      }
+      const entityName = (p.get('entity_name') || p.get('entity') || '').trim();
+      if (entityName) {
+        setState((prev) => ({ ...prev, entity: { ...prev.entity, name: entityName } }));
+      }
+      const t = (p.get('token') || '').trim();
+      if (t) setToken(t);
+      const pu = (p.get('profile_url') || '').trim();
+      if (pu) setProfileUrl(pu);
     }
   }, []);
 
@@ -585,7 +652,13 @@ export default function OnboardingApp() {
     setXeroMismatch('');
     const today = formatToday();
     if (!state.entity.id) {
-      set({ xero: { connected: true, org: state.entity.name || 'Olive & Vine Inc', lastConnected: today } });
+      set({
+        xero: {
+          connected: true,
+          org: state.entity.name || 'Olive & Vine Inc',
+          lastConnected: today,
+        },
+      });
       return;
     }
     try {
@@ -622,7 +695,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't disconnect that. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't disconnect that. Mind trying again?"),
+        };
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
     } catch {
@@ -667,7 +744,10 @@ export default function OnboardingApp() {
         }
         // Connection state changed under us — reconcile to the backend.
         return connected
-          ? { ...prev, xero: { ...prev.xero, connected: true, org: payload.xero.org || prev.xero.org } }
+          ? {
+              ...prev,
+              xero: { ...prev.xero, connected: true, org: payload.xero.org || prev.xero.org },
+            }
           : { ...prev, xero: { ...prev.xero, connected: false, org: '' } };
       });
       return connected;
@@ -765,11 +845,14 @@ export default function OnboardingApp() {
         // 409 on a name collision with a *different* entity. Accepts the same
         // field aliases as /create (entity_name|name, country|country_code,
         // currency|currency_code); we send the canonical names.
-        const res = await fetch(urlFor(`/api/onboarding/entity/${encodeURIComponent(state.entity.id)}`), {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify(payload),
-        });
+        const res = await fetch(
+          urlFor(`/api/onboarding/entity/${encodeURIComponent(state.entity.id)}`),
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify(payload),
+          },
+        );
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const backendMsg = friendlyError(
@@ -831,10 +914,12 @@ export default function OnboardingApp() {
 
   const submitModule = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
-    const moduleCodes = (state.modules || [])
-      .map((id) => MODULE_CODE_BY_ID[id])
-      .filter(Boolean);
-    if (moduleCodes.length === 0) return { ok: false, error: "I'll need at least one module to get started — which one sounds right?" };
+    const moduleCodes = (state.modules || []).map((id) => MODULE_CODE_BY_ID[id]).filter(Boolean);
+    if (moduleCodes.length === 0)
+      return {
+        ok: false,
+        error: "I'll need at least one module to get started — which one sounds right?",
+      };
     try {
       const res = await fetch(urlFor(`/api/onboarding/modules`), {
         method: 'POST',
@@ -842,7 +927,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, modules: moduleCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "Something went wrong on my end. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, 'Something went wrong on my end. Mind trying again?'),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -862,7 +951,11 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't save those. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -872,7 +965,10 @@ export default function OnboardingApp() {
   const submitOpeningBalance = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const p = state.pettyCash;
-    const empty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
+    const empty =
+      p.openingBalance === undefined ||
+      p.openingBalance === null ||
+      String(p.openingBalance).trim() === '';
     if (empty) return { ok: true };
     try {
       const res = await fetch(urlFor(`/api/onboarding/opening-balance`), {
@@ -889,7 +985,11 @@ export default function OnboardingApp() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save that opening balance. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't save that opening balance. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -901,9 +1001,12 @@ export default function OnboardingApp() {
     if ((current !== 5 && current !== 6 && current !== 7) || accountLoadedRef.current) return;
     if (!token || !state.entity.id) return;
     accountLoadedRef.current = true;
-    fetch(urlFor(`/api/onboarding/account-codes?entity_id=${encodeURIComponent(state.entity.id)}`), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch(
+      urlFor(`/api/onboarding/account-codes?entity_id=${encodeURIComponent(state.entity.id)}`),
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    )
       .then((res) => (res.ok ? (res.json() as Promise<AccountCodesResponse>) : null))
       .then((data) => {
         if (!data || !data.connected) return;
@@ -913,11 +1016,18 @@ export default function OnboardingApp() {
         const discrepancy = data.discrepancy_accounts || [];
         const expense = data.expense_codes || [];
         const contacts = data.contacts || [];
-        // `bill: []` is what this call has ALWAYS done, made explicit: it replaces the
-        // whole object and drops any bill codes already loaded. A resume that lands on
-        // step 8, then revisits 5, loses them -- and billLoadedRef stops the refetch.
-        // Kept as-is in the typing pass; the fix is `(prev) => ({ ...prev, ... })`.
-        setAccountOptions({ bank, cashSale, director, discrepancy, expense, contacts, bill: [] });
+        // Merged, not replaced. This used to overwrite the whole object, which dropped
+        // any bill codes already loaded -- a resume that landed on step 8 and then
+        // revisited step 5 lost them, and billLoadedRef stopped the refetch.
+        setAccountOptions((prev) => ({
+          ...prev,
+          bank,
+          cashSale,
+          director,
+          discrepancy,
+          expense,
+          contacts,
+        }));
 
         const md = data.mapping_defaults || {};
         const cd = data.contact_defaults || {};
@@ -944,10 +1054,12 @@ export default function OnboardingApp() {
             depositAccount: prev.pettyCash.depositAccount || labelFor(bank, md.deposit),
             directorCode: prev.pettyCash.directorCode || labelFor(director, md.director),
             cashSalesCode: prev.pettyCash.cashSalesCode || labelFor(cashSale, md.cash_sale),
-            discrepancyCode: prev.pettyCash.discrepancyCode || labelFor(discrepancy, md.discrepancy),
+            discrepancyCode:
+              prev.pettyCash.discrepancyCode || labelFor(discrepancy, md.discrepancy),
             directorContact: prev.pettyCash.directorContact || labelFor(contacts, cd.director),
             cashSaleContact: prev.pettyCash.cashSaleContact || labelFor(contacts, cd.cash_sale),
-            discrepancyContact: prev.pettyCash.discrepancyContact || labelFor(contacts, cd.discrepancy),
+            discrepancyContact:
+              prev.pettyCash.discrepancyContact || labelFor(contacts, cd.discrepancy),
           },
         }));
       })
@@ -982,7 +1094,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, expense_codes: selectedCodes, mapping }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those account codes. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't save those account codes. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -1008,7 +1124,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, contacts }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those contacts. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't save those contacts. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -1096,16 +1216,26 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, selected_codes: selectedCodes }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't save those account codes. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't save those account codes. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
     }
   };
 
-  const submitInvite = async ({ email, role, first_name, last_name }: InvitePayload): Promise<InviteResult> => {
+  const submitInvite = async ({
+    email,
+    role,
+    first_name,
+    last_name,
+  }: InvitePayload): Promise<InviteResult> => {
     // Standalone prototype (no Module 1 handoff): keep the invite local-only.
-    if (!token || !state.entity.id) return { ok: true, invitation: { email, role, first_name, last_name } };
+    if (!token || !state.entity.id)
+      return { ok: true, invitation: { email, role, first_name, last_name } };
     try {
       const res = await fetch(urlFor(`/api/onboarding/invite`), {
         method: 'POST',
@@ -1113,7 +1243,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ entity_id: state.entity.id, email, role, first_name, last_name }),
       });
       const data: Partial<InviteResponse> & ApiErrorBody = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't send that invitation. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't send that invitation. Mind trying again?"),
+        };
       // The invitation row can be created even when the email itself fails to
       // go out (Brevo/SMTP error) — the backend signals that with
       // email_sent: false. Pass it through so the UI can warn instead of
@@ -1123,8 +1257,7 @@ export default function OnboardingApp() {
       // level ({ email_sent, invitation }), others nest it inside the
       // invitation ({ invitation: { email_sent } }). Check both; only treat it
       // as a failure when an explicit `false` is present in either spot.
-      const emailSentFlag =
-        data.email_sent ?? (data.invitation && data.invitation.email_sent);
+      const emailSentFlag = data.email_sent ?? (data.invitation && data.invitation.email_sent);
       return { ok: true, invitation: data.invitation, emailSent: emailSentFlag !== false };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -1140,7 +1273,11 @@ export default function OnboardingApp() {
         body: JSON.stringify({ invitation_id: invitationId }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't cancel that. Mind trying again?") };
+      if (!res.ok)
+        return {
+          ok: false,
+          error: friendlyError(data, "I couldn't cancel that. Mind trying again?"),
+        };
       return { ok: true };
     } catch {
       return { ok: false, error: "I couldn't reach the server. Mind trying again?" };
@@ -1158,25 +1295,12 @@ export default function OnboardingApp() {
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data || !Array.isArray(data.invitations)) return;
-        setState((prev) => {
-          // Keep any names typed this session (backend stores only email/role),
-          // matching by email; fall back to email-derived initials otherwise.
-          const known: Record<string, InviteRow> = {};
-          (prev.invites || []).forEach((x) => {
-            if (x.email) known[x.email.toLowerCase()] = x;
-          });
-          const invites: InviteRow[] = (data.invitations as Invitation[]).map((inv) => {
-            const prior: Partial<InviteRow> = known[(inv.email || '').toLowerCase()] || {};
-            return {
-              id: inv.id,
-              email: inv.email,
-              role: inv.role,
-              first: prior.first || '',
-              last: prior.last || '',
-            };
-          });
-          return { ...prev, invites };
-        });
+        // The API's names win; a name typed this session is the fallback for rows the
+        // backend stored without one.
+        setState((prev) => ({
+          ...prev,
+          invites: inviteRows(data.invitations as Invitation[], prev.invites || []),
+        }));
       })
       .catch(() => {
         /* leave the list empty if the fetch fails */
@@ -1204,7 +1328,9 @@ export default function OnboardingApp() {
     try {
       window.localStorage.removeItem(sessionKey(state.entity.id));
       window.localStorage.removeItem(STORAGE_KEY);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     if (!token || !state.entity.id) return { ok: true, trialEnd: null };
     const chosen = state.modules[0]; // 'pettyCash' | 'bills' | undefined
     if (chosen !== 'bills') {
@@ -1262,9 +1388,12 @@ export default function OnboardingApp() {
   const fetchExistingSalesMethods = async () => {
     if (!token || !state.entity.id) return null;
     try {
-      const res = await fetch(urlFor(`/api/onboarding/sales-methods?entity_id=${encodeURIComponent(state.entity.id)}`), {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(
+        urlFor(`/api/onboarding/sales-methods?entity_id=${encodeURIComponent(state.entity.id)}`),
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
       if (!res.ok) return null;
       return await res.json();
     } catch {
@@ -1304,7 +1433,36 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps: StepProps = { state, set, next, back, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
+  const stepProps: StepProps = {
+    state,
+    set,
+    next,
+    back,
+    submitEntity,
+    submitModule,
+    modulePlans,
+    token,
+    connectXero,
+    disconnectXero,
+    xeroMismatch,
+    clearXeroMismatch: () => setXeroMismatch(''),
+    xeroConflict,
+    clearXeroConflict: () => setXeroConflict(''),
+    submitSalesMethods,
+    submitOpeningBalance,
+    fetchExistingSalesMethods,
+    accountOptions,
+    submitAccountCodes,
+    submitContacts,
+    createContact,
+    submitBills,
+    submitInvite,
+    cancelInvite,
+    completeOnboarding,
+    exitToEntityList,
+    saveAndExit,
+    isLastContentStep,
+  };
 
   return (
     <>
@@ -1333,7 +1491,12 @@ export default function OnboardingApp() {
         </div>
       </div>
 
-      <Stepper current={current} onClick={goto} maxReached={maxReached} displaySteps={displaySteps} />
+      <Stepper
+        current={current}
+        onClick={goto}
+        maxReached={maxReached}
+        displaySteps={displaySteps}
+      />
 
       <main className="page" data-screen-label={`0${current} ${STEPS[current - 1].label}`}>
         {(current === 5 || current === 6 || current === 7) && (
@@ -1353,7 +1516,11 @@ export default function OnboardingApp() {
                 <button
                   key={id}
                   type="button"
-                  className={'pc-side-item' + (current === id ? ' active' : '') + (current > id ? ' done' : '')}
+                  className={
+                    'pc-side-item' +
+                    (current === id ? ' active' : '') +
+                    (current > id ? ' done' : '')
+                  }
                   onClick={() => goto(id)}
                   disabled={!reachable || current === id}
                   aria-current={current === id ? 'step' : undefined}
@@ -1376,65 +1543,70 @@ export default function OnboardingApp() {
         {current === 9 && <StepAllSet {...stepProps} />}
       </main>
 
-      {needsXeroPrompt && mounted && ReactDOM.createPortal(
-        <div
-          className="skip-modal-overlay"
-          role="presentation"
-          onClick={() => setNeedsXeroPrompt(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-            background: 'rgba(15, 23, 27, 0.45)',
-          }}
-        >
+      {needsXeroPrompt &&
+        mounted &&
+        ReactDOM.createPortal(
           <div
-            className="skip-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="xero-prompt-title"
-            onClick={(e) => e.stopPropagation()}
+            className="skip-modal-overlay"
+            role="presentation"
+            onClick={() => setNeedsXeroPrompt(false)}
             style={{
-              background: '#f1f3f4',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--radius)',
-              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.22)',
-              padding: '26px 26px 22px',
-              maxWidth: 440,
-              width: '100%',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20,
+              background: 'rgba(15, 23, 27, 0.45)',
             }}
           >
-            <p id="xero-prompt-title" className="skip-modal-lead">
-              {xeroPromptReason === 'expired'
-                ? 'Your session has timed out.'
-                : 'Connect to your accounting system first.'}
-            </p>
-            <p className="skip-modal-body" style={{ marginBottom: 32 }}>
-              {xeroPromptReason === 'expired'
-                ? 'It has been more than 30 minutes, so your connection to Xero has expired. Please go back to the “Connect to Accounting System” step and reconnect to continue your setup.'
-                : 'You’re not connected to Xero yet. Please go back to the “Connect to Accounting System” step and connect before continuing your setup.'}
-            </p>
-            <div className="skip-modal-actions" style={{ display: 'flex', justifyContent: 'center', gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setNeedsXeroPrompt(false);
-                  setMaxReached((m) => Math.max(m, 4));
-                  setCurrent(4);
-                }}
+            <div
+              className="skip-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="xero-prompt-title"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#f1f3f4',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)',
+                boxShadow: '0 20px 48px rgba(0, 0, 0, 0.22)',
+                padding: '26px 26px 22px',
+                maxWidth: 440,
+                width: '100%',
+              }}
+            >
+              <p id="xero-prompt-title" className="skip-modal-lead">
+                {xeroPromptReason === 'expired'
+                  ? 'Your session has timed out.'
+                  : 'Connect to your accounting system first.'}
+              </p>
+              <p className="skip-modal-body" style={{ marginBottom: 32 }}>
+                {xeroPromptReason === 'expired'
+                  ? 'It has been more than 30 minutes, so your connection to Xero has expired. Please go back to the “Connect to Accounting System” step and reconnect to continue your setup.'
+                  : 'You’re not connected to Xero yet. Please go back to the “Connect to Accounting System” step and connect before continuing your setup.'}
+              </p>
+              <div
+                className="skip-modal-actions"
+                style={{ display: 'flex', justifyContent: 'center', gap: 10 }}
               >
-                {xeroPromptReason === 'expired' ? 'Reconnect to Xero' : 'Go to Connect step'}
-              </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setNeedsXeroPrompt(false);
+                    setMaxReached((m) => Math.max(m, 4));
+                    setCurrent(4);
+                  }}
+                >
+                  {xeroPromptReason === 'expired' ? 'Reconnect to Xero' : 'Go to Connect step'}
+                </button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

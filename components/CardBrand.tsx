@@ -91,10 +91,7 @@ export default function CardBrand({ brand, label, className = 'pm-brand' }: Card
         {/* The overlap is its own shape rather than an opacity trick: two translucent
             circles over a white chip give a washed-out lozenge, not Mastercard's solid
             amber intersection. */}
-        <path
-          d="M23 8.2a9 9 0 0 0 0 13.6 9 9 0 0 0 0-13.6Z"
-          fill="#FF5F00"
-        />
+        <path d="M23 8.2a9 9 0 0 0 0 13.6 9 9 0 0 0 0-13.6Z" fill="#FF5F00" />
       </svg>,
     );
   }

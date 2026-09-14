@@ -17,16 +17,29 @@ import { urlFor } from '../lib/apiRoutes';
 import { isEmail } from '../lib/validation';
 import { toIsoDate } from '../lib/date';
 import { SaveExitLink, StepNav } from './steps/StepChrome';
-import { MODULES, ModuleSubscriptionSummary, priceSelection, pricedRows } from './steps/modulePricing';
+import {
+  MODULES,
+  ModuleSubscriptionSummary,
+  priceSelection,
+  pricedRows,
+} from './steps/modulePricing';
 import { AccountCodesCard, MethodList, PCSection, currencyCode } from './steps/pettyCashFields';
 import type { BillsForm, EntityForm, PettyCashForm, StepProps } from '../lib/types';
+import { useMounted } from '../lib/useMounted';
 import type { CurrencyRow } from '../lib/refData';
 import type { PaymentMethod } from '../lib/billing';
 import type { ModuleId, Result } from '../lib/api';
 
-export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'submitEntity' | 'saveAndExit'>) {
+export function StepCreateEntity({
+  state,
+  set,
+  next,
+  submitEntity,
+  saveAndExit,
+}: Pick<StepProps, 'state' | 'set' | 'next' | 'submitEntity' | 'saveAndExit'>) {
   const s = state.entity;
-  const upd = <K extends keyof EntityForm>(k: K, v: EntityForm[K]) => set({ entity: { ...s, [k]: v } });
+  const upd = <K extends keyof EntityForm>(k: K, v: EntityForm[K]) =>
+    set({ entity: { ...s, [k]: v } });
   // Phone and email are optional — but if the user does type something, it must
   // still be valid (Module 1 create-entity: 8–11 digits; standard email shape).
   const emailOk = s.email.trim() === '' || isEmail(s.email);
@@ -56,7 +69,9 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
         setCurrencyOptions(list.map((c) => ({ value: c.currency_id, label: c.currency_name })));
       }
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
   // Migrate legacy name values (the pre-registry defaults like 'Hong Kong' /
   // 'Hong Kong Dollar', or an old saved session) to their registry uuids once
@@ -125,38 +140,90 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
             }}
           />
           {nameTaken && (
-            <div className="field-required" role="alert">Oh, someone got there first! Do you have another name in mind?</div>
+            <div className="field-required" role="alert">
+              Oh, someone got there first! Do you have another name in mind?
+            </div>
           )}
         </div>
         <div className="field">
           <label>Country</label>
-          <MintySelect value={s.country} onChange={(v) => upd('country', v)} options={countryOptions} searchable />
+          <MintySelect
+            value={s.country}
+            onChange={(v) => upd('country', v)}
+            options={countryOptions}
+            searchable
+          />
         </div>
         <div className="field">
           <label>Currency</label>
-          <MintySelect value={s.currency} onChange={(v) => upd('currency', v)} options={currencyOptions} searchable />
+          <MintySelect
+            value={s.currency}
+            onChange={(v) => upd('currency', v)}
+            options={currencyOptions}
+            searchable
+          />
         </div>
         <div className="field">
-          <label>Contact Phone <span className="field-optional">(optional)</span></label>
-          <input type="tel" name="tel" autoComplete="tel" inputMode="numeric" maxLength={11} pattern="[0-9]{8,11}" title="Phone number must be 8-11 digits" placeholder="Please enter your contact phone number" value={s.phone} onChange={(e) => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 11))} />
+          <label>
+            Contact Phone <span className="field-optional">(optional)</span>
+          </label>
+          <input
+            type="tel"
+            name="tel"
+            autoComplete="tel"
+            inputMode="numeric"
+            maxLength={11}
+            pattern="[0-9]{8,11}"
+            title="Phone number must be 8-11 digits"
+            placeholder="Please enter your contact phone number"
+            value={s.phone}
+            onChange={(e) => upd('phone', e.target.value.replace(/\D/g, '').slice(0, 11))}
+          />
         </div>
         <div className="field">
-          <label>Business Email <span className="field-optional">(optional)</span></label>
-          <input type="email" name="email" autoComplete="email" placeholder="Please enter your business email" value={s.email} onChange={(e) => upd('email', e.target.value)} />
+          <label>
+            Business Email <span className="field-optional">(optional)</span>
+          </label>
+          <input
+            type="email"
+            name="email"
+            autoComplete="email"
+            placeholder="Please enter your business email"
+            value={s.email}
+            onChange={(e) => upd('email', e.target.value)}
+          />
         </div>
       </div>
       <div className="cta-stack">
-        <button className="btn btn-primary btn-block btn-jelly" disabled={!canNext || saving} onClick={handleNext}>
+        <button
+          className="btn btn-primary btn-block btn-jelly"
+          disabled={!canNext || saving}
+          onClick={handleNext}
+        >
           {saving ? 'Saving…' : 'Save & Next'}
         </button>
         <SaveExitLink saveAndExit={saveAndExit} submitFn={submitEntity} disabled={saving} />
-        <button className="btn-link-center" onClick={backToEntityList}>Back to Entity List</button>
+        <button className="btn-link-center" onClick={backToEntityList}>
+          Back to Entity List
+        </button>
       </div>
     </>
   );
 }
 
-export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitModule' | 'modulePlans' | 'token' | 'saveAndExit'>) {
+export function StepSelectModule({
+  state,
+  set,
+  next,
+  back,
+  submitModule,
+  modulePlans,
+  token,
+  saveAndExit,
+}: Pick<
+  StepProps,
+  'state' | 'set' | 'next' | 'back' | 'submitModule' | 'modulePlans' | 'token' | 'saveAndExit'
+>) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
   // No per-card price lookup any more: the cards carry a trial status, not a figure,
   // and the ONE price on this step is the summary's "After trial" tile. It reads the
@@ -188,8 +255,8 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   // promising 30 days invites the reader to work out whether they are the same offer.
   // Still the SERVER's number, so tuning billing_policy moves all three strings.
   const trialDays = Number(modulePlans?.trial_period_days || 30);
-  const trialDaysLabel = trialDays + ' days';   // "30 days free trial"  (the card)
-  const trialTermLabel = trialDays + '-day';    // "its own 30-day free trial" (prose)
+  const trialDaysLabel = trialDays + ' days'; // "30 days free trial"  (the card)
+  const trialTermLabel = trialDays + '-day'; // "its own 30-day free trial" (prose)
 
   /* THE CARD THIS ENTITY IS CONFIRMED ON — not "a card the payer owns".
    *
@@ -211,21 +278,20 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
    * Re-read after the billing dialog reports a confirmation, which is the only thing on
    * this step that can change the answer. */
   const [savedCard, setSavedCard] = useState<PaymentMethod | null>(null);
+  // Bumped after a card is saved so the wallet is re-read.
   const [cardEpoch, setCardEpoch] = useState(0);
-  // Starts TRUE so the first paint shows the placeholder rather than "Add card" — see the
-  // note on the row itself. Set back to true on every re-read, because a confirmation
-  // re-runs this and the row should not flicker through the old answer on the way to the
-  // new one.
-  const [cardLoading, setCardLoading] = useState(true);
+  // Loading is DERIVED, not stored: there is something to wait for exactly when there
+  // is an entity to ask about and the answer has not come back yet. That gives the
+  // first paint the placeholder rather than "Add card" (see the note on the row), and
+  // a step with no entity is never left waiting -- without a state flag set from inside
+  // the effect. A re-read resets `cardAnswered` in the same click that bumps the epoch,
+  // so the row does not flicker through the old answer on the way to the new one.
+  const canAskAboutCard = !!token && !!state?.entity?.id;
+  const [cardAnswered, setCardAnswered] = useState(false);
+  const cardLoading = canAskAboutCard && !cardAnswered;
   useEffect(() => {
-    if (!token || !state?.entity?.id) {
-      // Nothing to wait for, so stop waiting — without this the placeholder would sit
-      // there for ever on a step that has no entity to ask about.
-      setCardLoading(false);
-      return;
-    }
+    if (!token || !state?.entity?.id) return;
     let live = true;
-    setCardLoading(true);
     fetchBillingStatus(token, state.entity.id)
       .then((res) => {
         if (!live) return;
@@ -235,7 +301,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
       // not an error, and the row simply offers "Add card" instead.
       .catch(() => {})
       .finally(() => {
-        if (live) setCardLoading(false);
+        if (live) setCardAnswered(true);
       });
     return () => {
       live = false;
@@ -300,61 +366,84 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
       <div className={'page-head module-head' + wide}>
         <h2>Which free trial would you like to start today?</h2>
         <p>
-          Each module includes its own {trialTermLabel} free trial. Start with one module or
-          unlock the full Minty experience. Any unselected module can be activated later.
+          Each module includes its own {trialTermLabel} free trial. Start with one module or unlock
+          the full Minty experience. Any unselected module can be activated later.
         </p>
       </div>
       <div className={'module-layout' + wide}>
-      <div className="module-grid module-grid-2">
-        {/* Two bursts flanking the pair, straight out of the 01-B frame. NOT the falling
+        <div className="module-grid module-grid-2">
+          {/* Two bursts flanking the pair, straight out of the 01-B frame. NOT the falling
             Confetti component the All Set step uses — the design draws a moment, not a
             shower, and the pieces are positioned artwork rather than generated. */}
-        {bothPicked ? (
-          <>
-            <img className="module-burst is-left" src="/assets/confetti-left.png" alt="" aria-hidden="true" />
-            <img className="module-burst is-right" src="/assets/confetti-right.png" alt="" aria-hidden="true" />
-          </>
-        ) : null}
-        {MODULES.map((m) => {
-          const I = m.icon ? Icon[m.icon] : null;
-          const on = sel.includes(m.id);
-          return (
-            <div
-              key={m.id}
-              role="radio"
-              aria-checked={on}
-              tabIndex={0}
-              className={'module-pick' + (on ? ' selected' : '')}
-              onClick={() => pick(m.id)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  pick(m.id);
-                }
-              }}
-            >
-              <div className="mp-card">
-                <div className="mp-art" style={{ '--art-accent': m.accent, '--art-tile': m.tile, '--art-size': m.art + 'px' } as CSSProperties}>
-                  {m.img ? <img src={m.img} alt="" className="mp-img" /> : I ? <I width={m.art} height={m.art} /> : null}
-                </div>
-                <div className="mp-name">{m.title}</div>
-                {/* The card's whole status line. "Available" and "Selected" are the two
+          {bothPicked ? (
+            <>
+              <img
+                className="module-burst is-left"
+                src="/assets/confetti-left.png"
+                alt=""
+                aria-hidden="true"
+              />
+              <img
+                className="module-burst is-right"
+                src="/assets/confetti-right.png"
+                alt=""
+                aria-hidden="true"
+              />
+            </>
+          ) : null}
+          {MODULES.map((m) => {
+            const I = m.icon ? Icon[m.icon] : null;
+            const on = sel.includes(m.id);
+            return (
+              <div
+                key={m.id}
+                role="radio"
+                aria-checked={on}
+                tabIndex={0}
+                className={'module-pick' + (on ? ' selected' : '')}
+                onClick={() => pick(m.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    pick(m.id);
+                  }
+                }}
+              >
+                <div className="mp-card">
+                  <div
+                    className="mp-art"
+                    style={
+                      {
+                        '--art-accent': m.accent,
+                        '--art-tile': m.tile,
+                        '--art-size': m.art + 'px',
+                      } as CSSProperties
+                    }
+                  >
+                    {m.img ? (
+                      <img src={m.img} alt="" className="mp-img" />
+                    ) : I ? (
+                      <I width={m.art} height={m.art} />
+                    ) : null}
+                  </div>
+                  <div className="mp-name">{m.title}</div>
+                  {/* The card's whole status line. "Available" and "Selected" are the two
                     states this screen actually has — the price is deliberately not here
                     any more, because nothing on this step is being charged and a figure
                     beside a trial reads as one that is. It is in the summary, under
                     "After trial", where it is true. */}
-                <div className="mp-trial">
-                  <span className="mp-trial-term">{trialDaysLabel} free trial</span>
-                  <span className="mp-trial-state">{on ? 'Selected' : 'Available'}</span>
+                  <div className="mp-trial">
+                    <span className="mp-trial-term">{trialDaysLabel} free trial</span>
+                    <span className="mp-trial-state">{on ? 'Selected' : 'Available'}</span>
+                  </div>
+                </div>
+                <div className="mp-circle" aria-hidden>
+                  {on && <Icon.CheckSm />}
                 </div>
               </div>
-              <div className="mp-circle" aria-hidden>
-                {on && <Icon.CheckSm />}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
         <ModuleSubscriptionSummary
           catalog={modulePlans}
           selected={sel}
@@ -369,9 +458,9 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
           all — the only other place is the billing dialog, which a payer can finish the
           step without ever opening. */}
       <p className={'module-caption' + wide}>
-        Each module comes with its own {trialTermLabel} free trial. Start with one module
-        today, or unlock both and enjoy the complete Minty experience. You can always
-        activate the other trial later. No payment is required today.
+        Each module comes with its own {trialTermLabel} free trial. Start with one module today, or
+        unlock both and enjoy the complete Minty experience. You can always activate the other trial
+        later. No payment is required today.
       </p>
       <div className={'step-nav module-nav' + wide}>
         <button className="btn btn-ghost" onClick={back}>
@@ -379,8 +468,18 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
         </button>
         <div className="step-actions">
           <SaveExitLink saveAndExit={saveAndExit} submitFn={submitModule} disabled={busy} />
-          <button className="btn btn-primary" disabled={sel.length === 0 || busy} onClick={handleNext}>
-            {saving ? 'Saving…' : <>Save &amp; Next <Icon.Arrow /></>}
+          <button
+            className="btn btn-primary"
+            disabled={sel.length === 0 || busy}
+            onClick={handleNext}
+          >
+            {saving ? (
+              'Saving…'
+            ) : (
+              <>
+                Save &amp; Next <Icon.Arrow />
+              </>
+            )}
           </button>
           {sel.length === 0 ? (
             <div className="step-reminder" role="note">
@@ -412,6 +511,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
             setBillingOpen(false);
             // Re-read the wallet: the card the payer just saved is what the summary's
             // Payment method row should now name.
+            setCardAnswered(false);
             setCardEpoch((n) => n + 1);
             toast.success("Card saved — we'll bill this entity when the trial ends.");
           }}
@@ -422,7 +522,30 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
 }
 
 // --- Step 3: Connect to Xero ---
-export function StepConnectXero({ state, next, back, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, xeroConflict, clearXeroConflict, saveAndExit }: Pick<StepProps, 'state' | 'next' | 'back' | 'connectXero' | 'disconnectXero' | 'xeroMismatch' | 'clearXeroMismatch' | 'xeroConflict' | 'clearXeroConflict' | 'saveAndExit'>) {
+export function StepConnectXero({
+  state,
+  next,
+  back,
+  connectXero,
+  disconnectXero,
+  xeroMismatch,
+  clearXeroMismatch,
+  xeroConflict,
+  clearXeroConflict,
+  saveAndExit,
+}: Pick<
+  StepProps,
+  | 'state'
+  | 'next'
+  | 'back'
+  | 'connectXero'
+  | 'disconnectXero'
+  | 'xeroMismatch'
+  | 'clearXeroMismatch'
+  | 'xeroConflict'
+  | 'clearXeroConflict'
+  | 'saveAndExit'
+>) {
   const connected = state.xero.connected;
   const lastConnected = state.xero.lastConnected || '07 May 2026';
   const xeroEntity = state.xero.org || state.entity.name || 'Olive & Vine Inc';
@@ -440,7 +563,7 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
     toast.error(
       xeroMismatch === 'unknown'
         ? "That's a different Xero account. Sign in with your onboarding email?"
-        : `Hmm, that's a different Xero account. Sign in with ${xeroMismatch}?`
+        : `Hmm, that's a different Xero account. Sign in with ${xeroMismatch}?`,
     );
     if (typeof clearXeroMismatch === 'function') clearXeroMismatch();
   }, [xeroMismatch, clearXeroMismatch, toast]);
@@ -455,7 +578,7 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
     toast.error(
       xeroConflict === 'unknown'
         ? 'Oh, another entity got to this Xero org first! Disconnect it there, then come back?'
-        : `Oh, “${xeroConflict}” is using this Xero org already! Disconnect it there, then come back?`
+        : `Oh, “${xeroConflict}” is using this Xero org already! Disconnect it there, then come back?`,
     );
     if (typeof clearXeroConflict === 'function') clearXeroConflict();
   }, [xeroConflict, clearXeroConflict, toast]);
@@ -471,15 +594,37 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
   };
   return (
     <>
-      <div className="page-head" style={{ textAlign: 'center', maxWidth: 'none', marginBottom: 18 }}>
-        <h2 style={{ fontSize: 30, display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
-          <img src="/xero-logo.webp" alt="Xero" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
+      <div
+        className="page-head"
+        style={{ textAlign: 'center', maxWidth: 'none', marginBottom: 18 }}
+      >
+        <h2
+          style={{
+            fontSize: 30,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            justifyContent: 'center',
+          }}
+        >
+          <img
+            src="/xero-logo.webp"
+            alt="Xero"
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
           Xero Integration
           <span className="info-tip" tabIndex={0} aria-label="More info">
             <Icon.Info />
             <span className="info-tip-pop" role="tooltip">
               <p>
-                Currently Minty can be used only by integrating to Xero. If you wish to be informed about our feature update, please{' '}
+                Currently Minty can be used only by integrating to Xero. If you wish to be informed
+                about our feature update, please{' '}
                 <a href="#" className="pc-link">
                   register here
                 </a>
@@ -496,11 +641,17 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
         </div>
         <div className="notice-body">
           <div className="notice-title">Before you connect</div>
-          <p>Our service team can walk you through setting up your Xero integration — want to reach out to them first?</p>
+          <p>
+            Our service team can walk you through setting up your Xero integration — want to reach
+            out to them first?
+          </p>
         </div>
       </div>
 
-      <div className={'card status-card' + (connected ? ' status-connected' : '')} style={{ marginTop: 16 }}>
+      <div
+        className={'card status-card' + (connected ? ' status-connected' : '')}
+        style={{ marginTop: 16 }}
+      >
         <div className="status-head">
           <div>
             <div className="card-title">Connection Status</div>
@@ -519,7 +670,9 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
               </div>
             )}
           </div>
-          <span className={'pill-status ' + (connected ? 'ok' : 'off')}>{connected ? 'Connected' : 'Not connected'}</span>
+          <span className={'pill-status ' + (connected ? 'ok' : 'off')}>
+            {connected ? 'Connected' : 'Not connected'}
+          </span>
         </div>
         {connected ? (
           <div
@@ -548,7 +701,13 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
               onClick={handleDisconnect}
               disabled={disconnecting}
             >
-              {disconnecting ? 'Disconnecting…' : <><Icon.Link /> Disconnect from Xero</>}
+              {disconnecting ? (
+                'Disconnecting…'
+              ) : (
+                <>
+                  <Icon.Link /> Disconnect from Xero
+                </>
+              )}
             </button>
           </>
         )}
@@ -584,7 +743,26 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
   );
 }
 
-export function StepSalesSetting({ state, set, next, back, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitSalesMethods' | 'submitOpeningBalance' | 'fetchExistingSalesMethods' | 'saveAndExit'>) {
+export function StepSalesSetting({
+  state,
+  set,
+  next,
+  back,
+  submitSalesMethods,
+  submitOpeningBalance,
+  fetchExistingSalesMethods,
+  saveAndExit,
+}: Pick<
+  StepProps,
+  | 'state'
+  | 'set'
+  | 'next'
+  | 'back'
+  | 'submitSalesMethods'
+  | 'submitOpeningBalance'
+  | 'fetchExistingSalesMethods'
+  | 'saveAndExit'
+>) {
   // Save everything on this step: sales methods AND the opening balance/date.
   // submitOpeningBalance no-ops when the balance is empty, so a blank balance
   // never blocks Save & Next / Save & Exit — we persist whatever's filled in.
@@ -599,14 +777,19 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
     return { ok: true };
   };
   const p = state.pettyCash;
-  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) =>
+    set({ pettyCash: { ...p, [k]: v } });
   const balanceRef = useRef<HTMLDivElement>(null);
   // Currency registry for the amount prefix — entity.currency is a uuid.
   const [currencyRegistry, setCurrencyRegistry] = useState<CurrencyRow[]>([]);
   useEffect(() => {
     let cancelled = false;
-    fetchCurrencies().then((list) => { if (!cancelled) setCurrencyRegistry(list); });
-    return () => { cancelled = true; };
+    fetchCurrencies().then((list) => {
+      if (!cancelled) setCurrencyRegistry(list);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
   const [showBalanceError, setShowBalanceError] = useState(false);
   // While focused the field shows plain digits; commas and the trailing ".00"
@@ -614,7 +797,10 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   const [balanceFocused, setBalanceFocused] = useState(false);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const balanceEmpty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
+  const balanceEmpty =
+    p.openingBalance === undefined ||
+    p.openingBalance === null ||
+    String(p.openingBalance).trim() === '';
 
   // Server-authoritative "today" in Hong Kong time — caps the opening date so a
   // future date can't be selected. Falls back to an HK date derived in the
@@ -676,7 +862,8 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
     if (dateIsFuture) {
       setShowDateError(true);
       requestAnimationFrame(() => {
-        if (dateRef.current) dateRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (dateRef.current)
+          dateRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
       });
       return;
     }
@@ -694,11 +881,22 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
     }
     next();
   };
-  const DEFAULT_ELECTRONIC = ['Visa', 'Alipay', 'WeChat Pay', 'Mastercard', 'UnionPay', 'Amex', 'Octopus'];
+  const DEFAULT_ELECTRONIC = [
+    'Visa',
+    'Alipay',
+    'WeChat Pay',
+    'Mastercard',
+    'UnionPay',
+    'Amex',
+    'Octopus',
+  ];
   const DEFAULT_DELIVERY = ['Foodpanda', 'Deliveroo', 'KeeTa'];
   const todayIso = toIsoDate(new Date());
-  const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
-  const isAutofilled = sameList(p.electronicMethods || [], DEFAULT_ELECTRONIC) && sameList(p.deliveryMethods || [], DEFAULT_DELIVERY);
+  const sameList = (a: string[], b: string[]) =>
+    a.length === b.length && a.every((x, i) => x === b[i]);
+  const isAutofilled =
+    sameList(p.electronicMethods || [], DEFAULT_ELECTRONIC) &&
+    sameList(p.deliveryMethods || [], DEFAULT_DELIVERY);
 
   const [autoFilling, setAutoFilling] = useState(false);
   const resetDefaults = async () => {
@@ -752,13 +950,18 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
             <Icon.Sparkle />
           </span>
         </button>
-        <span className="autofill-hint">Not sure what to choose? I&apos;ll set some sensible defaults for you.</span>
+        <span className="autofill-hint">
+          Not sure what to choose? I&apos;ll set some sensible defaults for you.
+        </span>
       </div>
       <div className="page-head pc-page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <div className="pc-head-row">
           <h2 style={{ fontSize: 30 }}>Type of sales method of your company</h2>
         </div>
-        <p style={{ marginTop: 6 }}>Add the payment and delivery channels you accept. You can always go back to settings to edit options</p>
+        <p style={{ marginTop: 6 }}>
+          Add the payment and delivery channels you accept. You can always go back to settings to
+          edit options
+        </p>
       </div>
 
       <div className="pc-stack">
@@ -782,12 +985,23 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
 
         <div className="pc-section-head">
           <div className="pc-section-title">Petty Cash Opening Balance</div>
-          <div className="pc-section-sub">Set the starting point so future movements reconcile correctly.</div>
+          <div className="pc-section-sub">
+            Set the starting point so future movements reconcile correctly.
+          </div>
         </div>
-        <div className={'pc-card' + (showBalanceError && balanceEmpty ? ' is-error' : '')} ref={balanceRef}>
-          <div className={'pc-field' + (showDateError && dateIsFuture ? ' field-error' : '')} ref={dateRef}>
+        <div
+          className={'pc-card' + (showBalanceError && balanceEmpty ? ' is-error' : '')}
+          ref={balanceRef}
+        >
+          <div
+            className={'pc-field' + (showDateError && dateIsFuture ? ' field-error' : '')}
+            ref={dateRef}
+          >
             <div className="pc-sub">
-              Choose the first date that you wish to use <span className="pc-hint">(I&apos;ve put today&apos;s date in — click if you&apos;d like another)</span>
+              Choose the first date that you wish to use{' '}
+              <span className="pc-hint">
+                (I&apos;ve put today&apos;s date in — click if you&apos;d like another)
+              </span>
             </div>
             <MintyDatePicker
               value={p.openingDate || ''}
@@ -798,18 +1012,28 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
               placeholder="Select a date"
               maxDate={openingMaxDate}
             />
-            {showDateError && dateIsFuture && <div className="field-required">That day hasn&apos;t happened yet! Pick an earlier one?</div>}
+            {showDateError && dateIsFuture && (
+              <div className="field-required">
+                That day hasn&apos;t happened yet! Pick an earlier one?
+              </div>
+            )}
           </div>
           <div className={'pc-field' + (showBalanceError && balanceEmpty ? ' field-error' : '')}>
             <div className="pc-sub">Choose the beginning petty cash balance of the day</div>
             <div className="field">
               <div className="input-prefix">
-                <div className="prefix">{currencyCode(state.entity.currency, currencyRegistry)}</div>
+                <div className="prefix">
+                  {currencyCode(state.entity.currency, currencyRegistry)}
+                </div>
                 <input
                   type="text"
                   inputMode="decimal"
                   placeholder="0.00"
-                  value={balanceFocused ? toAmountEditString(p.openingBalance) : formatAmount(p.openingBalance)}
+                  value={
+                    balanceFocused
+                      ? toAmountEditString(p.openingBalance)
+                      : formatAmount(p.openingBalance)
+                  }
                   onFocus={() => setBalanceFocused(true)}
                   onChange={(e) => {
                     const raw = acceptAmountInput(e.target.value);
@@ -821,7 +1045,9 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
                 />
               </div>
             </div>
-            {showBalanceError && balanceEmpty && <div className="field-required">I&apos;ll need a starting balance here.</div>}
+            {showBalanceError && balanceEmpty && (
+              <div className="field-required">I&apos;ll need a starting balance here.</div>
+            )}
           </div>
         </div>
       </div>
@@ -837,10 +1063,22 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   );
 }
 
-export function StepAccountCode({ state, set, next, back, accountOptions, submitAccountCodes, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitAccountCodes' | 'saveAndExit'>) {
+export function StepAccountCode({
+  state,
+  set,
+  next,
+  back,
+  accountOptions,
+  submitAccountCodes,
+  saveAndExit,
+}: Pick<
+  StepProps,
+  'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitAccountCodes' | 'saveAndExit'
+>) {
   const stepSubmit = submitAccountCodes;
   const p = state.pettyCash;
-  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) =>
+    set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
@@ -862,7 +1100,7 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
   const discrepancyLabels = labelsOf(opts.discrepancy);
   const expenseCodes = (opts.expense || []).map((e) => e.code);
   const expenseLabels = Object.fromEntries(
-    (opts.expense || []).map((e) => [e.code, e.name ? `${e.code} · ${e.name}` : e.code])
+    (opts.expense || []).map((e) => [e.code, e.name ? `${e.code} · ${e.name}` : e.code]),
   );
 
   const missingFields = [
@@ -901,13 +1139,18 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
     <>
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Account Code Setting</h2>
-        <p style={{ marginTop: 6 }}>Map each cash flow to the right account in your ledger — these settings need manual input from you.</p>
+        <p style={{ marginTop: 6 }}>
+          Map each cash flow to the right account in your ledger — these settings need manual input
+          from you.
+        </p>
       </div>
 
       <div className="pc-stack">
         <div className="pc-section-head" style={{ marginTop: 0, paddingTop: 0, border: 0 }}>
           <div className="pc-section-title">Petty Cash Account Codes</div>
-          <div className="pc-section-sub">Only selected account code will appear when adding an expense in Petty Cash.</div>
+          <div className="pc-section-sub">
+            Only selected account code will appear when adding an expense in Petty Cash.
+          </div>
         </div>
         <AccountCodesCard
           codes={expenseCodes}
@@ -923,7 +1166,8 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
             {
               label: (
                 <>
-                  Select Bank account in Xero that will record petty cash movement. You may need to first add a bank account in Xero.{' '}
+                  Select Bank account in Xero that will record petty cash movement. You may need to
+                  first add a bank account in Xero.{' '}
                   <a
                     href="https://my.xero.com/"
                     className="pc-link"
@@ -947,7 +1191,8 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
           cardRef={depositAccountRef}
           fields={[
             {
-              label: 'Select bank account in Xero for actual bank that your company use to deposit and withdraw cash.',
+              label:
+                'Select bank account in Xero for actual bank that your company use to deposit and withdraw cash.',
               value: p.depositAccount || '',
               onChange: (v) => upd('depositAccount', v),
               options: depositBankOptions,
@@ -996,7 +1241,9 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
               </span>
             </span>
           </div>
-          <div className="pc-section-sub">Where to post unaccounted-for cash differences when reconciling petty cash.</div>
+          <div className="pc-section-sub">
+            Where to post unaccounted-for cash differences when reconciling petty cash.
+          </div>
         </div>
         <PCSection
           title="Discrepancy — Other Expense"
@@ -1024,10 +1271,32 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
   );
 }
 
-export function StepOthers({ state, set, next, back, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitContacts' | 'createContact' | 'saveAndExit' | 'isLastContentStep'>) {
+export function StepOthers({
+  state,
+  set,
+  next,
+  back,
+  accountOptions,
+  submitContacts,
+  createContact,
+  saveAndExit,
+  isLastContentStep,
+}: Pick<
+  StepProps,
+  | 'state'
+  | 'set'
+  | 'next'
+  | 'back'
+  | 'accountOptions'
+  | 'submitContacts'
+  | 'createContact'
+  | 'saveAndExit'
+  | 'isLastContentStep'
+>) {
   const stepSubmit = submitContacts;
   const p = state.pettyCash;
-  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) =>
+    set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
@@ -1072,12 +1341,15 @@ export function StepOthers({ state, set, next, back, accountOptions, submitConta
     <>
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 22 }}>
         <h2 style={{ fontSize: 30 }}>Contact Setup</h2>
-        <p style={{ marginTop: 6 }}>Choose the Xero contacts used for the director&apos;s account, cash sales, and cash discrepancy.</p>
+        <p style={{ marginTop: 6 }}>
+          Choose the Xero contacts used for the director&apos;s account, cash sales, and cash
+          discrepancy.
+        </p>
       </div>
 
       <div className="pc-stack">
         <PCSection
-          title="Director&apos;s Contact"
+          title="Director's Contact"
           cardRef={directorContactRef}
           fields={[
             {
@@ -1136,16 +1408,39 @@ export function StepOthers({ state, set, next, back, accountOptions, submitConta
 
 // --- Step 7: Bill Settings ---
 
-export function StepBills({ state, set, next, back, accountOptions, submitBills, saveAndExit, isLastContentStep }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitBills' | 'saveAndExit' | 'isLastContentStep'>) {
+export function StepBills({
+  state,
+  set,
+  next,
+  back,
+  accountOptions,
+  submitBills,
+  saveAndExit,
+  isLastContentStep,
+}: Pick<
+  StepProps,
+  | 'state'
+  | 'set'
+  | 'next'
+  | 'back'
+  | 'accountOptions'
+  | 'submitBills'
+  | 'saveAndExit'
+  | 'isLastContentStep'
+>) {
   const stepSubmit = submitBills;
   const b = state.bills;
-  const upd = <K extends keyof BillsForm>(k: K, v: BillsForm[K]) => set({ bills: { ...b, [k]: v } });
+  const upd = <K extends keyof BillsForm>(k: K, v: BillsForm[K]) =>
+    set({ bills: { ...b, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
   const billCodes = ((accountOptions || {}).bill || []).map((e) => e.code);
   const billLabels = Object.fromEntries(
-    ((accountOptions || {}).bill || []).map((e) => [e.code, e.name ? `${e.code} · ${e.name}` : e.code])
+    ((accountOptions || {}).bill || []).map((e) => [
+      e.code,
+      e.name ? `${e.code} · ${e.name}` : e.code,
+    ]),
   );
 
   const tryNext = async () => {
@@ -1166,7 +1461,9 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
     <>
       <div className="page-head" style={{ textAlign: 'left', marginBottom: 18 }}>
         <h2 style={{ fontSize: 30 }}>Payment Settings</h2>
-        <p style={{ marginTop: 6 }}>Choose account code for expenses that will incur with supporting documents.</p>
+        <p style={{ marginTop: 6 }}>
+          Choose account code for expenses that will incur with supporting documents.
+        </p>
       </div>
 
       <div className="pc-stack">
@@ -1181,9 +1478,14 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
           labelAria={false}
           bodyStyle={{ display: 'block' }}
           header={
-            <div className="method-head method-head-static" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}>
+            <div
+              className="method-head method-head-static"
+              style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: 6 }}
+            >
               <div className="method-title">Payment Account Code</div>
-              <div className="acc-sub">Only selected account code will appear when adding a payment in Payment.</div>
+              <div className="acc-sub">
+                Only selected account code will appear when adding a payment in Payment.
+              </div>
             </div>
           }
         />
@@ -1205,16 +1507,33 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
 const ROLES = ['Admin', 'Accountant', 'Shop Manager', 'Cashier'];
 
 // Display label ↔ backend role value (matches Settings' _normalize_role_name).
-const roleToValue = (label: string | null | undefined): string => (label || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-const roleLabel = (value: string | null | undefined): string => (value || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const roleToValue = (label: string | null | undefined): string =>
+  (label || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+const roleLabel = (value: string | null | undefined): string =>
+  (value || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-export function StepInvite({ state, set, next, back, submitInvite, cancelInvite, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitInvite' | 'cancelInvite' | 'saveAndExit'>) {
+export function StepInvite({
+  state,
+  set,
+  next,
+  back,
+  submitInvite,
+  cancelInvite,
+  saveAndExit,
+}: Pick<
+  StepProps,
+  'state' | 'set' | 'next' | 'back' | 'submitInvite' | 'cancelInvite' | 'saveAndExit'
+>) {
   const list = state.invites.filter((x) => x.email && x.email.includes('@'));
   const [form, setForm] = useState({ first: '', last: '', email: '', role: '' });
   const notify = useToast();
   // Rows whose long name/email is expanded (wrapped) instead of truncated.
   const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const toggleExpanded = (key: string) => setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleExpanded = (key: string) =>
+    setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   // Confirmation modal nudging the user to invite an accountant — the later
   // steps need expertise. Shown automatically on arrival at the Invite step
   // (right after Save & Next on Select Module) and again on "Skip for now".
@@ -1223,10 +1542,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   // Portal the modal to <body> so its fixed overlay can't be clipped to a
   // transformed/overflow ancestor (which left the grey backdrop covering only
   // part of the page on desktop). Guarded for SSR — body isn't there yet.
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
   const setF = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
   // Show the "invalid email" hint only once the user has interacted with the
   // field, so a pristine empty form doesn't start out shouting an error.
@@ -1236,7 +1552,8 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   const emailInvalid = emailTouched && form.email.trim() !== '' && !emailOk;
   // Don't gate the button on email format — let the user click Send and get an
   // explicit toast explaining why, instead of a silently-disabled button.
-  const canSend = form.first.trim() && form.last.trim() && form.email.trim() && form.role && !sending;
+  const canSend =
+    form.first.trim() && form.last.trim() && form.email.trim() && form.role && !sending;
 
   const send = async () => {
     if (!canSend) return;
@@ -1269,7 +1586,13 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     const inv: Partial<{ id: string; email: string; role: string }> = result.invitation || {};
     const nextList = [
       ...list,
-      { id: inv.id, first: form.first.trim(), last: form.last.trim(), email: inv.email || sentEmail, role: inv.role || roleToValue(form.role) },
+      {
+        id: inv.id,
+        first: form.first.trim(),
+        last: form.last.trim(),
+        email: inv.email || sentEmail,
+        role: inv.role || roleToValue(form.role),
+      },
     ];
     set({ invites: nextList });
     setForm({ first: '', last: '', email: '', role: '' });
@@ -1316,7 +1639,12 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
               First Name<span className="req">*</span>
             </label>
             <div className="field">
-              <input type="text" placeholder="Enter first name" value={form.first} onChange={(e) => setF('first', e.target.value)} />
+              <input
+                type="text"
+                placeholder="Enter first name"
+                value={form.first}
+                onChange={(e) => setF('first', e.target.value)}
+              />
             </div>
           </div>
           <div className="invite-field">
@@ -1324,7 +1652,12 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
               Last Name<span className="req">*</span>
             </label>
             <div className="field">
-              <input type="text" placeholder="Enter last name" value={form.last} onChange={(e) => setF('last', e.target.value)} />
+              <input
+                type="text"
+                placeholder="Enter last name"
+                value={form.last}
+                onChange={(e) => setF('last', e.target.value)}
+              />
             </div>
           </div>
           <div className="invite-field">
@@ -1346,7 +1679,12 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
             <label>
               Role<span className="req">*</span>
             </label>
-            <MintySelect value={form.role} onChange={(v) => setF('role', v)} options={ROLES} placeholder="Select a role" />
+            <MintySelect
+              value={form.role}
+              onChange={(v) => setF('role', v)}
+              options={ROLES}
+              placeholder="Select a role"
+            />
           </div>
 
           <div className="invite-actions">
@@ -1363,7 +1701,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
           <div className="invite-list">
             <div className="invite-list-title">Pending invitations · {list.length}</div>
             {list.map((u, i) => {
-              const hasName = (u.first || u.last);
+              const hasName = u.first || u.last;
               const initials = hasName
                 ? `${(u.first?.[0] || '').toUpperCase()}${(u.last?.[0] || '').toUpperCase()}`
                 : (u.email[0] || '').toUpperCase();
@@ -1378,11 +1716,18 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
                     onClick={() => toggleExpanded(rowKey)}
                     title={expanded ? 'Click to collapse' : 'Click to show full address'}
                   >
-                    <div className="invite-name">{hasName ? `${u.first} ${u.last}`.trim() : u.email}</div>
+                    <div className="invite-name">
+                      {hasName ? `${u.first} ${u.last}`.trim() : u.email}
+                    </div>
                     {hasName && <div className="invite-email">{u.email}</div>}
                   </button>
                   <span className="invite-role">{roleLabel(u.role)}</span>
-                  <button type="button" className="icon-x" onClick={() => removeRow(i)} aria-label="Remove">
+                  <button
+                    type="button"
+                    className="icon-x"
+                    onClick={() => removeRow(i)}
+                    aria-label="Remove"
+                  >
                     <Icon.Close />
                   </button>
                 </div>
@@ -1412,57 +1757,66 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
         </div>
       </div>
 
-      {confirmSkip && mounted && ReactDOM.createPortal(
-        <div
-          className="skip-modal-overlay"
-          role="presentation"
-          onClick={() => setConfirmSkip(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 20,
-            background: 'rgba(15, 23, 27, 0.45)',
-          }}
-        >
+      {confirmSkip &&
+        mounted &&
+        ReactDOM.createPortal(
           <div
-            className="skip-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="skip-modal-title"
-            onClick={(e) => e.stopPropagation()}
+            className="skip-modal-overlay"
+            role="presentation"
+            onClick={() => setConfirmSkip(false)}
             style={{
-              background: '#f1f3f4',
-              border: '1px solid var(--line)',
-              borderRadius: 'var(--radius)',
-              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.22)',
-              padding: '26px 26px 22px',
-              maxWidth: 440,
-              width: '100%',
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20,
+              background: 'rgba(15, 23, 27, 0.45)',
             }}
           >
-            <p id="skip-modal-title" className="skip-modal-lead">
-              The following setup steps require accounting expertise.
-            </p>
-            <p className="skip-modal-body">
-              Xero recommends you invite your accountant or bookkeeper to assist you with these steps.
-            </p>
-            <p className="skip-modal-body" style={{ marginBottom: 32 }}>Do you want to invite users now?</p>
             <div
-              className="skip-modal-actions"
-              style={{ display: 'flex', justifyContent: 'center', gap: 10 }}
+              className="skip-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="skip-modal-title"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: '#f1f3f4',
+                border: '1px solid var(--line)',
+                borderRadius: 'var(--radius)',
+                boxShadow: '0 20px 48px rgba(0, 0, 0, 0.22)',
+                padding: '26px 26px 22px',
+                maxWidth: 440,
+                width: '100%',
+              }}
             >
-              <button type="button" className="btn btn-primary" onClick={() => setConfirmSkip(false)}>
-                Ok
-              </button>
+              <p id="skip-modal-title" className="skip-modal-lead">
+                The following setup steps require accounting expertise.
+              </p>
+              <p className="skip-modal-body">
+                Xero recommends you invite your accountant or bookkeeper to assist you with these
+                steps.
+              </p>
+              <p className="skip-modal-body" style={{ marginBottom: 32 }}>
+                Do you want to invite users now?
+              </p>
+              <div
+                className="skip-modal-actions"
+                style={{ display: 'flex', justifyContent: 'center', gap: 10 }}
+              >
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setConfirmSkip(false)}
+                >
+                  Ok
+                </button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
@@ -1518,11 +1872,6 @@ export function StepAllSet({
   const commit = useRef<Promise<void> | null>(null);
   useEffect(() => {
     if (commit.current) return;
-    if (typeof completeOnboarding !== 'function') {
-      commit.current = Promise.resolve();
-      setCommitting(false);
-      return;
-    }
     commit.current = (async () => {
       try {
         const result = await completeOnboarding();
@@ -1597,7 +1946,9 @@ export function StepAllSet({
       </div>
 
       <div className="mascot-video-wrap">
-        <img className="mascot-video" src="/all-set.png" alt="" aria-hidden="true" />
+        {/* 1260px WebP (3x the 420px slot), 106 KB. The PNG it replaced was 2526px and
+            4.2 MB -- 73% of everything under public/, shipped to everyone who finished. */}
+        <img className="mascot-video" src="/all-set.webp" alt="" aria-hidden="true" />
       </div>
 
       {/* NOTHING HERE APPEARS OUT OF NOWHERE. Everything below waits on two requests — the
@@ -1635,34 +1986,32 @@ export function StepAllSet({
       {/* One left-aligned column, centred on the page. The sentence, the label/value pair
           and the nudge share a left edge; only the buttons below are centred. */}
       {ready ? (
-      <div className="allset-facts">
-        <p className="allset-lede">
-          Your {trialDays}-day {moduleLabel} trial has started.
-        </p>
+        <div className="allset-facts">
+          <p className="allset-lede">
+            Your {trialDays}-day {moduleLabel} trial has started.
+          </p>
 
-        <dl className="allset-grid">
-          <dt>Entity</dt>
-          <dd className="is-entity">{state.entity.name || '—'}</dd>
-          <dt>Module enabled</dt>
-          <dd>{moduleLabel}</dd>
-          {/* Dropped entirely when the server gave us no date — see the note above. */}
-          {trialEndLabel ? (
-            <>
-              <dt>Trial period until</dt>
-              <dd>{trialEndLabel}</dd>
-            </>
-          ) : null}
-        </dl>
+          <dl className="allset-grid">
+            <dt>Entity</dt>
+            <dd className="is-entity">{state.entity.name || '—'}</dd>
+            <dt>Module enabled</dt>
+            <dd>{moduleLabel}</dd>
+            {/* Dropped entirely when the server gave us no date — see the note above. */}
+            {trialEndLabel ? (
+              <>
+                <dt>Trial period until</dt>
+                <dd>{trialEndLabel}</dd>
+              </>
+            ) : null}
+          </dl>
 
-        {/* Nothing to nudge someone about who has already authorised this entity. Gated on
+          {/* Nothing to nudge someone about who has already authorised this entity. Gated on
             CONSENT, not on owning a card: a payer can hold a card this entity was never
             authorised against, and only consent decides whether the trial converts. */}
-        {hasConsent === false ? (
-          <p className="allset-nudge">
-            Avoid interruption by adding a payment method today.
-          </p>
-        ) : null}
-      </div>
+          {hasConsent === false ? (
+            <p className="allset-nudge">Avoid interruption by adding a payment method today.</p>
+          ) : null}
+        </div>
       ) : null}
 
       {/* Both buttons or neither: which of them belongs here is one of the things the

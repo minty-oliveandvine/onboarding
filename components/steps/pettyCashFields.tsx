@@ -4,7 +4,6 @@
 // AccountCodesCard is rendered by BOTH StepAccountCode and StepBills -- the two are close
 // siblings differing mainly in which account set they pass in.
 
-
 // --- Step 4: Petty Cash Settings ---
 
 import { useState, useRef, useEffect, type DragEvent, type ReactNode, type Ref } from 'react';
@@ -28,7 +27,10 @@ export const CURRENCY_CODES: Record<string, string> = {
 // uuids); resolve it to the ISO code via the fetched registry. The name-based
 // map remains as a fallback for sessions saved before the uuid switch. Never
 // render a bare uuid — while the registry is still loading, show nothing.
-export const currencyCode = (c: string | null | undefined, registry: readonly Pick<CurrencyRow, 'currency_id' | 'iso_code' | 'currency_name'>[] = []): string => {
+export const currencyCode = (
+  c: string | null | undefined,
+  registry: readonly Pick<CurrencyRow, 'currency_id' | 'iso_code' | 'currency_name'>[] = [],
+): string => {
   const row = registry.find((r) => r.currency_id === c);
   if (row) return row.iso_code || row.currency_name;
   if (UUID_RE.test(c || '')) return '';
@@ -45,7 +47,14 @@ type MethodListProps = {
   autoFilled?: boolean;
 };
 
-export function MethodList({ title, methods, placeholder = 'Enter method name', onAdd, onChange, autoFilled = false }: MethodListProps) {
+export function MethodList({
+  title,
+  methods,
+  placeholder = 'Enter method name',
+  onAdd,
+  onChange,
+  autoFilled = false,
+}: MethodListProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [dragIdx, setDragIdx] = useState<number | null>(null);
@@ -123,7 +132,11 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
         <ul className="method-list">
           {methods.map((m, i) => (
             <li
-              className={'method-row' + (dragIdx === i ? ' is-dragging' : '') + (overIdx === i && dragIdx !== i ? ' is-drag-over' : '')}
+              className={
+                'method-row' +
+                (dragIdx === i ? ' is-dragging' : '') +
+                (overIdx === i && dragIdx !== i ? ' is-drag-over' : '')
+              }
               key={m + i}
               onDragOver={onDragOver(i)}
               onDrop={onDrop(i)}
@@ -133,7 +146,12 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
             >
               <span className="method-name">{m}</span>
               <div className="method-actions">
-                <button type="button" className="method-trash" aria-label={'Delete ' + m} onClick={() => remove(i)}>
+                <button
+                  type="button"
+                  className="method-trash"
+                  aria-label={'Delete ' + m}
+                  onClick={() => remove(i)}
+                >
                   <Icon.Trash />
                 </button>
                 <span
@@ -173,7 +191,12 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
               <button type="button" className="btn-cancel-outline" onClick={cancel}>
                 Cancel
               </button>
-              <button type="button" className="btn-mint-pill" disabled={!name.trim()} onClick={submit}>
+              <button
+                type="button"
+                className="btn-mint-pill"
+                disabled={!name.trim()}
+                onClick={submit}
+              >
                 Add
               </button>
             </div>
@@ -188,9 +211,24 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
   );
 }
 
-export function MintCheck({ checked, onChange, ariaLabel }: { checked: boolean; onChange: (next: boolean) => void; ariaLabel: string }) {
+export function MintCheck({
+  checked,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  ariaLabel: string;
+}) {
   return (
-    <button type="button" role="checkbox" aria-checked={checked} aria-label={ariaLabel} className={'mint-check' + (checked ? ' on' : '')} onClick={() => onChange(!checked)}>
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      className={'mint-check' + (checked ? ' on' : '')}
+      onClick={() => onChange(!checked)}
+    >
       {checked && <Icon.CheckSm />}
     </button>
   );
@@ -262,15 +300,31 @@ export function AccountCodesCard({
     }
   };
   const searchTextOf = (code: string) => (searchLabels ? labelOf(code) : code);
-  const filtered = codes.filter((c) => searchTextOf(c).toLowerCase().includes(q.trim().toLowerCase()));
+  const filtered = codes.filter((c) =>
+    searchTextOf(c).toLowerCase().includes(q.trim().toLowerCase()),
+  );
   return (
     <div className="method-card acc-card open">
       {header}
       <div className="method-body" style={bodyStyle}>
         <div className="acc-search">
-          <input type="text" placeholder="Search account code" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input
+            type="text"
+            placeholder="Search account code"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
           <span className="acc-search-icon">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20l-3.5-3.5" />
             </svg>
@@ -291,8 +345,12 @@ export function AccountCodesCard({
               />
             </li>
           ))}
-          {codes.length === 0 && <li className="acc-empty">Connect to Xero to load account codes</li>}
-          {codes.length > 0 && filtered.length === 0 && <li className="acc-empty">No matching account code</li>}
+          {codes.length === 0 && (
+            <li className="acc-empty">Connect to Xero to load account codes</li>
+          )}
+          {codes.length > 0 && filtered.length === 0 && (
+            <li className="acc-empty">No matching account code</li>
+          )}
         </ul>
       </div>
     </div>

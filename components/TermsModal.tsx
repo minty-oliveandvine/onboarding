@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Read-to-agree modal for the Terms of Use.
@@ -47,7 +47,7 @@ type TermsModalProps = {
 
 export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsModalProps) {
   const [doc, setDoc] = useState<TermsDoc | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [atEnd, setAtEnd] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -62,7 +62,7 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
         if (!cancelled) setDoc(d);
       })
       .catch(() => {
-        if (!cancelled) setError("Could not load the Terms. Please try again.");
+        if (!cancelled) setError('Could not load the Terms. Please try again.');
       });
     return () => {
       cancelled = true;
@@ -90,10 +90,10 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
   useEffect(() => {
     if (!open || !doc) return;
     const id = window.requestAnimationFrame(checkAtEnd);
-    window.addEventListener("resize", checkAtEnd);
+    window.addEventListener('resize', checkAtEnd);
     return () => {
       window.cancelAnimationFrame(id);
-      window.removeEventListener("resize", checkAtEnd);
+      window.removeEventListener('resize', checkAtEnd);
     };
   }, [open, doc, checkAtEnd]);
 
@@ -103,13 +103,13 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === 'Escape') onClose();
     };
-    window.addEventListener("keydown", onKey);
-    document.body.style.overflow = "hidden";
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = "";
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
     };
   }, [open, onClose]);
 
@@ -127,19 +127,18 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
     >
       <div className="tc-modal">
         <div className="tc-grid">
-
           {/* Left: heading, notices, the document */}
           <div className="tc-main">
             <h1 className="tc-title">Terms &amp; Conditions</h1>
             <p className="tc-lead">
-              Please review and accept our Terms &amp; Conditions and Privacy Policy to
-              finish setting up your account.
+              Please review and accept our Terms &amp; Conditions and Privacy Policy to finish
+              setting up your account.
             </p>
 
             {doc && doc.is_pinned === false && (
               <div className="tc-draft">
-                <strong>Draft.</strong> This wording is not final, so this screen is for
-                testing only.
+                <strong>Draft.</strong> This wording is not final, so this screen is for testing
+                only.
               </div>
             )}
 
@@ -201,7 +200,6 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
               </button>
             </div>
           </aside>
-
         </div>
       </div>
 
@@ -227,7 +225,8 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
           padding: 36px 38px 32px;
           margin: auto;
           color: #111827;
-          box-shadow: 0 10px 40px rgba(16, 24, 40, 0.16),
+          box-shadow:
+            0 10px 40px rgba(16, 24, 40, 0.16),
             0 2px 6px rgba(16, 24, 40, 0.06);
         }
         .tc-grid {
@@ -275,7 +274,8 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsM
           border: 1px solid #e5e7eb;
           border-radius: 12px;
           padding: 18px 10px 18px 20px;
-          box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04),
+          box-shadow:
+            0 1px 2px rgba(16, 24, 40, 0.04),
             0 4px 14px rgba(16, 24, 40, 0.05);
         }
         .tc-updated {

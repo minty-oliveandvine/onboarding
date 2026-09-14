@@ -28,10 +28,10 @@ Then open http://localhost:3001.
 Backend URLs are read from the environment (never hardcoded). Edit `.env` to
 point the frontend at a different backend:
 
-| Variable                     | Default                 | Purpose                                             |
-| ---------------------------- | ----------------------- | --------------------------------------------------- |
-| `NEXT_PUBLIC_MODULE1_API_URL`| `http://localhost:5001` | Primary base URL of the pettycash (Flask) backend, read by `lib/flaskBase.ts`. |
-| `NEXT_PUBLIC_ONBOARDING_API_URL` | `http://localhost:8001` | The extracted onboarding API (Django). Routing lives in `lib/apiRoutes.ts`. |
+| Variable                         | Default                 | Purpose                                                                        |
+| -------------------------------- | ----------------------- | ------------------------------------------------------------------------------ |
+| `NEXT_PUBLIC_MODULE1_API_URL`    | `http://localhost:5001` | Primary base URL of the pettycash (Flask) backend, read by `lib/flaskBase.ts`. |
+| `NEXT_PUBLIC_ONBOARDING_API_URL` | `http://localhost:8001` | The extracted onboarding API (Django). Routing lives in `lib/apiRoutes.ts`.    |
 
 `.env.example` ships with safe local defaults — a new dev just copies it.
 

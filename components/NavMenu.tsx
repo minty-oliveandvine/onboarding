@@ -4,13 +4,13 @@
 // same design, Material Symbols icons, and Inter font. Items are visual
 // placeholders for the onboarding flow (they close the drawer, no navigation).
 import { useEffect, useId, useState } from 'react';
+import { useMounted } from '../lib/useMounted';
 import { createPortal } from 'react-dom';
 import { urlFor } from '../lib/apiRoutes';
 
 // Spelled out rather than inherited because these styles are inline objects on a
 // portalled menu; it is the same Inter the app now uses everywhere.
-const INTER_STACK =
-  "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+const INTER_STACK = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
 
 const SECTIONS = [
   {
@@ -33,7 +33,7 @@ type NavMenuProps = {
 
 export default function NavMenu({ companyName = 'Minty', showFullMenu = false }: NavMenuProps) {
   const [open, setOpen] = useState(false);
-  const [portalReady, setPortalReady] = useState(false);
+  const portalReady = useMounted();
   const panelId = useId();
 
   const handleLogout = () => {
@@ -50,10 +50,7 @@ export default function NavMenu({ companyName = 'Minty', showFullMenu = false }:
         .slice(0, 3)
         .map((w) => w[0])
         .join('')
-        .toUpperCase() ||
-      '---';
-
-  useEffect(() => setPortalReady(true), []);
+        .toUpperCase() || '---';
 
   useEffect(() => {
     if (!open) return;
@@ -88,7 +85,10 @@ export default function NavMenu({ companyName = 'Minty', showFullMenu = false }:
       >
         <div className="flex flex-col gap-3 border-b border-primary/20 px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-w-0 items-center justify-between gap-3">
-            <span className="min-w-0 truncate text-sm font-semibold tracking-wide text-primary sm:text-base" title={abbr}>
+            <span
+              className="min-w-0 truncate text-sm font-semibold tracking-wide text-primary sm:text-base"
+              title={abbr}
+            >
               {abbr}
             </span>
             <button
@@ -102,7 +102,10 @@ export default function NavMenu({ companyName = 'Minty', showFullMenu = false }:
           </div>
           {showFullMenu && (
             <button type="button" onClick={() => setOpen(false)} className={itemClass}>
-              <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary" aria-hidden>
+              <span
+                className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary"
+                aria-hidden
+              >
                 corporate_fare
               </span>
               Select entity
@@ -113,46 +116,64 @@ export default function NavMenu({ companyName = 'Minty', showFullMenu = false }:
         <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 sm:py-4">
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
             {showFullMenu && (
-            <div className="w-full flex-none overflow-y-auto overscroll-contain">
-              <div className="flex flex-col gap-3">
-                {SECTIONS.map((section) => (
-                  <div
-                    key={section.title}
-                    className={`flex flex-col ${section.title === 'Payment Request' ? 'mt-6 gap-3' : 'gap-1'}`}
-                    role="group"
-                    aria-label={section.title}
-                  >
-                    <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-primary/70">{section.title}</p>
-                    <ul className="flex flex-col gap-1">
-                      {section.items.map((item) => (
-                        <li key={item.label} className="w-full">
-                          <button type="button" onClick={() => setOpen(false)} className={itemClass}>
-                            <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary" aria-hidden>
-                              {item.icon}
-                            </span>
-                            {item.label}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+              <div className="w-full flex-none overflow-y-auto overscroll-contain">
+                <div className="flex flex-col gap-3">
+                  {SECTIONS.map((section) => (
+                    <div
+                      key={section.title}
+                      className={`flex flex-col ${section.title === 'Payment Request' ? 'mt-6 gap-3' : 'gap-1'}`}
+                      role="group"
+                      aria-label={section.title}
+                    >
+                      <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-primary/70">
+                        {section.title}
+                      </p>
+                      <ul className="flex flex-col gap-1">
+                        {section.items.map((item) => (
+                          <li key={item.label} className="w-full">
+                            <button
+                              type="button"
+                              onClick={() => setOpen(false)}
+                              className={itemClass}
+                            >
+                              <span
+                                className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary"
+                                aria-hidden
+                              >
+                                {item.icon}
+                              </span>
+                              {item.label}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
             )}
 
-            <div className={`-mx-4 shrink-0 sm:-mx-6 ${showFullMenu ? 'mt-4 border-t border-primary/15' : ''}`} role="presentation">
+            <div
+              className={`-mx-4 shrink-0 sm:-mx-6 ${showFullMenu ? 'mt-4 border-t border-primary/15' : ''}`}
+              role="presentation"
+            >
               <div className="flex flex-col gap-1 px-4 pt-4 sm:px-6">
                 {showFullMenu && (
                   <button type="button" onClick={() => setOpen(false)} className={itemClass}>
-                    <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary" aria-hidden>
+                    <span
+                      className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary"
+                      aria-hidden
+                    >
                       settings
                     </span>
                     Settings
                   </button>
                 )}
                 <button type="button" onClick={handleLogout} className={itemClass}>
-                  <span className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary" aria-hidden>
+                  <span
+                    className="material-symbols-outlined shrink-0 text-[22px] leading-none text-primary"
+                    aria-hidden
+                  >
                     logout
                   </span>
                   Logout

@@ -95,7 +95,9 @@ describe('MintCheck', () => {
   });
 
   it('carries the `on` class only when checked', () => {
-    const { container, rerender } = render(<MintCheck checked={false} onChange={vi.fn()} ariaLabel="a" />);
+    const { container, rerender } = render(
+      <MintCheck checked={false} onChange={vi.fn()} ariaLabel="a" />,
+    );
     expect(container.querySelector('.mint-check')).not.toHaveClass('on');
     rerender(<MintCheck checked onChange={vi.fn()} ariaLabel="a" />);
     expect(container.querySelector('.mint-check')).toHaveClass('on');
@@ -115,8 +117,8 @@ describe('AccountCodesCard', () => {
       />,
     );
     const rowChecks = () =>
-      Array.from(utils.container.querySelectorAll('.acc-row')).map(
-        (li) => within(li as HTMLElement).getByRole('checkbox'),
+      Array.from(utils.container.querySelectorAll('.acc-row')).map((li) =>
+        within(li as HTMLElement).getByRole('checkbox'),
       );
     const selectAll = () => screen.getByRole('checkbox', { name: 'Select all' });
     return { onChange, rowChecks, selectAll, ...utils };
@@ -329,7 +331,11 @@ describe('PCSection', () => {
 
   it('renders the title and one row per field', () => {
     const { container } = render(
-      <PCSection title="Contacts" cardRef={ref()} fields={[field(), field({ label: 'Cash Sale' })]} />,
+      <PCSection
+        title="Contacts"
+        cardRef={ref()}
+        fields={[field(), field({ label: 'Cash Sale' })]}
+      />,
     );
     expect(screen.getByText('Contacts')).toBeInTheDocument();
     expect(container.querySelectorAll('.pc-field')).toHaveLength(2);
@@ -346,7 +352,9 @@ describe('PCSection', () => {
   });
 
   it('leaves a clean card unmarked', () => {
-    const { container } = render(<PCSection title="Contacts" cardRef={ref()} fields={[field(), field()]} />);
+    const { container } = render(
+      <PCSection title="Contacts" cardRef={ref()} fields={[field(), field()]} />,
+    );
     expect(container.querySelector('.pc-card')).not.toHaveClass('is-error');
     expect(container.querySelector('.field-required')).toBeNull();
   });

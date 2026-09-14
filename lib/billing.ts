@@ -104,7 +104,11 @@ export class BillingError extends Error {
 
 type CallOptions = { method?: string; body?: Record<string, unknown> };
 
-async function call<T>(token: string | null | undefined, path: string, { method = 'GET', body }: CallOptions = {}): Promise<T> {
+async function call<T>(
+  token: string | null | undefined,
+  path: string,
+  { method = 'GET', body }: CallOptions = {},
+): Promise<T> {
   if (!token) throw new BillingError('Your session expired. Sign in again to keep going.', 401);
 
   let res: Response;
@@ -143,7 +147,10 @@ async function call<T>(token: string | null | undefined, path: string, { method 
  * `has_billing_consent` before printing anything at all: a nomination without consent is
  * a card the payer has not agreed to be billed on.
  */
-export function fetchBillingStatus(token: string | null | undefined, entityId: string): Promise<BillingStatus> {
+export function fetchBillingStatus(
+  token: string | null | undefined,
+  entityId: string,
+): Promise<BillingStatus> {
   return call<BillingStatus>(
     token,
     `/api/onboarding/payment-method?entity_id=${encodeURIComponent(entityId)}`,
@@ -198,7 +205,9 @@ export function confirmCardSetup(
  * cards on this account" are different questions, and the dialog asks both. This replaced
  * the flat `fetchPaymentMethods` wrapper, which is why that one is gone (see the header).
  */
-export function fetchBillingAccounts(token: string | null | undefined): Promise<BillingAccountsResponse> {
+export function fetchBillingAccounts(
+  token: string | null | undefined,
+): Promise<BillingAccountsResponse> {
   return call<BillingAccountsResponse>(token, '/api/onboarding/billing/accounts');
 }
 

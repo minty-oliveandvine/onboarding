@@ -54,7 +54,7 @@ async function poke() {
     console.log(
       res.ok
         ? `  recompiled after ${what} (${ms}ms)`
-        : `  ${ORIGIN} answered ${res.status} after ${what}`
+        : `  ${ORIGIN} answered ${res.status} after ${what}`,
     );
   } catch (err) {
     // The server being down is the ordinary case when you stop it — say so plainly

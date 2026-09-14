@@ -23,13 +23,7 @@ const DISPLAY = getDisplaySteps(['pettyCash', 'bills']);
 function setup(props = {}) {
   const onClick = vi.fn();
   const utils = render(
-    <Stepper
-      current={1}
-      maxReached={1}
-      displaySteps={DISPLAY}
-      onClick={onClick}
-      {...props}
-    />,
+    <Stepper current={1} maxReached={1} displaySteps={DISPLAY} onClick={onClick} {...props} />,
   );
   const tiles = () => Array.from(utils.container.querySelectorAll('.step'));
   const tile = (firstId: number) =>

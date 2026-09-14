@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { friendlyError } from "@/lib/errorCopy";
-import AuthTopbar from "@/components/AuthTopbar";
-import { FLASK_BASE } from "@/lib/flaskBase";
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { friendlyError } from '@/lib/errorCopy';
+import AuthTopbar from '@/components/AuthTopbar';
+import { FLASK_BASE } from '@/lib/flaskBase';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 const CODE_TTL_SECONDS = 60;
@@ -14,31 +14,31 @@ const CODE_TTL_SECONDS = 60;
 const MAX_ATTEMPTS = 5;
 
 const maskEmail = (email: string) => {
-  if (!email || !email.includes("@")) return email || "your email";
-  const [local, domain] = email.split("@");
+  if (!email || !email.includes('@')) return email || 'your email';
+  const [local, domain] = email.split('@');
   if (local.length <= 1) return email;
-  return `${local[0]}${"*".repeat(Math.max(local.length - 1, 3))}@${domain}`;
+  return `${local[0]}${'*'.repeat(Math.max(local.length - 1, 3))}@${domain}`;
 };
 
 function ConfirmContent() {
   const searchParams = useSearchParams();
-  const email = searchParams.get("email") || "";
-  const inviteToken = searchParams.get("invite") || "";
-  const firstName = searchParams.get("fn") || "";
-  const lastName = searchParams.get("ln") || "";
+  const email = searchParams.get('email') || '';
+  const inviteToken = searchParams.get('invite') || '';
+  const firstName = searchParams.get('fn') || '';
+  const lastName = searchParams.get('ln') || '';
   // Terms agreement, carried from /auth where the tick box lives. Account
   // creation happens on THIS page's verify-code call, so the agreement has to
   // travel with it. These are a claim, not proof — the server decides for
   // itself whether to record anything (see _terms_consent_for_signup) and, once
   // REQUIRE_TERMS_AT_SIGNUP is on, whether to refuse the sign-up outright.
-  const termsAccepted = searchParams.get("ta") === "1";
-  const termsVersion = searchParams.get("tv") || "";
+  const termsAccepted = searchParams.get('ta') === '1';
+  const termsVersion = searchParams.get('tv') || '';
   const emailDisplay = maskEmail(email);
 
-  const [digits, setDigits] = useState<string[]>(["", "", "", "", "", ""]);
+  const [digits, setDigits] = useState<string[]>(['', '', '', '', '', '']);
   const [activeIdx, setActiveIdx] = useState(0);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
   const [resending, setResending] = useState(false);
   // Resend is gated behind a 60s cooldown that starts on load (and restarts on
@@ -52,7 +52,7 @@ function ConfirmContent() {
   const [locked, setLocked] = useState(false);
   const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
 
-  const code = digits.join("");
+  const code = digits.join('');
   const noAttempts = attemptsLeft === 0;
   const expired = secondsLeft <= 0;
   // `expired` deliberately does NOT gate this. Disabling Verify on a local
@@ -74,14 +74,14 @@ function ConfirmContent() {
   // see reads the same. The server remains the authority: Verify stays enabled
   // past zero (see canVerify) so its answer, not this line, decides.
   const statusWarning = error
-    ? ""
+    ? ''
     : locked
-    ? "Too many tries! I’ve locked this account for a bit—check back soon?"
-    : noAttempts
-    ? "No attempts left — please resend the code."
-    : expired
-    ? "This code has expired. Please request a new one."
-    : "";
+      ? 'Too many tries! I’ve locked this account for a bit—check back soon?'
+      : noAttempts
+        ? 'No attempts left — please resend the code.'
+        : expired
+          ? 'This code has expired. Please request a new one.'
+          : '';
 
   // Resend cooldown — ticks down to 0 once Resend Code has been triggered.
   useEffect(() => {
@@ -100,12 +100,12 @@ function ConfirmContent() {
 
   const onVerify = async () => {
     if (!canVerify) return;
-    setError("");
+    setError('');
     setVerifying(true);
     try {
       const res = await fetch(`${FLASK_BASE}/auth/email/verify-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email,
           code,
@@ -121,11 +121,13 @@ function ConfirmContent() {
       // survives refresh/new session — lock the whole form and show the message.
       if (res.status === 429) {
         setLocked(true);
-        setError(friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"));
+        setError(
+          friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"),
+        );
         setVerifying(false);
         return;
       }
-      if (!res.ok || data.status === "error") {
+      if (!res.ok || data.status === 'error') {
         // 400: wrong / expired / already-used code. Decrement the local display
         // counter on any server-acknowledged failure. Network errors (catch
         // branch) don't count — no code was actually submitted then.
@@ -136,7 +138,7 @@ function ConfirmContent() {
       }
       // Flask returns an absolute or relative redirect — both resolve fine.
       const target =
-        typeof data.redirect_url === "string" && data.redirect_url
+        typeof data.redirect_url === 'string' && data.redirect_url
           ? new URL(data.redirect_url, FLASK_BASE).toString()
           : FLASK_BASE;
       window.location.href = target;
@@ -148,12 +150,12 @@ function ConfirmContent() {
 
   const onResend = async () => {
     if (!canResend) return;
-    setError("");
+    setError('');
     setResending(true);
     try {
       const res = await fetch(`${FLASK_BASE}/auth/email/request-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
       const data = await res.json().catch(() => ({}));
@@ -161,11 +163,13 @@ function ConfirmContent() {
       // 429s. Keep the form locked and show the too-many-attempts message.
       if (res.status === 429) {
         setLocked(true);
-        setError(friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"));
+        setError(
+          friendlyError(data, "Too many tries. I've locked this for a bit — check back soon?"),
+        );
         setResending(false);
         return;
       }
-      if (!res.ok || data.status === "error") {
+      if (!res.ok || data.status === 'error') {
         // 400 covers early-resend ("Please wait a moment…") and other failures.
         setError(friendlyError(data, "I couldn't resend that code. Mind trying again?"));
         setResending(false);
@@ -173,7 +177,7 @@ function ConfirmContent() {
       }
       // Fresh code: clear the cells, refill attempts, restart the expiry
       // countdown, and kick off the cooldown so Resend can't be spammed.
-      setDigits(["", "", "", "", "", ""]);
+      setDigits(['', '', '', '', '', '']);
       setActiveIdx(0);
       setAttemptsLeft(MAX_ATTEMPTS);
       setSecondsLeft(CODE_TTL_SECONDS);
@@ -191,7 +195,7 @@ function ConfirmContent() {
    *  Android arrives as a single change event carrying the whole code rather
    *  than six separate ones. */
   const fillFrom = (start: number, raw: string) => {
-    const chars = raw.replace(/\D/g, "").split("");
+    const chars = raw.replace(/\D/g, '').split('');
     if (chars.length === 0) return;
     setDigits((cur) => {
       const next = [...cur];
@@ -204,7 +208,7 @@ function ConfirmContent() {
   };
 
   const setDigit = (i: number, raw: string) => {
-    const cleaned = raw.replace(/\D/g, "");
+    const cleaned = raw.replace(/\D/g, '');
     // More than one digit means autofill (or a paste the browser routed
     // through onChange). Spread it rather than keeping the last character,
     // which is what made a pasted code collapse into a single box.
@@ -224,7 +228,7 @@ function ConfirmContent() {
   };
 
   const onPaste = (i: number, e: React.ClipboardEvent<HTMLInputElement>) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "");
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '');
     if (!pasted) return;
     e.preventDefault();
     // A full-length code fills from the start wherever it was dropped —
@@ -234,7 +238,7 @@ function ConfirmContent() {
   };
 
   const onKeyDown = (i: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Backspace") {
+    if (e.key === 'Backspace') {
       // Standard OTP behaviour: clear this cell if it has something, otherwise
       // step back AND clear that one. Without the second half, backspace over
       // a full row only moves the cursor and appears to do nothing.
@@ -242,17 +246,17 @@ function ConfirmContent() {
       const target = digits[i] ? i : Math.max(0, i - 1);
       setDigits((cur) => {
         const next = [...cur];
-        next[target] = "";
+        next[target] = '';
         return next;
       });
       if (!digits[i] && i > 0) inputsRef.current[i - 1]?.focus();
       return;
     }
-    if (e.key === "ArrowLeft" && i > 0) {
+    if (e.key === 'ArrowLeft' && i > 0) {
       e.preventDefault();
       inputsRef.current[i - 1]?.focus();
     }
-    if (e.key === "ArrowRight" && i < 5) {
+    if (e.key === 'ArrowRight' && i < 5) {
       e.preventDefault();
       inputsRef.current[i + 1]?.focus();
     }
@@ -266,14 +270,32 @@ function ConfirmContent() {
         <div className="confirm-card">
           <div className="confirm-emblem" aria-hidden="true">
             <span className="confirm-emblem-circle">
-              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" />
                 <rect x="9.5" y="11" width="5" height="5" rx="1" />
                 <path d="M10.5 11V9.5a1.5 1.5 0 0 1 3 0V11" />
               </svg>
             </span>
             <span className="confirm-emblem-badge">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect x="3" y="5" width="18" height="14" rx="2" />
                 <path d="M3 7l9 6 9-6" />
               </svg>
@@ -300,7 +322,7 @@ function ConfirmContent() {
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={1}
-                className={"otp-cell" + (i === activeIdx ? " is-active" : "")}
+                className={'otp-cell' + (i === activeIdx ? ' is-active' : '')}
                 value={d}
                 disabled={locked}
                 onChange={(e) => setDigit(i, e.target.value)}
@@ -323,22 +345,26 @@ function ConfirmContent() {
             disabled={!canVerify}
             onClick={onVerify}
           >
-            {verifying ? "Verifying…" : "Verify Now"}
+            {verifying ? 'Verifying…' : 'Verify Now'}
           </button>
-          {error && <div className="auth-error" role="alert">{error}</div>}
+          {error && (
+            <div className="auth-error" role="alert">
+              {error}
+            </div>
+          )}
 
           <div className="confirm-status" aria-live="polite">
             {statusWarning ? (
               <span className="confirm-status-warn">{statusWarning}</span>
             ) : !locked && !noAttempts && attemptsLeft < MAX_ATTEMPTS ? (
               <>
-                {attemptsLeft} attempt{attemptsLeft === 1 ? "" : "s"} remaining
+                {attemptsLeft} attempt{attemptsLeft === 1 ? '' : 's'} remaining
               </>
             ) : null}
           </div>
 
           <p className="confirm-resend">
-            Didn&apos;t receive the code?{" "}
+            Didn&apos;t receive the code?{' '}
             <a
               className="auth-link"
               href="#"
@@ -347,19 +373,28 @@ function ConfirmContent() {
                 onResend();
               }}
               aria-disabled={!canResend}
-              style={!canResend ? { opacity: 0.55, pointerEvents: "none" } : undefined}
+              style={!canResend ? { opacity: 0.55, pointerEvents: 'none' } : undefined}
             >
               {resending
-                ? "Sending…"
+                ? 'Sending…'
                 : resendCooldown > 0
-                ? `Resend in 0:${String(resendCooldown).padStart(2, "0")}`
-                : "Resend Code"}
+                  ? `Resend in 0:${String(resendCooldown).padStart(2, '0')}`
+                  : 'Resend Code'}
             </a>
           </p>
         </div>
 
         <div className="confirm-footer" aria-hidden="true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="4" y="11" width="16" height="10" rx="2" />
             <path d="M8 11V8a4 4 0 0 1 8 0v3" />
           </svg>

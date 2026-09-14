@@ -51,7 +51,12 @@ export default function Stepper({ current, onClick, maxReached, displaySteps }: 
   }, [current, maxReached]);
 
   return (
-    <div className="stepper" ref={ref} data-screen-label="Stepper" style={{ '--step-count': displaySteps.length } as CSSProperties}>
+    <div
+      className="stepper"
+      ref={ref}
+      data-screen-label="Stepper"
+      style={{ '--step-count': displaySteps.length } as CSSProperties}
+    >
       {displaySteps.map((d) => {
         const isActive = d.ids.includes(current);
         const isDone = d.ids.every((i) => current > i);
@@ -72,11 +77,15 @@ export default function Stepper({ current, onClick, maxReached, displaySteps }: 
           <div
             key={d.ids[0]}
             data-step-key={d.ids[0]}
-            className={'step ' + status + (reachable ? '' : ' locked') + (clickable ? '' : ' not-clickable')}
+            className={
+              'step ' + status + (reachable ? '' : ' locked') + (clickable ? '' : ' not-clickable')
+            }
             onClick={() => clickable && onClick(targetId)}
             title={reachable ? undefined : 'Complete the previous steps first'}
           >
-            {(isDone || !reachable) && <span className="num">{isDone ? <Icon.Check /> : <Icon.Lock />}</span>}
+            {(isDone || !reachable) && (
+              <span className="num">{isDone ? <Icon.Check /> : <Icon.Lock />}</span>
+            )}
             <span className="label label-full">
               <span className="label-inner">{d.label}</span>
             </span>

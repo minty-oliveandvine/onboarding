@@ -31,7 +31,12 @@ describe('SaveExitLink', () => {
 
   it('shows Saving... and disables itself while in flight', async () => {
     let release: () => void = () => {};
-    const saveAndExit = vi.fn(() => new Promise<void>((r) => { release = r; }));
+    const saveAndExit = vi.fn(
+      () =>
+        new Promise<void>((r) => {
+          release = r;
+        }),
+    );
     render(<SaveExitLink saveAndExit={saveAndExit} submitFn={vi.fn()} />);
     await userEvent.click(screen.getByRole('button'));
     const btn = screen.getByRole('button');

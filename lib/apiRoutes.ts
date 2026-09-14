@@ -91,11 +91,11 @@ function matches(pattern: string[], segments: string[]): boolean {
 export function baseFor(path: string | null | undefined): string {
   // Compare the path only. A query string is never part of the routing decision,
   // and `?entity_id=…` on /state would otherwise defeat an exact match.
-  const pathname = String(path || '').split('?')[0].split('#')[0];
+  const pathname = String(path || '')
+    .split('?')[0]
+    .split('#')[0];
   const segments = pathname.split('/');
-  return DJANGO_PATTERNS.some((p) => matches(p, segments))
-    ? ONBOARDING_API_BASE
-    : FLASK;
+  return DJANGO_PATTERNS.some((p) => matches(p, segments)) ? ONBOARDING_API_BASE : FLASK;
 }
 
 /**

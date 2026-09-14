@@ -17,12 +17,14 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
   type SVGProps,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useMounted } from '../lib/useMounted';
 
 // Each tone swaps four colours plus the icon. Values match the Flask template.
 export type Tone = 'success' | 'error' | 'warning' | 'info';
@@ -33,7 +35,13 @@ const TONES: Record<Tone, ToneStyle> = {
   success: { border: '#a9d7cb', bg: '#f1fffc', title: '#017155', sub: '#92c6b9', label: 'Success' },
   error: { border: '#ffcccc', bg: '#fff1f1', title: '#F03D3D', sub: '#f57e7e', label: 'Error' },
   warning: { border: '#fee0aa', bg: '#fffaf1', title: '#DA8700', sub: '#e8b765', label: 'Warning' },
-  info: { border: '#a9d3ff', bg: '#f1f8ff', title: '#006FE6', sub: '#5ba2ee', label: 'Information' },
+  info: {
+    border: '#a9d3ff',
+    bg: '#f1f8ff',
+    title: '#006FE6',
+    sub: '#5ba2ee',
+    label: 'Information',
+  },
 };
 
 const DISMISS_MS = 4000;
@@ -59,7 +67,13 @@ function ToastIcon({ tone }: { tone: Tone }) {
     return (
       <svg {...common}>
         {ring}
-        <path d="M13 22.2l3.4 3.4L23 18.8" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        <path
+          d="M13 22.2l3.4 3.4L23 18.8"
+          stroke="#fff"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
       </svg>
     );
   }
@@ -67,14 +81,22 @@ function ToastIcon({ tone }: { tone: Tone }) {
     return (
       <svg {...common}>
         {ring}
-        <path d="M14.2 18.2l7.6 7.6M21.8 18.2l-7.6 7.6" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
+        <path
+          d="M14.2 18.2l7.6 7.6M21.8 18.2l-7.6 7.6"
+          stroke="#fff"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
       </svg>
     );
   }
   if (tone === 'warning') {
     return (
       <svg {...common}>
-        <path d="M16.3 12.6a2 2 0 013.4 0l9.1 15.8a2 2 0 01-1.7 3H8.9a2 2 0 01-1.7-3l9.1-15.8z" fill={c} />
+        <path
+          d="M16.3 12.6a2 2 0 013.4 0l9.1 15.8a2 2 0 01-1.7 3H8.9a2 2 0 01-1.7-3l9.1-15.8z"
+          fill={c}
+        />
         <path d="M18 18.4v5.2" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
         <circle cx="18" cy="27.4" r="1.4" fill="#fff" />
       </svg>
@@ -108,10 +130,9 @@ const ToastContext = createContext<ToastApi | null>(null);
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // The portal targets document.body, which does not exist during server render.
+  const mounted = useMounted();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => setMounted(true), []);
 
   const hide = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -137,17 +158,21 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const api = useRef<ToastApi | null>(null);
-  if (!api.current) {
-    api.current = {
+  // One stable object for the life of the provider. `show` and `hide` are useCallbacks
+  // with no deps, so this memo never recomputes -- the same identity the old
+  // build-once-into-a-ref gave, without reading a ref during render.
+  const api = useMemo<ToastApi>(
+    () => ({
       show,
       hide,
       success: (m?: string) => show(m || 'All done!', 'success'),
-      error: (m?: string) => show(m || "Something went wrong on my end. Mind trying again?", 'error'),
-      warning: (m?: string) => show(m || "Worth a quick look before you carry on.", 'warning'),
+      error: (m?: string) =>
+        show(m || 'Something went wrong on my end. Mind trying again?', 'error'),
+      warning: (m?: string) => show(m || 'Worth a quick look before you carry on.', 'warning'),
       info: (m?: string) => show(m || "Here's something worth knowing.", 'info'),
-    };
-  }
+    }),
+    [show, hide],
+  );
 
   const tone = TONES[toast?.tone || 'success'];
 
@@ -176,7 +201,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {toast?.message || ''}
           </p>
         </div>
-        <button type="button" className="shrink-0 cursor-pointer" onClick={hide} aria-label="Dismiss">
+        <button
+          type="button"
+          className="shrink-0 cursor-pointer"
+          onClick={hide}
+          aria-label="Dismiss"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -193,7 +223,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <ToastContext.Provider value={api.current}>
+    <ToastContext.Provider value={api}>
       {children}
       {mounted && createPortal(node, document.body)}
     </ToastContext.Provider>

@@ -6,5 +6,4 @@
 // NEXT_PUBLIC_* vars are inlined at build time, so in a deployed environment
 // this MUST be set: an unset value silently falls back to localhost and breaks
 // the Xero and OTP request/verify calls.
-export const FLASK_BASE =
-  process.env.NEXT_PUBLIC_MODULE1_API_URL || "http://localhost:5001";
+export const FLASK_BASE = process.env.NEXT_PUBLIC_MODULE1_API_URL || 'http://localhost:5001';

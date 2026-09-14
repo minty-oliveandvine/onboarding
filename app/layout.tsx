@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
-import "./globals.css";
-import { ToastProvider } from "@/components/Toast";
+import type { Metadata } from 'next';
+import './globals.css';
+import { ToastProvider } from '@/components/Toast';
 
 export const metadata: Metadata = {
-  title: "Getting Started — Onboarding",
-  description: "Entity creation onboarding flow",
+  title: 'Getting Started — Onboarding',
+  description: 'Entity creation onboarding flow',
 };
 
 export default function RootLayout({

@@ -1,30 +1,26 @@
-"use client";
+'use client';
 
-import { Suspense, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import {
-  savePendingInvite,
-  readPendingInvite,
-  clearPendingInvite,
-} from "../../lib/pendingInvite";
-import AuthTopbar from "@/components/AuthTopbar";
-import TermsModal from "@/components/TermsModal";
-import { FLASK_BASE } from "@/lib/flaskBase";
-import { friendlyError } from "@/lib/errorCopy";
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { savePendingInvite, readPendingInvite, clearPendingInvite } from '../../lib/pendingInvite';
+import AuthTopbar from '@/components/AuthTopbar';
+import TermsModal from '@/components/TermsModal';
+import { FLASK_BASE } from '@/lib/flaskBase';
+import { friendlyError } from '@/lib/errorCopy';
 import { isEmail } from '@/lib/validation';
 
 function AuthContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlInviteToken = searchParams.get("invite") || "";
-  const urlEmail = searchParams.get("email") || "";
-  const signupMode = searchParams.get("mode") === "signup";
-  const prefilledFirstName = searchParams.get("fn") || "";
-  const prefilledLastName = searchParams.get("ln") || "";
+  const urlInviteToken = searchParams.get('invite') || '';
+  const urlEmail = searchParams.get('email') || '';
+  const signupMode = searchParams.get('mode') === 'signup';
+  const prefilledFirstName = searchParams.get('fn') || '';
+  const prefilledLastName = searchParams.get('ln') || '';
   // Set by the backend when it bounces a wrong-account user back here after a
   // forced logout (?error=wrong_account). The Flask flash explaining why can't
   // cross origins to this page, so we reconstruct the message from the params.
-  const bouncedWrongAccount = searchParams.get("error") === "wrong_account";
+  const bouncedWrongAccount = searchParams.get('error') === 'wrong_account';
 
   // After a Xero logout/login hop, Xero redirects to the *bare* /auth (its
   // registered redirect URI), so invite/email may be missing from the URL. We
@@ -37,10 +33,15 @@ function AuthContent() {
     firstName: string;
     lastName: string;
   } | null>(null);
+  // A real effect, and the lint rule is silenced on purpose: this reads sessionStorage,
+  // which does not exist during server render. Reading it in a lazy initialiser would
+  // hydrate the client with a value the server never had and React would flag the
+  // mismatch; post-mount is the only place a browser-only read can go.
   useEffect(() => {
     if (urlInviteToken) return; // URL wins — nothing to recover.
     const pending = readPendingInvite(Date.now());
     if (pending) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser storage, post-hydration only
       setRecovered({
         invite: pending.invite,
         email: pending.email,
@@ -50,19 +51,19 @@ function AuthContent() {
     }
   }, [urlInviteToken]);
 
-  const inviteToken = urlInviteToken || recovered?.invite || "";
-  const prefilledEmail = urlEmail || recovered?.email || "";
-  const recoveredFirstName = prefilledFirstName || recovered?.firstName || "";
-  const recoveredLastName = prefilledLastName || recovered?.lastName || "";
+  const inviteToken = urlInviteToken || recovered?.invite || '';
+  const prefilledEmail = urlEmail || recovered?.email || '';
+  const recoveredFirstName = prefilledFirstName || recovered?.firstName || '';
+  const recoveredLastName = prefilledLastName || recovered?.lastName || '';
   const [email, setEmail] = useState(prefilledEmail);
   // Self-serve signup collects the name up front (the User model requires a
   // first/last name). In login/invite mode these stay as the prefilled values.
   const [firstName, setFirstName] = useState(recoveredFirstName);
   const [lastName, setLastName] = useState(recoveredLastName);
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState('');
   const emailValid = isEmail(email);
-  const namesValid = !signupMode || (firstName.trim() !== "" && lastName.trim() !== "");
+  const namesValid = !signupMode || (firstName.trim() !== '' && lastName.trim() !== '');
 
   const emailLocked = Boolean(inviteToken && prefilledEmail);
   // Show the "sign in as <email>" notice whenever someone arrives from an
@@ -89,7 +90,7 @@ function AuthContent() {
   // the end. A Xero user meets the full document on the acceptance gate after
   // login; this is how an OTP user meets the same thing.
   const [termsOpen, setTermsOpen] = useState(false);
-  const [termsVersion, setTermsVersion] = useState("");
+  const [termsVersion, setTermsVersion] = useState('');
   // Whether this person still owes an acceptance. Defaults to TRUE and only
   // ever relaxes on an explicit server answer, so a failed request, a slow
   // network or an unknown token all leave the tick box in place. Wrongly
@@ -102,8 +103,8 @@ function AuthContent() {
     if (!isSignupFlow) return;
     fetch(`${FLASK_BASE}/legal/current`)
       .then((r) => r.json())
-      .then((d) => setTermsVersion(d.terms_version || ""))
-      .catch(() => setTermsVersion(""));
+      .then((d) => setTermsVersion(d.terms_version || ''))
+      .catch(() => setTermsVersion(''));
   }, [isSignupFlow]);
 
   // Only an INVITE can be resolved this way — the answer is keyed on the invite
@@ -131,28 +132,39 @@ function AuthContent() {
 
   const canContinue = emailValid && namesValid && termsValid && !sending;
 
-  // Recovered values (and URL params) can resolve after the initial mount —
-  // the recovery effect runs post-render — so sync them into the editable
-  // fields when they appear. Only overwrite when there's a value, so a user's
-  // own typing isn't clobbered by an empty recovered field.
-  useEffect(() => {
+  // Recovered values (and URL params) can resolve after the initial mount — the
+  // recovery effect runs post-render — so adopt them into the editable fields when
+  // they appear. Only overwrite when there's a value, so a user's own typing isn't
+  // clobbered by an empty recovered field.
+  //
+  // Done DURING RENDER rather than in an effect (React's "adjusting state when a prop
+  // changes" pattern): each field remembers the last source value it saw and adopts
+  // a new one before the commit, so the old value never paints for a frame. The
+  // initial state is already the source value, so mount is a no-op either way.
+  const [seenEmail, setSeenEmail] = useState(prefilledEmail);
+  if (prefilledEmail !== seenEmail) {
+    setSeenEmail(prefilledEmail);
     if (prefilledEmail) setEmail(prefilledEmail);
-  }, [prefilledEmail]);
-  useEffect(() => {
+  }
+  const [seenFirst, setSeenFirst] = useState(recoveredFirstName);
+  if (recoveredFirstName !== seenFirst) {
+    setSeenFirst(recoveredFirstName);
     if (recoveredFirstName) setFirstName(recoveredFirstName);
-  }, [recoveredFirstName]);
-  useEffect(() => {
+  }
+  const [seenLast, setSeenLast] = useState(recoveredLastName);
+  if (recoveredLastName !== seenLast) {
+    setSeenLast(recoveredLastName);
     if (recoveredLastName) setLastName(recoveredLastName);
-  }, [recoveredLastName]);
+  }
 
   const onContinue = async () => {
     if (!emailValid || sending) return;
-    setError("");
+    setError('');
     setSending(true);
     try {
       const res = await fetch(`${FLASK_BASE}/auth/email/request-code`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         // The invite token rides along so the server can refuse a code that
         // would go to an address the invitation was not sent to (see
         // _validate_invite_for_email in the Flask app). Without it that guard
@@ -164,23 +176,23 @@ function AuthContent() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.status === "error") {
+      if (!res.ok || data.status === 'error') {
         setError(friendlyError(data, "I couldn't send that code. Mind trying again?"));
         setSending(false);
         return;
       }
       const qs = new URLSearchParams();
-      if (inviteToken) qs.set("invite", inviteToken);
-      qs.set("email", email);
-      if (firstName) qs.set("fn", firstName);
-      if (lastName) qs.set("ln", lastName);
+      if (inviteToken) qs.set('invite', inviteToken);
+      qs.set('email', email);
+      if (firstName) qs.set('fn', firstName);
+      if (lastName) qs.set('ln', lastName);
       // Carry the agreement to /auth/confirm, which is where verify-code (and
       // therefore account creation) actually happens. These params are only a
       // claim — the server records nothing it has not been told explicitly,
       // and enforces the requirement itself.
       if (showTermsBox && termsAccepted) {
-        qs.set("ta", "1");
-        if (termsVersion) qs.set("tv", termsVersion);
+        qs.set('ta', '1');
+        if (termsVersion) qs.set('tv', termsVersion);
       }
       // The invite now travels in the /auth/confirm URL, so the storage
       // fallback has done its job — clear it so it can't resurface later.
@@ -199,11 +211,11 @@ function AuthContent() {
       <main className="auth-page">
         <div className="auth-card">
           <div className="page-head">
-            <h2>{signupMode ? "Create your account" : "Welcome"}</h2>
+            <h2>{signupMode ? 'Create your account' : 'Welcome'}</h2>
             <p>
               {signupMode
-                ? "Sign up with your email to get started."
-                : "Start your journey with us today."}
+                ? 'Sign up with your email to get started.'
+                : 'Start your journey with us today.'}
             </p>
           </div>
 
@@ -211,14 +223,13 @@ function AuthContent() {
             <div className="auth-invite-notice" role="status">
               {bouncedWrongAccount ? (
                 <>
-                  You&apos;re signed in with a different account. This invitation
-                  was sent to <strong>{prefilledEmail}</strong> — please sign in
-                  with that account to accept it.
+                  You&apos;re signed in with a different account. This invitation was sent to{' '}
+                  <strong>{prefilledEmail}</strong> — please sign in with that account to accept it.
                 </>
               ) : (
                 <>
-                  This invitation was sent to <strong>{prefilledEmail}</strong>.
-                  Please sign in with that account to accept it.
+                  This invitation was sent to <strong>{prefilledEmail}</strong>. Please sign in with
+                  that account to accept it.
                 </>
               )}
             </div>
@@ -264,7 +275,7 @@ function AuthContent() {
                 onChange={(e) => setEmail(e.target.value)}
                 readOnly={emailLocked}
                 aria-readonly={emailLocked}
-                title={emailLocked ? "This invite was sent to this address" : undefined}
+                title={emailLocked ? 'This invite was sent to this address' : undefined}
               />
             </div>
 
@@ -292,7 +303,7 @@ function AuthContent() {
                     }}
                   />
                   <span>
-                    I agree to the{" "}
+                    I agree to the{' '}
                     <a
                       className="auth-link"
                       href={`${FLASK_BASE}/legal/terms`}
@@ -300,8 +311,8 @@ function AuthContent() {
                       rel="noopener noreferrer"
                     >
                       Terms of Use
-                    </a>{" "}
-                    and{" "}
+                    </a>{' '}
+                    and{' '}
                     <a
                       className="auth-link"
                       href={`${FLASK_BASE}/legal/privacy`}
@@ -335,13 +346,13 @@ function AuthContent() {
               disabled={!canContinue}
               onClick={onContinue}
             >
-              {sending
-                ? "Sending code…"
-                : signupMode
-                ? "Continue with Email"
-                : "Log in with OTP"}
+              {sending ? 'Sending code…' : signupMode ? 'Continue with Email' : 'Log in with OTP'}
             </button>
-            {error && <div className="auth-error" role="alert">{error}</div>}
+            {error && (
+              <div className="auth-error" role="alert">
+                {error}
+              </div>
+            )}
 
             <div className="auth-divider" role="separator">
               <span>or</span>
@@ -370,8 +381,8 @@ function AuthContent() {
                   });
                 }
                 const xqs = new URLSearchParams();
-                if (inviteToken) xqs.set("invite", inviteToken);
-                const suffix = xqs.toString() ? `?${xqs.toString()}` : "";
+                if (inviteToken) xqs.set('invite', inviteToken);
+                const suffix = xqs.toString() ? `?${xqs.toString()}` : '';
                 window.location.href = `${FLASK_BASE}/xero_auth${suffix}`;
               }}
             >
@@ -380,7 +391,7 @@ function AuthContent() {
             </button>
 
             <p className="auth-foot">
-              Don&apos;t have an account?{" "}
+              Don&apos;t have an account?{' '}
               <a
                 className="auth-link"
                 href="https://www.xero.com/signup/"
@@ -394,7 +405,16 @@ function AuthContent() {
 
           <div className="auth-notice">
             <span className="auth-notice-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M12 2l8 4v6c0 5-3.5 9-8 10-4.5-1-8-5-8-10V6l8-4z" />
                 <path d="M9 12l2 2 4-4" />
               </svg>

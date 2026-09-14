@@ -30,7 +30,8 @@ export const STORAGE_KEY = 'minty_onboarding_session';
 // clobber each other. Before an entity is created it has no id yet, so its
 // draft lives under the bare global key; once `submitEntity` assigns an id,
 // writes move to `minty_onboarding_session:<id>` and the bare draft is cleared.
-export const sessionKey = (entityId?: string | null): string => (entityId ? `${STORAGE_KEY}:${entityId}` : STORAGE_KEY);
+export const sessionKey = (entityId?: string | null): string =>
+  entityId ? `${STORAGE_KEY}:${entityId}` : STORAGE_KEY;
 
 // On a plain refresh the URL carries no entity_id, so we can't look up the
 // per-entity session key directly. Scan localStorage for every
@@ -61,7 +62,9 @@ export const findLatestSession = (): SavedSession | null => {
 };
 
 // No signature verification — client-side cache invalidation only.
-export function readJwtClaims(token?: string | null): { user_id: string | null; exp: number } | null {
+export function readJwtClaims(
+  token?: string | null,
+): { user_id: string | null; exp: number } | null {
   if (!token) return null;
   try {
     const part = token.split('.')[1];

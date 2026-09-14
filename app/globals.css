@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* Brand tokens shared with the payment-request module so Tailwind utilities
    like text-primary / bg-secondary resolve to the same colours. */
@@ -7,1013 +7,2232 @@
   --color-secondary: #54d3da;
 }
 
-  :root {
-    --bg: #ffffff;
-    --surface: #fbfbfa;
-    --surface-2: #f5f5f3;
-    --line: #ececea;
-    --line-strong: #d9d9d6;
-    --ink: #1b1d1c;
-    --ink-2: #4a4d4b;
-    --muted: #8a8d8b;
-    --muted-2: #b2b5b3;
-    --accent: #36c3b4;        /* teal */
-    --accent-hover: #2cb0a2;
-    --accent-soft: #e6f7f4;
-    --accent-ink: #0f7a6e;
-    --warn: #e8a13a;
-    --warn-soft: #fcf2dc;
-    --danger: #d9534f;
-    --radius: 14px;
-    --radius-sm: 10px;
-    --shadow-sm: 0 1px 2px rgba(15, 20, 25, 0.04), 0 1px 3px rgba(15, 20, 25, 0.05);
-    --shadow-md: 0 8px 24px rgba(15, 20, 25, 0.06), 0 2px 6px rgba(15, 20, 25, 0.04);
-  }
-  * { box-sizing: border-box; }
-  /* Inter, matching the design and Module 2. This is the ONLY place the typeface is
+:root {
+  --bg: #ffffff;
+  --surface: #fbfbfa;
+  --surface-2: #f5f5f3;
+  --line: #ececea;
+  --line-strong: #d9d9d6;
+  --ink: #1b1d1c;
+  --ink-2: #4a4d4b;
+  --muted: #8a8d8b;
+  --muted-2: #b2b5b3;
+  --accent: #36c3b4; /* teal */
+  --accent-hover: #2cb0a2;
+  --accent-soft: #e6f7f4;
+  --accent-ink: #0f7a6e;
+  --warn: #e8a13a;
+  --warn-soft: #fcf2dc;
+  --danger: #d9534f;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow-sm: 0 1px 2px rgba(15, 20, 25, 0.04), 0 1px 3px rgba(15, 20, 25, 0.05);
+  --shadow-md: 0 8px 24px rgba(15, 20, 25, 0.06), 0 2px 6px rgba(15, 20, 25, 0.04);
+}
+* {
+  box-sizing: border-box;
+}
+/* Inter, matching the design and Module 2. This is the ONLY place the typeface is
      set — every other rule says font-family: inherit — so the app changes face here and
      nowhere else. Plus Jakarta Sans was the previous default and is no longer requested
      in layout.tsx; do not reintroduce it in a single component. */
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
-  body { min-height: 100vh; }
-  button { font-family: inherit; cursor: pointer; }
-  input, select, textarea { font-family: inherit; }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  min-height: 100vh;
+}
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+input,
+select,
+textarea {
+  font-family: inherit;
+}
 
-  /* Top bar */
-  .topbar {
-    border-bottom: 1px solid var(--line);
-    background: var(--bg);
-  }
+/* Top bar */
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.topbar-inner {
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 1920px;
+  gap: 8px;
+  padding: 12px 16px;
+}
+@media (min-width: 640px) {
   .topbar-inner {
-    margin-left: auto;
-    margin-right: auto;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    max-width: 1920px;
+    gap: 12px;
+    padding: 16px 24px;
+  }
+}
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: -0.005em;
+}
+.brand-mark-img {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  object-fit: contain;
+  display: block;
+}
+.topbar h1 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+.topbar .right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+@media (min-width: 640px) {
+  .topbar .right {
     gap: 8px;
-    padding: 12px 16px;
   }
-  @media (min-width: 640px) {
-    .topbar-inner { gap: 12px; padding: 16px 24px; }
-  }
-  .topbar .brand { display: flex; align-items: center; gap: 10px; color: var(--ink); font-weight: 700; font-size: 15px; letter-spacing: -0.005em; }
-  .brand-mark-img { width: 26px; height: 26px; border-radius: 6px; object-fit: contain; display: block; }
-  .topbar h1 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; text-align: center; }
-  .topbar .right { display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
-  @media (min-width: 640px) { .topbar .right { gap: 8px; } }
-  .avatar { width: 28px; height: 28px; border: 0; padding: 0; border-radius: 50%; background: #FFE6B1; color: #6B3A12; display: grid; place-items: center; font-weight: 600; font-size: 12px; letter-spacing: normal; cursor: pointer; transition: opacity .15s ease; }
-  .avatar:hover { opacity: 0.9; }
-  .icon-btn { width: 40px; height: 40px; border-radius: 8px; border: 0; background: transparent; display: grid; place-items: center; color: #656565; cursor: pointer; transition: background .15s ease; }
-  .icon-btn:hover { background: color-mix(in oklab, #656565 10%, transparent); }
-  .icon-btn svg { display: block; }
+}
+.avatar {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffe6b1;
+  color: #6b3a12;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: normal;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.avatar:hover {
+  opacity: 0.9;
+}
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  color: #656565;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.icon-btn:hover {
+  background: color-mix(in oklab, #656565 10%, transparent);
+}
+.icon-btn svg {
+  display: block;
+}
 
-  /* Stepper */
-  .stepper {
-    position: relative;
-    display: grid;
-    grid-template-columns: repeat(var(--step-count, 7), 1fr);
-    gap: 0;
-    padding: 0;
-    border-bottom: 1px solid var(--line);
-    background: var(--bg);
+/* Stepper */
+.stepper {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(var(--step-count, 7), 1fr);
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.step + .step {
+  border-left: 1px solid var(--bg);
+}
+@keyframes waveDrift {
+  from {
+    transform: translateX(0);
   }
-  .step + .step { border-left: 1px solid var(--bg); }  @keyframes waveDrift {
-    from { transform: translateX(0); }
-    to   { transform: translateX(-50%); }
+  to {
+    transform: translateX(-50%);
   }
-  .step {
-    position: relative;
-    padding: 12px 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    font-size: 12.5px;
-    color: var(--ink-2);
-    background: #eef0f3;
-    border-radius: 0;
-    cursor: pointer;
-    user-select: none;
-    transition: color .2s ease, background .25s ease;
-    white-space: nowrap;
-    overflow: hidden;
-  }  @keyframes waveDrift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .step > .num, .step > .label { position: relative; z-index: 3; }
-  .step:hover:not(.locked):not(.not-clickable) { background: #e6e9ed; }
-  .step.locked { cursor: not-allowed; opacity: 0.55; }
-  /* On the final "All Set" step every step is frozen: no pointer, no hover
+}
+.step {
+  position: relative;
+  padding: 12px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: #eef0f3;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    color 0.2s ease,
+    background 0.25s ease;
+  white-space: nowrap;
+  overflow: hidden;
+}
+@keyframes waveDrift {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.step > .num,
+.step > .label {
+  position: relative;
+  z-index: 3;
+}
+.step:hover:not(.locked):not(.not-clickable) {
+  background: #e6e9ed;
+}
+.step.locked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+/* On the final "All Set" step every step is frozen: no pointer, no hover
      shift — but completed steps keep their full "done" styling (not dimmed). */
-  .step.not-clickable { cursor: default; }
-  .step .num {
-    width: auto; height: auto;
-    border-radius: 0;
-    background: transparent;
-    color: inherit;
-    font-weight: 600;
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 12.5px;
-    flex-shrink: 0;
-    box-shadow: none !important;
-    transition: color .25s ease;
-  }
-  .step .num:empty { display: none; }
-  .step.done {
-    background: #d6f1ee;
-    color: #0f7a6e;
-  }
-  .step.done .num { background: transparent; color: #0f7a6e; }
-  .step.done .label { color: #0f7a6e; }
-  .step.done:hover:not(.locked):not(.not-clickable) { background: #c4ebe6; }
-  .step.active {
-    color: #054b44;
-    background: #46D8CC;
+.step.not-clickable {
+  cursor: default;
+}
+.step .num {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  flex-shrink: 0;
+  box-shadow: none !important;
+  transition: color 0.25s ease;
+}
+.step .num:empty {
+  display: none;
+}
+.step.done {
+  background: #d6f1ee;
+  color: #0f7a6e;
+}
+.step.done .num {
+  background: transparent;
+  color: #0f7a6e;
+}
+.step.done .label {
+  color: #0f7a6e;
+}
+.step.done:hover:not(.locked):not(.not-clickable) {
+  background: #c4ebe6;
+}
+.step.active {
+  color: #054b44;
+  background: #46d8cc;
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
+    inset 0 -3px 8px rgba(0, 0, 0, 0.06),
+    0 4px 14px rgba(70, 216, 204, 0.45),
+    0 0 0 2px rgba(70, 216, 204, 0.25);
+  z-index: 2;
+  cursor: default;
+}
+/* Lock active step appearance against clicks/hover */
+.step.active:hover,
+.step.active:focus,
+.step.active:active {
+  color: #054b44;
+  background: #46d8cc;
+  filter: none;
+  transform: none;
+}
+@keyframes stepPulse {
+  0%,
+  100% {
     box-shadow:
       inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
       inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
       inset 0 -3px 8px rgba(0, 0, 0, 0.06),
       0 4px 14px rgba(70, 216, 204, 0.45),
       0 0 0 2px rgba(70, 216, 204, 0.25);
-    z-index: 2;
-    cursor: default;
   }
-  /* Lock active step appearance against clicks/hover */
-  .step.active:hover,
-  .step.active:focus,
-  .step.active:active { color: #054b44; background: #46D8CC; filter: none; transform: none; }
-  @keyframes stepPulse {
-    0%, 100% {
-      box-shadow:
-        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.35),
-        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
-        0 4px 14px rgba(70, 216, 204, 0.45),
-        0 0 0 2px rgba(70, 216, 204, 0.25);
-    }
-    50% {
-      box-shadow:
-        inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
-        inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
-        inset 0 -3px 8px rgba(0, 0, 0, 0.06),
-        0 6px 22px rgba(70, 216, 204, 0.55),
-        0 0 0 3px rgba(70, 216, 204, 0.35);
-    }
+  50% {
+    box-shadow:
+      inset 0 1.5px 0 rgba(255, 255, 255, 0.55),
+      inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
+      inset 0 -3px 8px rgba(0, 0, 0, 0.06),
+      0 6px 22px rgba(70, 216, 204, 0.55),
+      0 0 0 3px rgba(70, 216, 204, 0.35);
   }
-  .step.active .num {
-    background: transparent;
-    color: #054b44;
-    box-shadow: none;
+}
+.step.active .num {
+  background: transparent;
+  color: #054b44;
+  box-shadow: none;
+}
+.step.active .label {
+  color: #054b44;
+  font-weight: 600;
+}
+.step .label {
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+.step .label-inner {
+  display: inline-block;
+  transition: transform 0.25s ease;
+}
+.label.is-overflow .label-inner {
+  animation: labelScroll 6s ease-in-out 1s infinite alternate;
+}
+@keyframes labelScroll {
+  0%,
+  8% {
+    transform: translateX(0);
   }
-  .step.active .label { color: #054b44; font-weight: 600; }
-  .step .label {
-    overflow: hidden;
-    white-space: nowrap;
-    min-width: 0;
-    flex: 0 1 auto;
-    max-width: 100%;
+  50%,
+  58% {
+    transform: translateX(var(--scroll-end, 0));
   }
-  .step .label-inner {
-    display: inline-block;
-    transition: transform .25s ease;
+  100% {
+    transform: translateX(0);
   }
-  .label.is-overflow .label-inner {
-    animation: labelScroll 6s ease-in-out 1s infinite alternate;
+}
+.step .label {
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.label-full {
+  display: none;
+}
+.label-tiny {
+  display: inline;
+}
+@media (min-width: 1280px) {
+  .label-full {
+    display: inline;
   }
-  @keyframes labelScroll {
-    0%, 8%   { transform: translateX(0); }
-    50%, 58% { transform: translateX(var(--scroll-end, 0)); }
-    100%     { transform: translateX(0); }
+  .label-tiny {
+    display: none;
   }
-  .step .label { font-weight: 500; letter-spacing: -0.005em; }
-  .label-full { display: none; }
-  .label-tiny { display: inline; }
-  @media (min-width: 1280px) {
-    .label-full { display: inline; }
-    .label-tiny { display: none; }
-  }  .stepper { overflow-x: visible; overflow-y: visible; }  .substep-circle {
-    width: 20px; height: 20px;
-    border-radius: 50%;
-    border: 1.5px solid var(--line-strong);
-    background: var(--bg);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted);
-    font-size: 11px;
-    font-weight: 700;
-    line-height: 1;
-    flex-shrink: 0;
-    transition: background .2s ease, border-color .2s ease, transform .15s ease;
-  }
-  /* Petty Cash side menu — left-anchored vertical card */
+}
+.stepper {
+  overflow-x: visible;
+  overflow-y: visible;
+}
+.substep-circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  background: var(--bg);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease;
+}
+/* Petty Cash side menu — left-anchored vertical card */
+.pc-side-menu {
+  position: fixed;
+  top: 200px;
+  left: max(20px, calc(50vw - 360px - 220px));
+  width: 200px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow:
+    0 14px 32px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 20;
+}
+@media (max-width: 1180px) {
   .pc-side-menu {
-    position: fixed;
-    top: 200px;
-    left: max(20px, calc(50vw - 360px - 220px));
-    width: 200px;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 14px;
-    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.10), 0 2px 8px rgba(15, 23, 42, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    z-index: 20;
+    display: none;
   }
-  @media (max-width: 1180px) {
-    .pc-side-menu { display: none; }
-  }
-  /* Side menu sits in its own column; main page content stays centered. */
-  .pc-side-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 4px 8px 8px;
-    border-bottom: 1px solid var(--line);
-    margin-bottom: 4px;
-  }
-  .pc-side-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 14px 10px 10px;
-    border-radius: 12px;
-    border: 1.5px solid var(--line-strong);
-    background: var(--bg);
-    color: var(--ink-2);
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-    text-align: left;
-    width: 100%;
-    user-select: none;
-    cursor: pointer;
-    transition: background .15s ease, border-color .15s ease, color .15s ease;
-  }
-  .pc-side-item:hover:not(:disabled):not(.active) {
-    border-color: color-mix(in oklab, var(--accent) 55%, var(--line-strong));
-    color: var(--ink);
-  }
-  .pc-side-item:disabled {
-    cursor: default;
-    opacity: 0.55;
-  }
-  /* The current sub-step is disabled (no-op self-navigation) but must still
+}
+/* Side menu sits in its own column; main page content stays centered. */
+.pc-side-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 8px 8px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.pc-side-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px 10px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--ink-2);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  width: 100%;
+  user-select: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+.pc-side-item:hover:not(:disabled):not(.active) {
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--line-strong));
+  color: var(--ink);
+}
+.pc-side-item:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+/* The current sub-step is disabled (no-op self-navigation) but must still
      read as the active step, not a dimmed one. */
-  .pc-side-item.active:disabled { opacity: 1; }
-  .pc-side-item.active {
-    background: #46D8CC;
-    border-color: transparent;
-    color: #054b44;
-    box-shadow: 0 4px 12px rgba(70, 216, 204, 0.35);
+.pc-side-item.active:disabled {
+  opacity: 1;
+}
+.pc-side-item.active {
+  background: #46d8cc;
+  border-color: transparent;
+  color: #054b44;
+  box-shadow: 0 4px 12px rgba(70, 216, 204, 0.35);
+}
+.pc-side-item.done {
+  color: var(--ink);
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong));
+}
+.pc-side-item.active .substep-circle {
+  border-color: rgba(5, 75, 68, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+}
+.pc-side-item.done .substep-circle {
+  background: linear-gradient(135deg, #00cbc6 0%, #00d5bf 100%);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 203, 198, 0.35);
+}
+@media (max-width: 1180px) {
+  .pc-side-menu {
+    display: none;
   }
-  .pc-side-item.done { color: var(--ink); border-color: color-mix(in oklab, var(--accent) 45%, var(--line-strong)); }
-  .pc-side-item.active .substep-circle { border-color: rgba(5, 75, 68, 0.4); background: rgba(255, 255, 255, 0.85); }
-  .pc-side-item.done .substep-circle {
-    background: linear-gradient(135deg, #00CBC6 0%, #00D5BF 100%);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(0, 203, 198, 0.35);
-  }
-  @media (max-width: 1180px) {
-    .pc-side-menu { display: none; }
-  }
+}
 
-  /* Page */
-  .page { max-width: 720px; margin: 0 auto; padding: 56px 28px 120px; }
-  .page > * { max-width: 720px; margin-left: auto; margin-right: auto; }
-  .page-head { text-align: center; margin-bottom: 36px; }
-  .basic-info-cat {
-    display: block;
-    margin: 0 auto 14px;
-    width: 120px;
-    height: 120px;
-    object-fit: contain;
-  }
-  .page-head h2 { margin: 0 0 10px; font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
-  .page-head p { margin: 0; color: var(--muted); font-size: 15px; }
+/* Page */
+.page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 56px 28px 120px;
+}
+.page > * {
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.page-head {
+  text-align: center;
+  margin-bottom: 36px;
+}
+.basic-info-cat {
+  display: block;
+  margin: 0 auto 14px;
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+}
+.page-head h2 {
+  margin: 0 0 10px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.page-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
 
-  /* Form bits */
-  .field { display: flex; flex-direction: column; gap: 6px; }
-  .field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .field label .field-optional { font-weight: 400; color: var(--muted); }  .field input, .field select, .field textarea {
-    appearance: none;
-    -webkit-appearance: none;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    padding: 11px 13px;
-    font-size: 14px;
-    background: var(--bg);
-    color: var(--ink);
-    outline: none;
-    outline-offset: 0;
-    transition: border-color .18s ease, box-shadow .35s ease;
+/* Form bits */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.field label .field-optional {
+  font-weight: 400;
+  color: var(--muted);
+}
+.field input,
+.field select,
+.field textarea {
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+  outline-offset: 0;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.35s ease;
+}
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: var(--line-strong);
+}
+.field input:focus,
+.field input:focus-visible,
+.field select:focus,
+.field select:focus-visible,
+.field textarea:focus,
+.field textarea:focus-visible {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.field .input-prefix {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow: hidden;
+}
+.field .input-prefix .prefix {
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+  background: transparent;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--line-strong);
+}
+.field .input-prefix input {
+  border: 0;
+  flex: 1;
+  padding: 11px 13px;
+  font-size: 14px;
+  background: transparent;
+  outline: none;
+  color: var(--ink);
+}
+.field .input-prefix input:focus {
+  box-shadow: none;
+  animation: none;
+  border: 0;
+}
+.field .input-prefix:focus-within {
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+@keyframes mintRipple {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent);
   }
-  .field input:hover, .field select:hover, .field textarea:hover { border-color: var(--line-strong); }
-  .field input:focus, .field input:focus-visible,
-  .field select:focus, .field select:focus-visible,
-  .field textarea:focus, .field textarea:focus-visible {
-    outline: none;
-    border-color: var(--line-strong);
-    box-shadow: none;
+  60% {
+    box-shadow: 0 0 0 10px color-mix(in oklab, var(--accent) 0%, transparent);
   }
-  .field .input-prefix {
-    display: flex; align-items: center;
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    overflow: hidden;
+  100% {
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
   }
-  .field .input-prefix .prefix { padding: 0 12px; color: var(--muted); font-size: 14px; background: transparent; height: 100%; display: grid; place-items: center; border-right: 1px solid var(--line-strong); }
-  .field .input-prefix input { border: 0; flex: 1; padding: 11px 13px; font-size: 14px; background: transparent; outline: none; color: var(--ink); }
-  .field .input-prefix input:focus { box-shadow: none; animation: none; border: 0; }
-  .field .input-prefix:focus-within {
-    border-color: var(--line-strong);
-    box-shadow: none;
-  }
-  @keyframes mintRipple {
-    0%   { box-shadow: 0 0 0 0 color-mix(in oklab, var(--accent) 55%, transparent); }
-    60%  { box-shadow: 0 0 0 10px color-mix(in oklab, var(--accent) 0%, transparent); }
-    100% { box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent); }
-  }
-  /* Buttons */
-  .btn {
-    border: 0; border-radius: var(--radius-sm);
-    padding: 12px 20px;
-    font-size: 14px; font-weight: 600;
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    transition: background .2s ease, color .2s ease, border-color .2s ease, transform .15s ease, box-shadow .2s ease;
-  }
-  .btn:active { transform: scale(0.98); }
-  .btn-primary { background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%); color: white; box-shadow: 0 4px 12px rgba(0,203,198,0.28); }
-  .btn-primary:hover { box-shadow: 0 8px 22px rgba(0,203,198,0.4); }
-  .btn-primary[disabled] { background: var(--line-strong); color: white; cursor: not-allowed; box-shadow: none; transform: none; }
-  .btn-ghost { background: transparent; color: var(--ink-2); border: 1px solid var(--line-strong); }
-  .btn-ghost:hover { background: var(--surface-2); }
-  .btn-block { width: 100%; padding: 15px 20px; font-size: 15px; border-radius: 999px; }
-  .btn-link-center {
-    background: transparent; border: 0; color: var(--accent-ink);
-    font-family: inherit; font-weight: 600; font-size: 14px;
-    padding: 8px; cursor: pointer; align-self: center;
-    transition: color .2s ease;
-  }
-  .btn-link-center:hover { color: var(--accent); }
+}
+/* Buttons */
+.btn {
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+.btn:active {
+  transform: scale(0.98);
+}
+.btn-primary {
+  background: linear-gradient(90deg, #00cbc6 0%, #00d5bf 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 203, 198, 0.28);
+}
+.btn-primary:hover {
+  box-shadow: 0 8px 22px rgba(0, 203, 198, 0.4);
+}
+.btn-primary[disabled] {
+  background: var(--line-strong);
+  color: white;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+  border: 1px solid var(--line-strong);
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
+.btn-block {
+  width: 100%;
+  padding: 15px 20px;
+  font-size: 15px;
+  border-radius: 999px;
+}
+.btn-link-center {
+  background: transparent;
+  border: 0;
+  color: var(--accent-ink);
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 8px;
+  cursor: pointer;
+  align-self: center;
+  transition: color 0.2s ease;
+}
+.btn-link-center:hover {
+  color: var(--accent);
+}
 
-  /* Form stack used in Create Entity */
-  .form-stack { display: flex; flex-direction: column; gap: 18px; }
-  .form-stack .field input,
-  .form-stack .field select {
-    padding: 14px 16px;
-    border-radius: 10px;
-    font-size: 14px;
-  }
-  .form-stack .field label { font-size: 14px; }
-  .cta-stack { display: flex; flex-direction: column; gap: 10px; margin-top: 32px; max-width: 420px; margin-left: auto; margin-right: auto; }
+/* Form stack used in Create Entity */
+.form-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+.form-stack .field input,
+.form-stack .field select {
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+.form-stack .field label {
+  font-size: 14px;
+}
+.cta-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 32px;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
 
-  /* Nav row at bottom of step */
-  .step-nav {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-top: 28px;
-  }  /* Right-side action group: Save & Exit + Save & Next laid out horizontally,
+/* Nav row at bottom of step */
+.step-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+} /* Right-side action group: Save & Exit + Save & Next laid out horizontally,
      so every step footer reads [Back] ... [Save & Exit] [Save & Next]. */
-  .step-actions { display: flex; align-items: center; gap: 12px; }
+.step-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
 
-  /* Skip-confirmation modal (Step 3: Invite) */
-  .skip-modal-overlay {
-    position: fixed; inset: 0; z-index: 1000;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px;
-    /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
+/* Skip-confirmation modal (Step 3: Invite) */
+.skip-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
        near-black wash it replaces, and the difference in job is the point — at 12% the
        darkening barely separates anything, so it is the BLUR doing the work. Dropping the
        blur here does not degrade to "slightly less separation", it degrades to none. */
-    background: rgba(22, 32, 46, 0.12);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-  }
-  .skip-modal {
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
-    padding: 26px 26px 22px;
-    max-width: 440px; width: 100%;
-  }
-  .skip-modal-lead { margin: 0 0 12px; font-size: 16px; font-weight: 700; color: var(--ink); }
-  .skip-modal-body { margin: 0 0 12px; font-size: 14px; line-height: 1.55; color: var(--ink-2); }
-  .skip-modal-body:last-of-type { margin-bottom: 22px; }
-  .skip-modal-actions { display: flex; justify-content: center; gap: 10px; }
+  background: rgba(22, 32, 46, 0.12);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.skip-modal {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.22);
+  padding: 26px 26px 22px;
+  max-width: 440px;
+  width: 100%;
+}
+.skip-modal-lead {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.skip-modal-body {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.skip-modal-body:last-of-type {
+  margin-bottom: 22px;
+}
+.skip-modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
 
-  /* Cards */
-  .card {
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    padding: 18px;
-  }
-  /* Petty cash settings cards */
-  .pc-stack { display: flex; flex-direction: column; gap: 14px; }
-  .pc-card { border: 1.5px solid var(--line); border-radius: 14px; padding: 18px 20px; background: var(--bg); transition: border-color .2s ease, box-shadow .2s ease; }
-  .pc-title { font-weight: 700; font-size: 15.5px; color: var(--ink); margin-bottom: 4px; }
-  .pc-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
-  .pc-sub { font-size: 13px; color: var(--muted); }
-  /* In-dropdown "+ Add '<name>' as a new contact" row + inline create panel. */
-  .mselect-create { color: var(--accent-ink); font-weight: 600; border-top: 1px solid var(--line); }
-  .mselect-create .mselect-opt-label { color: var(--accent-ink); }
-  .mselect-create-panel { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-  .mselect-create-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .mselect-create-input { width: 100%; padding: 9px 11px; border: 1.5px solid var(--line-strong); border-radius: 10px; font-size: 14px; }
-  .mselect-create-input:focus, .mselect-create-input:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent); }
-  .mselect-create-error { color: #c0392b; font-size: 12.5px; }
-  .mselect-create-actions { display: flex; gap: 8px; }
-  .mselect-create-btn { flex: 1; padding: 8px 12px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; }
-  .mselect-create-btn.ghost { background: transparent; color: var(--accent-ink); border: 1.5px solid var(--accent); }
-  .mselect-create-btn.primary { background: var(--accent); color: #fff; border: 1.5px solid var(--accent); }
-  .mselect-create-btn:disabled { opacity: 0.55; cursor: default; }
-  .pc-link { color: var(--accent-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-  .pc-link:hover { color: var(--accent); }
-  .pc-hint { color: var(--muted-2); font-size: 12.5px; font-weight: 400; margin-left: 4px; }
-  .pc-field select {
-    appearance: none;
-    border: 1px solid var(--line-strong);
-    border-radius: 10px;
-    padding: 12px 14px;
-    font-size: 14px;
-    background: var(--bg);
-    color: var(--ink);
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a8d8b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 38px;
-  }
-  .pc-field select:hover { border-color: color-mix(in oklab, var(--accent) 35%, var(--line-strong)); }
-  .pc-field select:focus, .pc-field select:focus-visible {
-    outline: none;
-    border-color: var(--line-strong);
-    box-shadow: none;
-  }
-  .pc-card:focus-within { border-color: var(--line); box-shadow: none; }
-  .pc-card.is-error {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
-    animation: mintRipple .8s ease-out;
-  }
-  .pc-field.field-error .input-prefix {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 26%, transparent);
-  }
-  .field-required {
-    margin-top: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent-ink);
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .field-required::before {
-    content: "*";
-    font-size: 15px;
-    line-height: 1;
-    color: var(--accent);
-  }
-  /* Invalid input (e.g. a malformed invite email) — flag the field border. */
-  .field.field-error input,
-  .field.field-error select,
-  .field.field-error textarea {
-    border-color: var(--danger);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent);
-  }
+/* Cards */
+.card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+/* Petty cash settings cards */
+.pc-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pc-card {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: var(--bg);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.pc-title {
+  font-weight: 700;
+  font-size: 15.5px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.pc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+.pc-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+/* In-dropdown "+ Add '<name>' as a new contact" row + inline create panel. */
+.mselect-create {
+  color: var(--accent-ink);
+  font-weight: 600;
+  border-top: 1px solid var(--line);
+}
+.mselect-create .mselect-opt-label {
+  color: var(--accent-ink);
+}
+.mselect-create-panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mselect-create-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.mselect-create-input {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 10px;
+  font-size: 14px;
+}
+.mselect-create-input:focus,
+.mselect-create-input:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 25%, transparent);
+}
+.mselect-create-error {
+  color: #c0392b;
+  font-size: 12.5px;
+}
+.mselect-create-actions {
+  display: flex;
+  gap: 8px;
+}
+.mselect-create-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.mselect-create-btn.ghost {
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1.5px solid var(--accent);
+}
+.mselect-create-btn.primary {
+  background: var(--accent);
+  color: #fff;
+  border: 1.5px solid var(--accent);
+}
+.mselect-create-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.pc-link {
+  color: var(--accent-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pc-link:hover {
+  color: var(--accent);
+}
+.pc-hint {
+  color: var(--muted-2);
+  font-size: 12.5px;
+  font-weight: 400;
+  margin-left: 4px;
+}
+.pc-field select {
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a8d8b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 38px;
+}
+.pc-field select:hover {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--line-strong));
+}
+.pc-field select:focus,
+.pc-field select:focus-visible {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.pc-card:focus-within {
+  border-color: var(--line);
+  box-shadow: none;
+}
+.pc-card.is-error {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 22%, transparent);
+  animation: mintRipple 0.8s ease-out;
+}
+.pc-field.field-error .input-prefix {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 26%, transparent);
+}
+.field-required {
+  margin-top: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.field-required::before {
+  content: '*';
+  font-size: 15px;
+  line-height: 1;
+  color: var(--accent);
+}
+/* Invalid input (e.g. a malformed invite email) — flag the field border. */
+.field.field-error input,
+.field.field-error select,
+.field.field-error textarea {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent);
+}
 
-  /* Group divider (matches step h2 size) */
-  .pc-section-head { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
-  .pc-section-title { font-weight: 700; font-size: 22px; color: var(--ink); letter-spacing: -0.02em; }
-  .pc-section-sub { font-size: 14px; color: var(--muted); margin-top: 6px; }
-  .pc-stack > .pc-section-head + * { margin-top: 4px; }
+/* Group divider (matches step h2 size) */
+.pc-section-head {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.pc-section-title {
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+.pc-section-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.pc-stack > .pc-section-head + * {
+  margin-top: 4px;
+}
 
-  .method-card { border: 1.5px solid var(--line); border-radius: 14px; background: var(--bg); transition: border-color .2s ease; }
-  .method-card.open { }
-  .method-head { display: flex; align-items: center; justify-content: space-between; width: 100%; background: transparent; border: 0; padding: 18px 20px; cursor: pointer; }
-  .method-head-static { cursor: default; }
-  .method-title { font-weight: 700; font-size: 15.5px; color: var(--ink); letter-spacing: -0.005em; display: inline-flex; align-items: center; gap: 8px; }
-  .method-sparkle {
-    display: inline-flex;
-    width: 18px;
-    height: 18px;
-    color: #00CBC6;
-    animation: autofillSparkle 4.5s ease-in-out infinite;
-  }
-  .method-sparkle svg { width: 100%; height: 100%; }  .method-body { padding: 0 20px 16px; }
-  .method-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
-  .method-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 2px; border-bottom: 1px solid var(--line); transition: background .15s ease; }
-  .method-row:last-child { border-bottom: 0; }
-  .method-name { font-size: 14.5px; color: var(--ink-2); flex: 1; min-width: 0; }
-  .method-actions { display: inline-flex; align-items: center; gap: 4px; }
-  .method-trash {
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    padding: 6px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: inline-flex;
-    transition: color .15s ease, background .15s ease;
-  }
-  .method-trash:hover { color: var(--danger); background: rgba(217, 83, 79, 0.10); }
-  .method-drag {
-    color: var(--muted);
-    padding: 6px;
-    border-radius: 8px;
-    cursor: grab;
-    display: inline-flex;
-    transition: color .15s ease, background .15s ease;
-    -webkit-user-drag: element;
-    user-select: none;
-  }
-  .method-drag:hover { color: var(--ink); background: var(--surface-2); }
-  .method-drag:active { cursor: grabbing; background: var(--surface-2); }
-  .method-row.is-dragging { opacity: 0.45; }
-  .method-row.is-drag-over { background: var(--accent-soft); border-radius: 8px; }  .method-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px; padding: 14px; border: 1.5px solid var(--accent); background: transparent; color: var(--accent-ink); font-weight: 600; font-size: 14.5px; border-radius: 12px; cursor: pointer; transition: background .15s ease, transform .12s ease; }
-  .method-add:hover { background: var(--accent-soft); }
-  .method-add:active { transform: scale(0.99); }
+.method-card {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg);
+  transition: border-color 0.2s ease;
+}
+.method-card.open {
+}
+.method-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 18px 20px;
+  cursor: pointer;
+}
+.method-head-static {
+  cursor: default;
+}
+.method-title {
+  font-weight: 700;
+  font-size: 15.5px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.method-sparkle {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  color: #00cbc6;
+  animation: autofillSparkle 4.5s ease-in-out infinite;
+}
+.method-sparkle svg {
+  width: 100%;
+  height: 100%;
+}
+.method-body {
+  padding: 0 20px 16px;
+}
+.method-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+.method-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 2px;
+  border-bottom: 1px solid var(--line);
+  transition: background 0.15s ease;
+}
+.method-row:last-child {
+  border-bottom: 0;
+}
+.method-name {
+  font-size: 14.5px;
+  color: var(--ink-2);
+  flex: 1;
+  min-width: 0;
+}
+.method-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.method-trash {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+.method-trash:hover {
+  color: var(--danger);
+  background: rgba(217, 83, 79, 0.1);
+}
+.method-drag {
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 8px;
+  cursor: grab;
+  display: inline-flex;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+  -webkit-user-drag: element;
+  user-select: none;
+}
+.method-drag:hover {
+  color: var(--ink);
+  background: var(--surface-2);
+}
+.method-drag:active {
+  cursor: grabbing;
+  background: var(--surface-2);
+}
+.method-row.is-dragging {
+  opacity: 0.45;
+}
+.method-row.is-drag-over {
+  background: var(--accent-soft);
+  border-radius: 8px;
+}
+.method-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent-ink);
+  font-weight: 600;
+  font-size: 14.5px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    transform 0.12s ease;
+}
+.method-add:hover {
+  background: var(--accent-soft);
+}
+.method-add:active {
+  transform: scale(0.99);
+}
 
-  /* Method inline add-form */
-  .method-add-form { padding-top: 4px; }
-  .method-add-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
-  .method-add-field label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
-  .method-add-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .btn-cancel-outline {
-    background: transparent;
-    color: var(--accent-ink);
-    border: 1.5px solid var(--accent);
-    border-radius: 999px;
-    padding: 13px 20px;
-    font-size: 14.5px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background .15s ease;
-  }
-  .btn-cancel-outline:hover { background: var(--accent-soft); }
-  .btn-mint-pill {
-    background: var(--accent);
-    color: #fff;
-    border: 1.5px solid var(--accent);
-    border-radius: 999px;
-    padding: 13px 20px;
-    font-size: 14.5px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background .15s ease, opacity .15s ease;
-  }
-  .btn-mint-pill:hover:not(:disabled) { background: var(--accent-ink); border-color: var(--accent-ink); }
-  .btn-mint-pill:disabled { opacity: 0.55; cursor: not-allowed; }  @keyframes methodMenuIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-  /* Default-state button (resets a section back to original) */
-  .pc-head-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-  .pc-head-row h2 { margin: 0; }
-  /* Auto Fill button (Sales Setting top of page) */
-  .autofill-row {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 24px;
-    flex-wrap: wrap;
-  }
-  .autofill-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    font-family: inherit;
-    font-weight: 700;
-    font-size: 18px;
-    letter-spacing: -0.005em;
-    padding: 8px 22px;
-    border-radius: 999px;
-    cursor: pointer;
-    line-height: 1;
-    color: var(--accent-ink);
-    background: #fff;
-    border: 2px solid #00CBC6;
-    isolation: isolate;
-    overflow: hidden;
-    transition: padding .25s cubic-bezier(.34, 1.4, .64, 1), color .25s ease, transform .12s ease, background .25s ease;
-  }
-  /* Solid mint fill that scales in from the centre on hover/active */
-  .autofill-btn::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%);
+/* Method inline add-form */
+.method-add-form {
+  padding-top: 4px;
+}
+.method-add-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.method-add-field label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.method-add-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.btn-cancel-outline {
+  background: transparent;
+  color: var(--accent-ink);
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  padding: 13px 20px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+.btn-cancel-outline:hover {
+  background: var(--accent-soft);
+}
+.btn-mint-pill {
+  background: var(--accent);
+  color: #fff;
+  border: 1.5px solid var(--accent);
+  border-radius: 999px;
+  padding: 13px 20px;
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+.btn-mint-pill:hover:not(:disabled) {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+.btn-mint-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@keyframes methodMenuIn {
+  from {
     opacity: 0;
-    transform: scale(0.7);
-    transition: opacity .25s ease, transform .35s cubic-bezier(.34, 1.56, .64, 1);
-    z-index: 0;
+    transform: translateY(-4px);
   }
-  .autofill-btn > * { position: relative; z-index: 2; }
-  .autofill-btn:hover { padding: 8px 28px; color: #fff; }
-  .autofill-btn:hover::after { opacity: 1; transform: scale(1); }
-  .autofill-btn:active { transform: scale(0.97); }
-  .autofill-btn.is-active { color: #fff; border-color: transparent; }
-  .autofill-btn.is-active::after { opacity: 1; transform: scale(1); }
-  .autofill-logo {
-    width: 34px;
-    height: 34px;
-    object-fit: contain;
-    border-radius: 50%;
-    display: block;
-    flex-shrink: 0;
-  }
-  /* Sparkle: fade in/out + slight scale */
-  .autofill-spark {
-    display: inline-flex;
-    width: 26px;
-    height: 26px;
-    color: #00CBC6;
-    animation: autofillSparkle 4.5s ease-in-out infinite;
-  }
-  .autofill-spark svg { width: 100%; height: 100%; }
-  .autofill-btn:hover .autofill-spark,
-  .autofill-btn.is-active .autofill-spark { color: #fff; }
-  @keyframes autofillSparkle {
-    0%, 42%   { opacity: 1; transform: scale(1) rotate(0deg); }
-    50%       { opacity: 0.15; transform: scale(0.78) rotate(18deg); }
-    58%, 100% { opacity: 1; transform: scale(1) rotate(0deg); }
-  }
-  .autofill-label { display: inline-block; }
-  .autofill-hint { color: var(--muted); font-size: 13px; }
-
-  /* Passive "you still need to do X" reminder — informational, NOT an error. */
-  .step-reminder {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    max-width: 340px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    font-size: 12.5px;
-    line-height: 1.45;
-    text-align: left;
-    color: var(--accent-ink);
-    background: var(--accent-soft);
-    border: 1px solid color-mix(in oklab, var(--accent-ink) 18%, transparent);
-  }
-  .step-reminder svg { flex-shrink: 0; }
-
-  /* All Set mascot video */
-  .mascot-video-wrap {
-    display: flex;
-    justify-content: center;
-    margin: 28px auto 8px;
-  }
-  .mascot-video {
-    width: 420px;
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
-    background: transparent;
-    display: block;
-  }
-
-  /* Confetti — All Set celebration */
-  .confetti-stage {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    overflow: hidden;
-    z-index: 5;
-  }
-  .confetti-piece {
-    position: absolute;
-    top: 0;
-    transform: translate(0, var(--start-y, -120px)) rotate(var(--rot-start, 0deg));
-    opacity: 0;
-    animation-name: confettiFall;
-    animation-timing-function: cubic-bezier(.32, .68, .42, 1);
-    animation-fill-mode: forwards;
-    animation-iteration-count: 1;
-    will-change: transform, opacity;
-  }
-  @keyframes confettiFall {
-    0%   { transform: translate(0, var(--start-y)) rotate(var(--rot-start)) scale(0.6); opacity: 0; }
-    8%   { transform: translate(calc(var(--end-x) * 0.08), calc(var(--start-y) + 30px)) rotate(calc(var(--rot-start) * 0.6 + var(--rot-end) * 0.05)) scale(1); opacity: 1; }
-    75%  { opacity: 1; }
-    100% { transform: translate(var(--end-x), var(--end-y)) rotate(var(--rot-end)) scale(0.9); opacity: 0; }
-  }
-  /* Account codes selection card */
-  .acc-card .method-head { align-items: flex-start; }
-  .acc-sub { font-size: 13px; color: var(--muted); margin-top: 4px; font-weight: 400; letter-spacing: 0; }
-  .acc-search { position: relative; margin-bottom: 14px; }
-  .acc-search input { width: 100%; border: 1px solid var(--line-strong); border-radius: 10px; padding: 11px 38px 11px 14px; font-size: 14px; background: var(--bg); color: var(--ink); transition: border-color .15s ease, box-shadow .15s ease; box-sizing: border-box; }
-  .acc-search input:focus { outline: none; border-color: var(--line-strong); box-shadow: none; }
-  .acc-search-icon { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); display: inline-flex; pointer-events: none; }
-  .acc-allrow { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 0 2px 6px; }
-  .acc-all-label { font-size: 13.5px; color: var(--muted); }
-  .acc-list { list-style: none; margin: 0; padding: 0 14px 0 2px; max-height: 340px; overflow-y: auto; border-top: 1px solid var(--line); }
-  .acc-list::-webkit-scrollbar { width: 8px; }
-  .acc-list::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
-  .acc-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 2px; border-bottom: 1px solid var(--line); }
-  .acc-row:last-child { border-bottom: 0; }
-  .acc-name { font-size: 14.5px; color: var(--ink-2); }
-  .acc-empty { padding: 24px 2px; text-align: center; color: var(--muted); font-size: 13.5px; }
-
-  .mint-check { width: 22px; height: 22px; border-radius: 6px; border: 1.5px solid var(--line-strong); background: var(--bg); display: inline-grid; place-items: center; cursor: pointer; padding: 0; color: #fff; flex-shrink: 0; transition: background .15s ease, border-color .15s ease, transform .1s ease; }
-  .mint-check:hover { border-color: var(--accent); }
-  .mint-check.on { background: var(--accent); border-color: var(--accent); }
-  .mint-check.on:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
-  .mint-check:active { transform: scale(0.94); }
-
-  /* Petty Cash opening balance fields — pick up themed date picker */
-  .pc-card .field input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.55; cursor: pointer; filter: invert(40%) sepia(30%) saturate(560%) hue-rotate(135deg); }
-  .pc-card .field input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-
-  /* MintyDatePicker — themed calendar */
-  .mdp { position: relative; width: 100%; }
-  .mdp-trigger {
-    width: 100%; box-sizing: border-box;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    border: 1px solid var(--line-strong); background: var(--bg); color: var(--ink);
-    padding: 12px 14px; border-radius: 12px; font-size: 14.5px; font-family: inherit;
-    cursor: pointer; text-align: left;
-    transition: border-color .18s ease, box-shadow .25s ease;
-  }
-  .mdp-trigger:hover { border-color: color-mix(in oklab, var(--accent) 35%, var(--line-strong)); }
-  .mdp-trigger.open, .mdp-trigger:focus-visible { outline: none; border-color: var(--line-strong); box-shadow: none; }
-  .mdp-value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mdp-value.placeholder { color: var(--muted); }
-  .mdp-cal-icon { color: var(--muted); display: inline-flex; }
-  .mdp-trigger.open .mdp-cal-icon { color: var(--accent-ink); }
-  .mdp-today-tag {
-    flex-shrink: 0;
-    padding: 3px 9px;
-    border-radius: 999px;
-    background: var(--accent-soft);
-    color: var(--accent-ink);
-    font-size: 11.5px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    text-transform: uppercase;
-  }
-
-  .mdp-pop {
-    position: absolute; top: calc(100% + 8px); left: 0;
-    background: var(--bg); border: 1px solid var(--line);
-    border-radius: 16px; padding: 14px;
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12), 0 2px 6px rgba(15, 23, 42, 0.05);
-    z-index: 40; width: 304px;
-    animation: mdpIn .18s cubic-bezier(.2,.8,.2,1);
-  }
-  @keyframes mdpIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-  .mdp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .mdp-title { font-size: 14.5px; font-weight: 700; color: var(--ink); letter-spacing: -0.005em; }
-  .mdp-nav {
-    width: 30px; height: 30px; border-radius: 8px;
-    border: 0; background: transparent; color: var(--ink-2); cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: background .15s ease, color .15s ease;
-  }
-  .mdp-nav:hover { background: var(--accent-soft); color: var(--accent-ink); }
-  .mdp-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 4px; }
-  .mdp-dow-cell { text-align: center; font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 0; letter-spacing: 0.04em; text-transform: uppercase; }
-  .mdp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-  .mdp-cell {
-    aspect-ratio: 1; border: 0; background: transparent; color: var(--ink);
-    font-size: 13.5px; font-family: inherit; border-radius: 10px; cursor: pointer;
-    display: inline-flex; align-items: center; justify-content: center;
-    transition: background .14s ease, color .14s ease, transform .1s ease;
-  }
-  .mdp-cell.empty { cursor: default; pointer-events: none; }
-  .mdp-cell:hover:not(.selected):not(.empty) { background: var(--accent-soft); color: var(--accent-ink); }
-  .mdp-cell.today:not(.selected) { font-weight: 700; color: var(--accent-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
-  .mdp-cell.disabled {
-    color: var(--muted-2);
-    opacity: 0.45;
-    cursor: not-allowed;
-    background: transparent;
-  }
-  .mdp-cell.disabled:hover { background: transparent; color: var(--muted-2); }
-  .mdp-nav:disabled { color: var(--muted-2); opacity: 0.4; cursor: not-allowed; }
-  .mdp-nav:disabled:hover { background: transparent; color: var(--muted-2); }
-  .mdp-cell.selected {
-    color: #fff; font-weight: 700;
-    background: linear-gradient(90deg, #00CBC6 0%, #00D5BF 100%);
-    box-shadow: 0 4px 10px rgba(0, 203, 198, 0.32);
-  }
-  .mdp-cell:active:not(.empty) { transform: scale(0.92); }
-  .mdp-foot {
-    display: flex; justify-content: space-between; gap: 8px;
-    margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line);
-  }
-  .mdp-today-btn, .mdp-clear-btn {
-    border: 0; background: transparent; color: var(--accent-ink);
-    font-size: 13px; font-weight: 600; font-family: inherit;
-    padding: 6px 10px; border-radius: 8px; cursor: pointer;
-    transition: background .14s ease;
-  }
-  .mdp-today-btn:hover, .mdp-clear-btn:hover { background: var(--accent-soft); }
-  .mdp-clear-btn { color: var(--muted); }
-
-  /* User Invite */
-  .invite-grid { display: grid; gap: 18px; justify-items: center; }
-  .invite-card { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 24px; max-width: 460px; width: 100%; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04); margin-left: auto; margin-right: auto; }
-  .invite-list { width: 100%; max-width: 460px; margin-left: auto; margin-right: auto; }
-  .invite-card-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-  .invite-card-title { font-size: 19px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
-  .invite-close { background: transparent; border: 0; color: var(--muted); cursor: pointer; padding: 6px; border-radius: 8px; display: inline-flex; transition: background .12s ease, color .12s ease; }
-  .invite-close:hover { background: var(--surface-2); color: var(--ink); }
-  .invite-field { margin-bottom: 14px; }
-  .invite-field > label { display: block; font-size: 13.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
-  .invite-field .req { color: #e02d3c; margin-left: 2px; }
-  .invite-actions { display: flex; gap: 12px; margin-top: 22px; }
-  .invite-actions .btn { flex: 1; justify-content: center; }
-  .btn-cancel { border: 1.5px solid var(--accent); color: var(--accent-ink); background: transparent; }
-  .btn-cancel:hover { background: var(--accent-soft); }
-
-  .invite-list { display: flex; flex-direction: column; gap: 10px; }
-  .invite-list-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
-  .invite-row-card .icon-x {
-    background: transparent;
-    border: 0;
-    color: var(--muted);
-    padding: 6px;
-    border-radius: 8px;
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background .12s ease, color .12s ease;
-    flex-shrink: 0;
-  }
-  .invite-row-card .icon-x:hover { background: var(--surface-2); color: var(--ink); }
-  .invite-row-card { display: flex; align-items: center; gap: 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; transition: border-color .15s ease; }
-  .invite-row-card:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--line)); }
-  .invite-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #00CBC6 0%, #00D5BF 100%); color: #fff; font-weight: 700; font-size: 14px; display: grid; place-items: center; flex-shrink: 0; }
-  /* Clickable meta block: reset native button chrome, keep it left-aligned. */
-  .invite-meta { flex: 1; min-width: 0; appearance: none; -webkit-appearance: none; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; cursor: pointer; }
-  /* Truncate long names/emails so they can't push into the role pill and overlap. */
-  .invite-name { font-weight: 600; font-size: 14.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .invite-email { font-size: 13px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  /* Expanded: drop the ellipsis and wrap the full address onto multiple lines. */
-  .invite-meta.is-expanded .invite-name,
-  .invite-meta.is-expanded .invite-email { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
-  /* Keep the role pill at its natural size — never let flex squeeze it. */
-  .invite-role { flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: var(--accent-ink); background: var(--accent-soft); padding: 5px 11px; border-radius: 999px; }
-
-  
-  /* Info tooltip beside section titles */
-  .pc-section-title { display: inline-flex; align-items: center; gap: 8px; }
-  .info-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; color: var(--muted); cursor: help; outline: none; background: transparent; }
-  .info-tip:hover, .info-tip:focus-visible { color: var(--ink); }
-  .info-tip svg { width: 14px; height: 14px; }
-  .info-tip-pop {
-    position: absolute;
-    bottom: calc(100% + 10px);
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    background: rgba(255, 255, 255, 0.72);
-    -webkit-backdrop-filter: blur(18px) saturate(180%);
-    backdrop-filter: blur(18px) saturate(180%);
-    color: #0f172a;
-    font-size: 13px;
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.55;
-    padding: 14px 16px;
-    border-radius: 14px;
-    width: max-content;
-    max-width: 360px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity .18s ease, transform .18s ease;
-    z-index: 50;
-  }
-  .info-tip-pop p { margin: 0; }
-  .info-tip-pop p + p { margin-top: 8px; }
-  .info-tip:hover .info-tip-pop,
-  .info-tip:focus-visible .info-tip-pop {
+  to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
   }
+}
+/* Default-state button (resets a section back to original) */
+.pc-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.pc-head-row h2 {
+  margin: 0;
+}
+/* Auto Fill button (Sales Setting top of page) */
+.autofill-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.autofill-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.005em;
+  padding: 8px 22px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1;
+  color: var(--accent-ink);
+  background: #fff;
+  border: 2px solid #00cbc6;
+  isolation: isolate;
+  overflow: hidden;
+  transition:
+    padding 0.25s cubic-bezier(0.34, 1.4, 0.64, 1),
+    color 0.25s ease,
+    transform 0.12s ease,
+    background 0.25s ease;
+}
+/* Solid mint fill that scales in from the centre on hover/active */
+.autofill-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #00cbc6 0%, #00d5bf 100%);
+  opacity: 0;
+  transform: scale(0.7);
+  transition:
+    opacity 0.25s ease,
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  z-index: 0;
+}
+.autofill-btn > * {
+  position: relative;
+  z-index: 2;
+}
+.autofill-btn:hover {
+  padding: 8px 28px;
+  color: #fff;
+}
+.autofill-btn:hover::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.autofill-btn:active {
+  transform: scale(0.97);
+}
+.autofill-btn.is-active {
+  color: #fff;
+  border-color: transparent;
+}
+.autofill-btn.is-active::after {
+  opacity: 1;
+  transform: scale(1);
+}
+.autofill-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  border-radius: 50%;
+  display: block;
+  flex-shrink: 0;
+}
+/* Sparkle: fade in/out + slight scale */
+.autofill-spark {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  color: #00cbc6;
+  animation: autofillSparkle 4.5s ease-in-out infinite;
+}
+.autofill-spark svg {
+  width: 100%;
+  height: 100%;
+}
+.autofill-btn:hover .autofill-spark,
+.autofill-btn.is-active .autofill-spark {
+  color: #fff;
+}
+@keyframes autofillSparkle {
+  0%,
+  42% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    opacity: 0.15;
+    transform: scale(0.78) rotate(18deg);
+  }
+  58%,
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+.autofill-label {
+  display: inline-block;
+}
+.autofill-hint {
+  color: var(--muted);
+  font-size: 13px;
+}
 
-  /* MintySelect — themed dropdown */
-  .mselect { position: relative; width: 100%; }
-  .mselect-trigger {
-    width: 100%;
-    display: flex; align-items: center; justify-content: space-between; gap: 10px;
-    background: var(--bg);
-    border: 1px solid var(--line-strong);
-    border-radius: 12px;
-    padding: 12px 14px;
-    font: inherit; font-size: 14px; color: var(--ink);
-    text-align: left;
-    cursor: pointer;
-    transition: border-color .18s ease, box-shadow .35s ease, background .15s ease;
-  }
-  .mselect-trigger:hover { border-color: color-mix(in oklab, var(--accent) 40%, var(--line-strong)); }
-  .mselect.open .mselect-trigger,
-  .mselect-trigger:focus, .mselect-trigger:focus-visible {
-    outline: none;
-    border-color: var(--line-strong);
-    box-shadow: none;
-  }
-  .mselect-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .mselect-value.placeholder { color: var(--muted); }
-  .mselect-caret { display: grid; place-items: center; color: var(--muted); transition: transform .25s ease, color .2s ease; }
-  .mselect.open .mselect-caret { transform: rotate(180deg); color: var(--accent); }
-  .mselect-clear {
-    flex: 0 0 auto;
-    display: grid; place-items: center;
-    width: 22px; height: 22px;
-    padding: 0; margin: 0;
-    border: 0; border-radius: 999px;
-    background: transparent;
-    color: var(--muted);
-    cursor: pointer;
-    transition: background .15s ease, color .15s ease;
-  }
-  .mselect-clear:hover { background: color-mix(in oklab, var(--line-strong) 45%, transparent); color: var(--ink); }
-  .mselect-clear:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .mselect.disabled { opacity: 0.55; pointer-events: none; }
+/* Passive "you still need to do X" reminder — informational, NOT an error. */
+.step-reminder {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  max-width: 340px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  text-align: left;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  border: 1px solid color-mix(in oklab, var(--accent-ink) 18%, transparent);
+}
+.step-reminder svg {
+  flex-shrink: 0;
+}
 
-  .mselect-menu {
-    position: absolute; top: calc(100% + 6px); left: 0; right: 0;
-    z-index: 20;
-    background: var(--bg);
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    padding: 6px;
-    box-shadow: 0 12px 32px rgba(15,20,25,0.10), 0 2px 8px rgba(15,20,25,0.06);
-    max-height: 260px; overflow-y: auto;
-    animation: mselectIn .18s ease-out;
-    transform-origin: top center;
+/* All Set mascot video */
+.mascot-video-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 28px auto 8px;
+}
+.mascot-video {
+  width: 420px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  background: transparent;
+  display: block;
+}
+
+/* Confetti — All Set celebration */
+.confetti-stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  transform: translate(0, var(--start-y, -120px)) rotate(var(--rot-start, 0deg));
+  opacity: 0;
+  animation-name: confettiFall;
+  animation-timing-function: cubic-bezier(0.32, 0.68, 0.42, 1);
+  animation-fill-mode: forwards;
+  animation-iteration-count: 1;
+  will-change: transform, opacity;
+}
+@keyframes confettiFall {
+  0% {
+    transform: translate(0, var(--start-y)) rotate(var(--rot-start)) scale(0.6);
+    opacity: 0;
   }
-  @keyframes mselectIn {
-    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+  8% {
+    transform: translate(calc(var(--end-x) * 0.08), calc(var(--start-y) + 30px))
+      rotate(calc(var(--rot-start) * 0.6 + var(--rot-end) * 0.05)) scale(1);
+    opacity: 1;
   }
-  /* High specificity so it beats `.form-stack .field input` (0,2,1), which would
+  75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--end-x), var(--end-y)) rotate(var(--rot-end)) scale(0.9);
+    opacity: 0;
+  }
+}
+/* Account codes selection card */
+.acc-card .method-head {
+  align-items: flex-start;
+}
+.acc-sub {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.acc-search {
+  position: relative;
+  margin-bottom: 14px;
+}
+.acc-search input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  padding: 11px 38px 11px 14px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--ink);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+.acc-search input:focus {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.acc-search-icon {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  display: inline-flex;
+  pointer-events: none;
+}
+.acc-allrow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 0 2px 6px;
+}
+.acc-all-label {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.acc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 14px 0 2px;
+  max-height: 340px;
+  overflow-y: auto;
+  border-top: 1px solid var(--line);
+}
+.acc-list::-webkit-scrollbar {
+  width: 8px;
+}
+.acc-list::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 4px;
+}
+.acc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.acc-row:last-child {
+  border-bottom: 0;
+}
+.acc-name {
+  font-size: 14.5px;
+  color: var(--ink-2);
+}
+.acc-empty {
+  padding: 24px 2px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.mint-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1.5px solid var(--line-strong);
+  background: var(--bg);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  color: #fff;
+  flex-shrink: 0;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.1s ease;
+}
+.mint-check:hover {
+  border-color: var(--accent);
+}
+.mint-check.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.mint-check.on:hover {
+  background: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+.mint-check:active {
+  transform: scale(0.94);
+}
+
+/* Petty Cash opening balance fields — pick up themed date picker */
+.pc-card .field input[type='date']::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  filter: invert(40%) sepia(30%) saturate(560%) hue-rotate(135deg);
+}
+.pc-card .field input[type='date']::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* MintyDatePicker — themed calendar */
+.mdp {
+  position: relative;
+  width: 100%;
+}
+.mdp-trigger {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--ink);
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 14.5px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.25s ease;
+}
+.mdp-trigger:hover {
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--line-strong));
+}
+.mdp-trigger.open,
+.mdp-trigger:focus-visible {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.mdp-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mdp-value.placeholder {
+  color: var(--muted);
+}
+.mdp-cal-icon {
+  color: var(--muted);
+  display: inline-flex;
+}
+.mdp-trigger.open .mdp-cal-icon {
+  color: var(--accent-ink);
+}
+.mdp-today-tag {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mdp-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.12),
+    0 2px 6px rgba(15, 23, 42, 0.05);
+  z-index: 40;
+  width: 304px;
+  animation: mdpIn 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes mdpIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mdp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.mdp-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.mdp-nav {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.mdp-nav:hover {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.mdp-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 4px;
+}
+.mdp-dow-cell {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 6px 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mdp-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.mdp-cell {
+  aspect-ratio: 1;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-family: inherit;
+  border-radius: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.14s ease,
+    color 0.14s ease,
+    transform 0.1s ease;
+}
+.mdp-cell.empty {
+  cursor: default;
+  pointer-events: none;
+}
+.mdp-cell:hover:not(.selected):not(.empty) {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.mdp-cell.today:not(.selected) {
+  font-weight: 700;
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+.mdp-cell.disabled {
+  color: var(--muted-2);
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: transparent;
+}
+.mdp-cell.disabled:hover {
+  background: transparent;
+  color: var(--muted-2);
+}
+.mdp-nav:disabled {
+  color: var(--muted-2);
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.mdp-nav:disabled:hover {
+  background: transparent;
+  color: var(--muted-2);
+}
+.mdp-cell.selected {
+  color: #fff;
+  font-weight: 700;
+  background: linear-gradient(90deg, #00cbc6 0%, #00d5bf 100%);
+  box-shadow: 0 4px 10px rgba(0, 203, 198, 0.32);
+}
+.mdp-cell:active:not(.empty) {
+  transform: scale(0.92);
+}
+.mdp-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.mdp-today-btn,
+.mdp-clear-btn {
+  border: 0;
+  background: transparent;
+  color: var(--accent-ink);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.mdp-today-btn:hover,
+.mdp-clear-btn:hover {
+  background: var(--accent-soft);
+}
+.mdp-clear-btn {
+  color: var(--muted);
+}
+
+/* User Invite */
+.invite-grid {
+  display: grid;
+  gap: 18px;
+  justify-items: center;
+}
+.invite-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 460px;
+  width: 100%;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+  margin-left: auto;
+  margin-right: auto;
+}
+.invite-list {
+  width: 100%;
+  max-width: 460px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.invite-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+.invite-card-title {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.invite-close {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: inline-flex;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.invite-close:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.invite-field {
+  margin-bottom: 14px;
+}
+.invite-field > label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+.invite-field .req {
+  color: #e02d3c;
+  margin-left: 2px;
+}
+.invite-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 22px;
+}
+.invite-actions .btn {
+  flex: 1;
+  justify-content: center;
+}
+.btn-cancel {
+  border: 1.5px solid var(--accent);
+  color: var(--accent-ink);
+  background: transparent;
+}
+.btn-cancel:hover {
+  background: var(--accent-soft);
+}
+
+.invite-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.invite-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.invite-row-card .icon-x {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+  flex-shrink: 0;
+}
+.invite-row-card .icon-x:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.invite-row-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px 18px;
+  transition: border-color 0.15s ease;
+}
+.invite-row-card:hover {
+  border-color: color-mix(in oklab, var(--accent) 45%, var(--line));
+}
+.invite-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00cbc6 0%, #00d5bf 100%);
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+/* Clickable meta block: reset native button chrome, keep it left-aligned. */
+.invite-meta {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+/* Truncate long names/emails so they can't push into the role pill and overlap. */
+.invite-name {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.invite-email {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Expanded: drop the ellipsis and wrap the full address onto multiple lines. */
+.invite-meta.is-expanded .invite-name,
+.invite-meta.is-expanded .invite-email {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+/* Keep the role pill at its natural size — never let flex squeeze it. */
+.invite-role {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+  padding: 5px 11px;
+  border-radius: 999px;
+}
+
+/* Info tooltip beside section titles */
+.pc-section-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+  cursor: help;
+  outline: none;
+  background: transparent;
+}
+.info-tip:hover,
+.info-tip:focus-visible {
+  color: var(--ink);
+}
+.info-tip svg {
+  width: 14px;
+  height: 14px;
+}
+.info-tip-pop {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  backdrop-filter: blur(18px) saturate(180%);
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.55;
+  padding: 14px 16px;
+  border-radius: 14px;
+  width: max-content;
+  max-width: 360px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 18px 40px rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+  z-index: 50;
+}
+.info-tip-pop p {
+  margin: 0;
+}
+.info-tip-pop p + p {
+  margin-top: 8px;
+}
+.info-tip:hover .info-tip-pop,
+.info-tip:focus-visible .info-tip-pop {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* MintySelect — themed dropdown */
+.mselect {
+  position: relative;
+  width: 100%;
+}
+.mselect-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.35s ease,
+    background 0.15s ease;
+}
+.mselect-trigger:hover {
+  border-color: color-mix(in oklab, var(--accent) 40%, var(--line-strong));
+}
+.mselect.open .mselect-trigger,
+.mselect-trigger:focus,
+.mselect-trigger:focus-visible {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: none;
+}
+.mselect-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mselect-value.placeholder {
+  color: var(--muted);
+}
+.mselect-caret {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  transition:
+    transform 0.25s ease,
+    color 0.2s ease;
+}
+.mselect.open .mselect-caret {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.mselect-clear {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+.mselect-clear:hover {
+  background: color-mix(in oklab, var(--line-strong) 45%, transparent);
+  color: var(--ink);
+}
+.mselect-clear:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.mselect.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.mselect-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow:
+    0 12px 32px rgba(15, 20, 25, 0.1),
+    0 2px 8px rgba(15, 20, 25, 0.06);
+  max-height: 260px;
+  overflow-y: auto;
+  animation: mselectIn 0.18s ease-out;
+  transform-origin: top center;
+}
+@keyframes mselectIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+/* High specificity so it beats `.form-stack .field input` (0,2,1), which would
      otherwise force padding/border/radius onto the inner input → nested box. */
-  .mselect .mselect-trigger .mselect-input {
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    outline: none;
-    box-shadow: none;
-    margin: 0;
-    padding: 0;
-    height: auto;
-    min-height: 0;
-    font: inherit;
-    font-size: 14px;
-    line-height: 1.5;
-    color: var(--ink);
-  }
-  .mselect .mselect-trigger .mselect-input:focus { border: 0; box-shadow: none; outline: none; }
-  .mselect .mselect-trigger .mselect-input::placeholder { color: var(--muted); }
-  /* Match the searchable trigger box to the sibling text inputs in form-stack. */
-  .form-stack .field .mselect-trigger { padding: 14px 16px; border-radius: 10px; }
-  .mselect-empty { padding: 10px 12px; font-size: 14px; color: var(--muted); text-align: center; }
-  .mselect-opt {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    padding: 10px 12px;
-    border-radius: 8px;
-    font-size: 14px; color: var(--ink-2);
-    cursor: pointer;
-    transition: background .12s ease, color .12s ease;
-  }
-  .mselect-opt.active { background: color-mix(in oklab, var(--accent) 10%, transparent); color: var(--ink); }
-  .mselect-opt.selected { background: color-mix(in oklab, var(--accent) 14%, transparent); color: var(--accent-ink); font-weight: 600; }
-  .mselect-opt.selected.active { background: color-mix(in oklab, var(--accent) 22%, transparent); }
-  .mselect-opt-check { color: var(--accent); display: grid; place-items: center; }
-  .mselect-menu::-webkit-scrollbar { width: 8px; }
-  .mselect-menu::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; }
-  /* Notice */
-  .notice { display: flex; gap: 12px; padding: 14px 16px; border-radius: 10px; border-left: 4px solid #3b82f6; background: #eef4ff; }
-  .notice-info { background: #eef4ff; border-color: #3b82f6; }
-  .notice-icon { color: #3b82f6; flex-shrink: 0; padding-top: 2px; }
-  .notice-icon svg { width: 18px; height: 18px; }
-  .notice-body { font-size: 13.5px; color: #1e3a8a; line-height: 1.55; }
-  .notice-title { font-weight: 700; margin-bottom: 2px; color: #1e3a8a; }
-  .notice-body p { margin: 0; color: #2347a3; }  .card-title { font-weight: 700; font-size: 15px; color: var(--ink); }  .status-card { border-color: var(--line-strong); }
-  .status-connected { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 18%, transparent); }
-  .status-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .status-meta { margin-top: 6px; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 2px; }
-  .status-meta b { font-weight: 600; color: var(--ink); }
-  .pill-status { padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-  .pill-status.ok { background: var(--accent-soft); color: var(--accent-ink); }
-  .pill-status.off { background: var(--surface-2); color: var(--muted); }
-  /* ==========================================================================
+.mselect .mselect-trigger .mselect-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  outline: none;
+  box-shadow: none;
+  margin: 0;
+  padding: 0;
+  height: auto;
+  min-height: 0;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.mselect .mselect-trigger .mselect-input:focus {
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+.mselect .mselect-trigger .mselect-input::placeholder {
+  color: var(--muted);
+}
+/* Match the searchable trigger box to the sibling text inputs in form-stack. */
+.form-stack .field .mselect-trigger {
+  padding: 14px 16px;
+  border-radius: 10px;
+}
+.mselect-empty {
+  padding: 10px 12px;
+  font-size: 14px;
+  color: var(--muted);
+  text-align: center;
+}
+.mselect-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.mselect-opt.active {
+  background: color-mix(in oklab, var(--accent) 10%, transparent);
+  color: var(--ink);
+}
+.mselect-opt.selected {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+.mselect-opt.selected.active {
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.mselect-opt-check {
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+}
+.mselect-menu::-webkit-scrollbar {
+  width: 8px;
+}
+.mselect-menu::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 99px;
+}
+/* Notice */
+.notice {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+  background: #eef4ff;
+}
+.notice-info {
+  background: #eef4ff;
+  border-color: #3b82f6;
+}
+.notice-icon {
+  color: #3b82f6;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.notice-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.notice-body {
+  font-size: 13.5px;
+  color: #1e3a8a;
+  line-height: 1.55;
+}
+.notice-title {
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: #1e3a8a;
+}
+.notice-body p {
+  margin: 0;
+  color: #2347a3;
+}
+.card-title {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--ink);
+}
+.status-card {
+  border-color: var(--line-strong);
+}
+.status-connected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+.status-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.status-meta {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.status-meta b {
+  font-weight: 600;
+  color: var(--ink);
+}
+.pill-status {
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pill-status.ok {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+.pill-status.off {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+/* ==========================================================================
      STEP 2 — "Which free trial would you like to start today?"
 
      Built to Figma section 01 (01-A one selected, 01-B both + confetti, 01-C card
@@ -1027,28 +2246,38 @@
      be unified deliberately; scattering the hexes through the rules below is how
      two brand teals become permanent.
      ========================================================================== */
-  :root {
-    --pick-line: #4FC7C7;      /* selected card border, checkbox fill */
-    --pick-ink: #18C4C7;       /* "Selected", SuperMinty, the price */
-    --pick-tint: #F5FFFF;      /* selected card fill */
-    --pick-tile: #E9F8F8;      /* the "After trial" tile */
-    /* Summary panel, sampled from frame 01-A rather than mapped onto the app palette —
+:root {
+  --pick-line: #4fc7c7; /* selected card border, checkbox fill */
+  --pick-ink: #18c4c7; /* "Selected", SuperMinty, the price */
+  --pick-tint: #f5ffff; /* selected card fill */
+  --pick-tile: #e9f8f8; /* the "After trial" tile */
+  /* Summary panel, sampled from frame 01-A rather than mapped onto the app palette —
        these are colours the design uses only here, and rounding them to --ink-2 / --accent
        is what made the panel read as a different design from the one that was drawn. */
-    --sum-label: #737A87;      /* "Selected plan", "Payment method" */
-    --sum-note: #6B7280;       /* "/month" */
-    --sum-price: #4FC7C7;      /* "HK$280", "Add card" */
-    --sum-plan: #2E6FF2;       /* a single module's name. NOT the bundle: SuperMinty is
+  --sum-label: #737a87; /* "Selected plan", "Payment method" */
+  --sum-note: #6b7280; /* "/month" */
+  --sum-price: #4fc7c7; /* "HK$280", "Add card" */
+  --sum-plan: #2e6ff2; /* a single module's name. NOT the bundle: SuperMinty is
                                   --pick-ink, and the two states are deliberately
                                   different colours in the design. */
-  }
+}
 
-  .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  /* 300 + 42 + 300 = 642, measured off 01-B. `position: relative` so the confetti
+.module-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+/* 300 + 42 + 300 = 642, measured off 01-B. `position: relative` so the confetti
      bursts below can hang off the pair rather than off the page. */
-  .module-grid-2 { position: relative; grid-template-columns: repeat(2, 300px); gap: 42px; justify-content: center; margin: 8px auto 0; }
+.module-grid-2 {
+  position: relative;
+  grid-template-columns: repeat(2, 300px);
+  gap: 42px;
+  justify-content: center;
+  margin: 8px auto 0;
+}
 
-  /* The celebration, and it is ARTWORK, not an animation: 01-B draws two bursts, one
+/* The celebration, and it is ARTWORK, not an animation: 01-B draws two bursts, one
      off the top-left of the pair and one off the top-right, both bleeding outside it.
      Inert and unselectable so they cannot swallow a click on a tick box underneath.
 
@@ -1056,26 +2285,42 @@
      before both card groups in the export. A positioned element outranks ordinary flow
      content regardless of source order, so the card, the tick box and the heading each
      have to claim a layer above this one explicitly — see the z-index:1 rules below. */
-  .module-burst {
-    position: absolute;
-    pointer-events: none;
-    user-select: none;
-    z-index: 0;
-    animation: moduleBurstIn 0.35s ease both;
-  }
-  .module-burst.is-left  { left: -92px; top: -67px; width: 284px; }
-  .module-burst.is-right { right: -87px; top: -62px; width: 224px; }
-  /* Fades in when the second module goes on and out when one comes off, rather than
+.module-burst {
+  position: absolute;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  animation: moduleBurstIn 0.35s ease both;
+}
+.module-burst.is-left {
+  left: -92px;
+  top: -67px;
+  width: 284px;
+}
+.module-burst.is-right {
+  right: -87px;
+  top: -62px;
+  width: 224px;
+}
+/* Fades in when the second module goes on and out when one comes off, rather than
      expiring on a timer — the burst belongs to the state, not to the click. */
-  @keyframes moduleBurstIn {
-    from { opacity: 0; transform: scale(0.94); }
-    to   { opacity: 1; transform: none; }
+@keyframes moduleBurstIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
   }
-  @media (prefers-reduced-motion: reduce) {
-    .module-burst { animation: none; }
+  to {
+    opacity: 1;
+    transform: none;
   }
+}
+@media (prefers-reduced-motion: reduce) {
+  .module-burst {
+    animation: none;
+  }
+}
 
-  /* Cards left, Subscription Summary right. This step needs more room than the
+/* Cards left, Subscription Summary right. This step needs more room than the
      720px `.page > *` cap allows (642 cards + 99 gap + 427 panel = 1168), so it
      breaks out of that cap and re-centres on the page's axis with a negative left
      margin — no transform, so anything measuring itself here stays honest.
@@ -1083,7 +2328,7 @@
      The summary is only in the DOM once a module is picked, so with nothing
      selected the grid centres on the page by itself. The cards can't RESIZE when
      it appears (the grid's basis is fixed below) — the row just re-centres. */
-  /* ONE COLUMN FOR THE WHOLE STEP, AND IT HAS TWO WIDTHS.
+/* ONE COLUMN FOR THE WHOLE STEP, AND IT HAS TWO WIDTHS.
 
      642px is the two cards side by side. 1168px is those cards plus the 99px gap and
      the 427px summary panel, which only exists once a module is picked.
@@ -1096,180 +2341,237 @@
      Both widths break out of the 720px `.page > *` cap by re-centring on the page's
      own axis with a calculated left margin — a margin, never a transform, so anything
      measuring itself inside here still reports where it really is. */
-  /* The heading claims a layer too: a burst reaching up past the card row would
+/* The heading claims a layer too: a burst reaching up past the card row would
      otherwise paint over the copy, positioned content beating flow content. */
-  .module-head { position: relative; z-index: 1; }
+.module-head {
+  position: relative;
+  z-index: 1;
+}
 
+.module-head,
+.module-layout,
+.module-caption,
+.module-nav {
+  --step-col: 642px;
+  width: var(--step-col);
+  max-width: none;
+  margin-left: calc((100% - var(--step-col)) / 2);
+  margin-right: 0;
+  transition:
+    width 0.28s ease,
+    margin-left 0.28s ease;
+}
+.module-head.is-wide,
+.module-layout.is-wide,
+.module-caption.is-wide,
+.module-nav.is-wide {
+  --step-col: 1168px;
+}
+@media (prefers-reduced-motion: reduce) {
   .module-head,
   .module-layout,
   .module-caption,
   .module-nav {
-    --step-col: 642px;
-    width: var(--step-col);
-    max-width: none;
-    margin-left: calc((100% - var(--step-col)) / 2);
-    margin-right: 0;
-    transition: width .28s ease, margin-left .28s ease;
+    transition: none;
   }
-  .module-head.is-wide,
-  .module-layout.is-wide,
-  .module-caption.is-wide,
-  .module-nav.is-wide {
-    --step-col: 1168px;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .module-head,
-    .module-layout,
-    .module-caption,
-    .module-nav { transition: none; }
-  }
+}
 
-  .module-layout {
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    gap: 99px;
-  }
-  .module-layout .module-grid-2 { flex: 0 0 642px; margin: 8px 0 0; }
+.module-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 99px;
+}
+.module-layout .module-grid-2 {
+  flex: 0 0 642px;
+  margin: 8px 0 0;
+}
 
-  /* --- the two module cards ---------------------------------------------- */
+/* --- the two module cards ---------------------------------------------- */
 
-  .module-pick {
-    display: flex; flex-direction: column; align-items: center; gap: 34px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .mp-card {
-    position: relative;
-    z-index: 1;              /* above the confetti */
-    width: 100%;
-    height: 366px;
-    /* 2px in both states, not 1px growing to 2px on select — an odd border would move
+.module-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 34px;
+  cursor: pointer;
+  user-select: none;
+}
+.mp-card {
+  position: relative;
+  z-index: 1; /* above the confetti */
+  width: 100%;
+  height: 366px;
+  /* 2px in both states, not 1px growing to 2px on select — an odd border would move
        every glyph on the card by half a pixel the moment it is ticked. */
-    border: 2px solid var(--line);
-    border-radius: 20px;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 31px 0 0;
-    transition: border-color .2s ease, background .2s ease, box-shadow .25s ease, transform .2s ease;
-  }
-  .module-pick:hover .mp-card { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(15,20,25,0.08); }
-  .module-pick.selected .mp-card {
-    border-color: var(--pick-line);
-    background: var(--pick-tint);
-    /* The teal glow, read off the card export: two stacked drop shadows, the outer one
+  border: 2px solid var(--line);
+  border-radius: 20px;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 31px 0 0;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.25s ease,
+    transform 0.2s ease;
+}
+.module-pick:hover .mp-card {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(15, 20, 25, 0.08);
+}
+.module-pick.selected .mp-card {
+  border-color: var(--pick-line);
+  background: var(--pick-tint);
+  /* The teal glow, read off the card export: two stacked drop shadows, the outer one
        with a 4px spread. It is what makes a ticked card look lit rather than merely
        outlined, and it is the piece a plain border-colour swap misses. */
-    box-shadow:
-      0 4px 20px 4px rgba(69, 214, 214, 0.2),
-      0 4px 12px rgba(69, 214, 214, 0.1);
-  }
-  .module-pick.selected:hover .mp-card {
-    box-shadow:
-      0 6px 24px 5px rgba(69, 214, 214, 0.26),
-      0 4px 12px rgba(69, 214, 214, 0.12);
-  }
-  /* The art tile. Keeps the per-module --art-accent the cards have always used, so
+  box-shadow:
+    0 4px 20px 4px rgba(69, 214, 214, 0.2),
+    0 4px 12px rgba(69, 214, 214, 0.1);
+}
+.module-pick.selected:hover .mp-card {
+  box-shadow:
+    0 6px 24px 5px rgba(69, 214, 214, 0.26),
+    0 4px 12px rgba(69, 214, 214, 0.12);
+}
+/* The art tile. Keeps the per-module --art-accent the cards have always used, so
      Petty Cash stays warm and Payment Request stays cool. */
-  .mp-art {
-    width: 167px; height: 120px;
-    border-radius: 13px;
-    background: var(--art-tile);
-    display: flex; align-items: center; justify-content: center;
-    color: var(--art-accent);
-    flex: 0 0 auto;
-  }
-  .mp-img { width: var(--art-size); height: var(--art-size); object-fit: contain; display: block; }
-  .mp-name {
-    margin-top: 22px;
-    /* THE TITLE IS INSET, WHICH IS WHAT LETS IT WRAP.
+.mp-art {
+  width: 167px;
+  height: 120px;
+  border-radius: 13px;
+  background: var(--art-tile);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--art-accent);
+  flex: 0 0 auto;
+}
+.mp-img {
+  width: var(--art-size);
+  height: var(--art-size);
+  object-fit: contain;
+  display: block;
+}
+.mp-name {
+  margin-top: 22px;
+  /* THE TITLE IS INSET, WHICH IS WHAT LETS IT WRAP.
 
        With no padding the text had the card's full 296px and ran nearly edge to edge
        before it would break. The frame insets it ~38px a side (title 224px wide in a
        300px card), so matching that inset gives a long name somewhere to break while a
        short one still sits on one line. */
-    padding: 0 34px;
-    font-weight: 700;
-    font-size: 26px;
-    letter-spacing: -0.015em;
-    /* Two even lines rather than "Payment" over a stranded "Request". */
-    text-wrap: balance;
-    color: #16202E;
-    text-align: center;
-  }
-  /* Pinned to the bottom of the card rather than flowing after the title: the two
+  padding: 0 34px;
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.015em;
+  /* Two even lines rather than "Payment" over a stranded "Request". */
+  text-wrap: balance;
+  color: #16202e;
+  text-align: center;
+}
+/* Pinned to the bottom of the card rather than flowing after the title: the two
      cards must line their status lines up even though their titles differ in
      length, and one of them wrapping would otherwise push its own line down. */
-  .mp-trial {
-    position: absolute;
-    left: 0; right: 0; bottom: 26px;
-    display: flex; flex-direction: column; align-items: center; gap: 2px;
-    font-weight: 700;
-    font-size: 20px;
-    line-height: 1.2;
-    color: var(--muted);
-    text-align: center;
-  }
-  .module-pick.selected .mp-trial { color: var(--pick-ink); }
+.mp-trial {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.2;
+  color: var(--muted);
+  text-align: center;
+}
+.module-pick.selected .mp-trial {
+  color: var(--pick-ink);
+}
 
-  .mp-circle {
-    position: relative;      /* above the confetti; a flow element would sit under it */
-    z-index: 1;
-    width: 40px; height: 40px;
-    border-radius: 10px;
-    border: 2px solid var(--line-strong);
-    background: var(--bg);
-    display: grid; place-items: center;
-    color: white;
-    transition: background .25s ease, border-color .25s ease, transform .2s ease, box-shadow .25s ease;
-  }
-  .module-pick:hover .mp-circle { border-color: var(--muted); }
-  .module-pick.selected .mp-circle {
-    background: var(--pick-line);
-    border-color: transparent;
-    box-shadow: 0 6px 14px rgba(79,199,199,0.35);
-    transform: scale(1.05);
-  }
-  .mp-circle svg { transform: scale(1.6); }
+.mp-circle {
+  position: relative; /* above the confetti; a flow element would sit under it */
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid var(--line-strong);
+  background: var(--bg);
+  display: grid;
+  place-items: center;
+  color: white;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease,
+    transform 0.2s ease,
+    box-shadow 0.25s ease;
+}
+.module-pick:hover .mp-circle {
+  border-color: var(--muted);
+}
+.module-pick.selected .mp-circle {
+  background: var(--pick-line);
+  border-color: transparent;
+  box-shadow: 0 6px 14px rgba(79, 199, 199, 0.35);
+  transform: scale(1.05);
+}
+.mp-circle svg {
+  transform: scale(1.6);
+}
 
-  /* --- the Subscription Summary ------------------------------------------ */
+/* --- the Subscription Summary ------------------------------------------ */
 
-  /* Four elements and no more: a title, the plan, the payment method, and what
+/* Four elements and no more: a title, the plan, the payment method, and what
      happens after the trial. The panel this replaced also carried a trial box, a
      fact table, a "Due today" line, an after-trial sentence and a terms link.
      THE "nothing is charged today" MESSAGE MOVED WITH THEM — it is now the
      footnote under the cards (.module-caption) and the mandate inside the billing
      dialog. Do not delete that footnote thinking it is decoration. */
+.sub-summary {
+  flex: 0 0 427px;
+  margin-top: 8px;
+  padding: 21px 40px 30px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-2);
+  animation: subSummaryIn 0.22s ease both;
+}
+@keyframes subSummaryIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
   .sub-summary {
-    flex: 0 0 427px;
-    margin-top: 8px;
-    padding: 21px 40px 30px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--bg);
-    box-shadow: var(--shadow-sm);
-    color: var(--ink-2);
-    animation: subSummaryIn 0.22s ease both;
+    animation: none;
   }
-  @keyframes subSummaryIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: none; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .sub-summary { animation: none; }
-  }
-  .sub-summary-title {
-    margin: 0 0 52px;
-    font-size: 18px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--ink);
-  }
-  .sub-row-label { font-size: 13px; color: var(--sum-label); white-space: nowrap; }
+}
+.sub-summary-title {
+  margin: 0 0 52px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+.sub-row-label {
+  font-size: 13px;
+  color: var(--sum-label);
+  white-space: nowrap;
+}
 
-  /* THE PLAN BLOCK HAS TWO LAYOUTS, because the design draws two.
+/* THE PLAN BLOCK HAS TWO LAYOUTS, because the design draws two.
 
      ONE MODULE (01-A): label and name on the same row, name right-aligned against the
      panel edge, "only" tucked under it. No illustration.
@@ -1278,23 +2580,25 @@
      LEFT-aligned below it, with the cape cat filling the space to their right. Keeping
      the single-module right-alignment here is what put the name, the note and "Add card"
      underneath the cat. */
-  .sub-plan {
-    position: relative;
-  }
-  .sub-plan .sub-row-label { display: block; }
+.sub-plan {
+  position: relative;
+}
+.sub-plan .sub-row-label {
+  display: block;
+}
 
-  .sub-plan.is-single {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 96px;
-  }
-  .sub-plan.is-single .sub-plan-value {
-    align-items: flex-end;
-    text-align: right;
-    margin-top: 14px;
-    /* WRAPS ONLY WHEN THERE IS NO ROOM — no width cap.
+.sub-plan.is-single {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 96px;
+}
+.sub-plan.is-single .sub-plan-value {
+  align-items: flex-end;
+  text-align: right;
+  margin-top: 14px;
+  /* WRAPS ONLY WHEN THERE IS NO ROOM — no width cap.
 
        The column takes whatever the label leaves and the name breaks when it no longer
        fits, which on the 427px panel means one line and on a phone means two. A fixed
@@ -1303,172 +2607,251 @@
 
        min-width:0 is what makes it possible at all: a flex item refuses to shrink below
        its longest word without it, so the row would widen instead of the text wrapping. */
-    flex: 1;
-    min-width: 0;
-  }
+  flex: 1;
+  min-width: 0;
+}
 
-  .sub-plan.is-bundle {
-    /* Tall enough to clear the cat, which is out of flow and would otherwise let the
+.sub-plan.is-bundle {
+  /* Tall enough to clear the cat, which is out of flow and would otherwise let the
        Payment method row slide up underneath it. */
-    min-height: 232px;
-  }
-  .sub-plan.is-bundle .sub-plan-value {
-    align-items: flex-start;
-    text-align: left;
-    margin-top: 46px;
-  }
+  min-height: 232px;
+}
+.sub-plan.is-bundle .sub-plan-value {
+  align-items: flex-start;
+  text-align: left;
+  margin-top: 46px;
+}
 
-  .sub-plan-value {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .sub-plan-art {
-    position: absolute;
-    right: -14px;
-    top: 24px;
-    width: 190px;
-    height: auto;
-    pointer-events: none;
-  }
-  .sub-plan-name {
-    /* If it does have to wrap, split the lines evenly instead of leaving one word
+.sub-plan-value {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sub-plan-art {
+  position: absolute;
+  right: -14px;
+  top: 24px;
+  width: 190px;
+  height: auto;
+  pointer-events: none;
+}
+.sub-plan-name {
+  /* If it does have to wrap, split the lines evenly instead of leaving one word
        stranded. Ignored by browsers that do not support it, which is harmless. */
-    text-wrap: balance;
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--sum-plan);
-    line-height: 1.2;
-  }
-  /* The bundle is the other colour — see the token comment. */
-  .sub-plan.is-bundle .sub-plan-name { color: var(--pick-ink); }
-  /* Black for "only", grey for "Both modules selected" — the two states genuinely
+  text-wrap: balance;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sum-plan);
+  line-height: 1.2;
+}
+/* The bundle is the other colour — see the token comment. */
+.sub-plan.is-bundle .sub-plan-name {
+  color: var(--pick-ink);
+}
+/* Black for "only", grey for "Both modules selected" — the two states genuinely
      differ in the design, sampled off each panel export rather than assumed. */
-  .sub-plan-note { font-size: 13px; color: var(--ink); }
-  .sub-plan.is-bundle .sub-plan-note { color: var(--sum-label); }
+.sub-plan-note {
+  font-size: 13px;
+  color: var(--ink);
+}
+.sub-plan.is-bundle .sub-plan-note {
+  color: var(--sum-label);
+}
 
-  /* CENTRED, not baseline. The right-hand side is two rows tall once it carries a mark
+/* CENTRED, not baseline. The right-hand side is two rows tall once it carries a mark
      over a caption, and a baseline taken against it leaves "Payment method" level with the
      middle of the logo. */
-  .sub-pay {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    margin-top: 22px;
-  }
-  /* The label and its Change button travel together. Without a wrapper the row's
+.sub-pay {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 22px;
+}
+/* The label and its Change button travel together. Without a wrapper the row's
      `space-between` would push them to opposite ends, which is the one place this control
      must not be — a "Change" sitting against the card reads as changing something else. */
-  .sub-pay-head { display: flex; align-items: baseline; gap: 10px; }
-  /* Teal rather than muted grey, and deliberately. It sits beside a grey label; a quiet
+.sub-pay-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+/* Teal rather than muted grey, and deliberately. It sits beside a grey label; a quiet
      grey control next to quiet grey text is one a payer never finds. A notch smaller than
      "Add card", because changing a card that is already working is the lesser errand. */
-  .sub-pay-change {
-    border: 0; background: none; padding: 0;
-    font-size: 12.5px; font-weight: 600;
-    color: var(--sum-price);
-    cursor: pointer;
-  }
-  .sub-pay-change:hover { text-decoration: underline; text-underline-offset: 2px; }
+.sub-pay-change {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--sum-price);
+  cursor: pointer;
+}
+.sub-pay-change:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
 
-  .sub-pay-card { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; text-align: right; }
-  /* The mark, undressed — the picker's chip border and background belong to the picker.
+.sub-pay-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+}
+/* The mark, undressed — the picker's chip border and background belong to the picker.
      64px rather than the frame's 70: that measurement is taken off Mastercard's own
      artwork, which carries less padding inside its box than our viewBox does, so matching
      the number would draw a visibly bigger mark. */
-  .sub-pay-mark {
-    display: block;
-    width: 64px; height: auto;
-    border: 0; background: none;
-  }
-  .sub-pay-mark svg { display: block; width: 100%; height: auto; }
-  /* 14px bold is the picker's row label exactly, so the two places a card is named agree
+.sub-pay-mark {
+  display: block;
+  width: 64px;
+  height: auto;
+  border: 0;
+  background: none;
+}
+.sub-pay-mark svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+/* 14px bold is the picker's row label exactly, so the two places a card is named agree
      without a second type scale. */
-  .sub-pay-name { font-size: 14px; font-weight: 700; color: #16202E; }
-  /* A button, not an anchor — it opens a dialog rather than going anywhere. Styled
+.sub-pay-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #16202e;
+}
+/* A button, not an anchor — it opens a dialog rather than going anywhere. Styled
      as a link because that is what the design draws and what the payer expects to
      click, but it keeps a button's keyboard behaviour. */
-  .sub-pay-add {
-    border: 0; background: none; padding: 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--sum-price);
-    cursor: pointer;
-  }
-  .sub-pay-add:hover { text-decoration: underline; }
+.sub-pay-add {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sum-price);
+  cursor: pointer;
+}
+.sub-pay-add:hover {
+  text-decoration: underline;
+}
 
-  /* The waiting state for the Payment method row: two bars standing in for the brand and
+/* The waiting state for the Payment method row: two bars standing in for the brand and
      the "ending in NNNN" beneath it, so the row keeps its height and nothing below it
      moves when the real answer arrives. */
-  .sub-pay-loading {
-    display: flex; flex-direction: column; align-items: flex-end; gap: 5px;
+.sub-pay-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+.sub-pay-bar {
+  display: block;
+  width: 84px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.sub-pay-bar.is-short {
+  width: 58px;
+  height: 9px;
+}
+@keyframes skeletonShimmer {
+  0% {
+    background-position: 100% 50%;
   }
-  .sub-pay-bar {
-    display: block; width: 84px; height: 10px;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
-    background-size: 400% 100%;
-    animation: skeletonShimmer 1.4s ease-in-out infinite;
+  100% {
+    background-position: 0 50%;
   }
-  .sub-pay-bar.is-short { width: 58px; height: 9px; }
-  @keyframes skeletonShimmer {
-    0%   { background-position: 100% 50%; }
-    100% { background-position: 0 50%; }
-  }
-  /* Asked not to move, it does not move — the bars still reserve the space, they simply
+}
+/* Asked not to move, it does not move — the bars still reserve the space, they simply
      stop travelling. */
-  @media (prefers-reduced-motion: reduce) {
-    .sub-pay-bar, .skel-bar { animation: none; background: var(--surface-2); }
+@media (prefers-reduced-motion: reduce) {
+  .sub-pay-bar,
+  .skel-bar {
+    animation: none;
+    background: var(--surface-2);
   }
+}
 
-  /* The one figure on this step, and it is labelled with WHEN rather than with a
+/* The one figure on this step, and it is labelled with WHEN rather than with a
      total — nothing is charged today, and a bare total here would read as though
      something were. */
-  /* THE LABEL AND THE PRICE ARE NOT ON ONE LINE. "After trial" sits at the top left of
+/* THE LABEL AND THE PRICE ARE NOT ON ONE LINE. "After trial" sits at the top left of
      the pill and the figure at the bottom right — a diagonal, not a centred row. Read
      off the tile's own export: in a 366x71 tile the label's baseline is at y=26 and the
      price's at y=55. Centring both (which is what this did) closes that gap and makes
      the pill look like a table row. */
-  .sub-tile {
-    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
-    margin: 20px -10px 0;
-    padding: 12px 30px 11px;
-    min-height: 71px;
-    border-radius: 999px;
-    background: var(--pick-tile);
-  }
-  .sub-tile-label { align-self: flex-start; font-size: 15px; color: var(--sum-label); white-space: nowrap; }
-  /* The bundle tile is taller — it carries the struck subtotal above the price. */
-  .sub-plan.is-bundle ~ .sub-tile { min-height: 86px; }
-  /* A ROW of [stacked figure][/month], not one column. The struck subtotal has to line
+.sub-tile {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 20px -10px 0;
+  padding: 12px 30px 11px;
+  min-height: 71px;
+  border-radius: 999px;
+  background: var(--pick-tile);
+}
+.sub-tile-label {
+  align-self: flex-start;
+  font-size: 15px;
+  color: var(--sum-label);
+  white-space: nowrap;
+}
+/* The bundle tile is taller — it carries the struck subtotal above the price. */
+.sub-plan.is-bundle ~ .sub-tile {
+  min-height: 86px;
+}
+/* A ROW of [stacked figure][/month], not one column. The struck subtotal has to line
      up over the number it is struck against, so "/month" is a sibling of the stack
      rather than a child of the price. */
-  .sub-tile-price { display: flex; align-items: flex-end; gap: 7px; }
-  .sub-tile-figure { display: flex; flex-direction: column; align-items: flex-end; }
-  /* The undiscounted subtotal. Grey and struck, with no currency code — it sits
+.sub-tile-price {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+}
+.sub-tile-figure {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+/* The undiscounted subtotal. Grey and struck, with no currency code — it sits
      directly above one, in the same currency, and repeating it makes the figure
      that IS charged harder to pick out. */
-  .sub-tile-was {
-    font-size: 19px;
-    color: var(--muted);
-    text-decoration: line-through;
-    line-height: 1.2;
-  }
-  .sub-tile-now {
-    font-size: 26px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: var(--sum-price);
-    white-space: nowrap;
-  }
-  /* Bottoms align via flex-end, but a 15px box's baseline sits lower inside it than a
+.sub-tile-was {
+  font-size: 19px;
+  color: var(--muted);
+  text-decoration: line-through;
+  line-height: 1.2;
+}
+.sub-tile-now {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--sum-price);
+  white-space: nowrap;
+}
+/* Bottoms align via flex-end, but a 15px box's baseline sits lower inside it than a
      26px box's does; 2px lifts it back onto the figure's baseline. */
-  .sub-tile-per { font-size: 15px; font-weight: 500; color: var(--sum-note); padding-bottom: 2px; }
+.sub-tile-per {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--sum-note);
+  padding-bottom: 2px;
+}
 
-  /* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
+/* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
 
-  /* THIS STEP'S HEAD IS SIZED FROM THE FRAME, AND THAT MEANS BEATING THE FLOOR.
+/* THIS STEP'S HEAD IS SIZED FROM THE FRAME, AND THAT MEANS BEATING THE FLOOR.
 
      The "Minimum text sizing" block near the bottom of this file bumps .page-head h2 to
      30px and .page-head p to 16px across the whole wizard. The 01-A page-head export
@@ -1485,10 +2868,14 @@
      The sub drops 16px -> 15px, which is a deliberate step below the app's floor for
      one line of supporting copy. If that is not wanted, delete the p rule and keep the
      h2 one — the heading at 25px is nowhere near a legibility problem. */
-  .page-head.module-head h2 { font-size: 25px; }
-  .page-head.module-head p { font-size: 15px; }
+.page-head.module-head h2 {
+  font-size: 25px;
+}
+.page-head.module-head p {
+  font-size: 15px;
+}
 
-  /* AIR UNDER THE COPY, so the confetti has somewhere to be.
+/* AIR UNDER THE COPY, so the confetti has somewhere to be.
 
      The bursts reach 67px above the card top (the offset the frame draws them at, kept
      as-is). The wizard's default .page-head margin is 36px, which with the grid's own
@@ -1497,215 +2884,362 @@
      This adds the difference plus ~16px of clearance. It does NOT move the heading or
      the sub: their top edge is set by everything above, and margin-bottom only pushes
      what follows. The cards and the confetti drop; the text stays where it is. */
-  .page-head.module-head { margin-bottom: 75px; }
+.page-head.module-head {
+  margin-bottom: 75px;
+}
 
-  /* NO .module-title rule any more. It existed to lay out the heading beside the
+/* NO .module-title rule any more. It existed to lay out the heading beside the
      "Beta Version" pill, which the design drops. The heading is now a plain
      .page-head h2 — centred, 700, and floored at 30px by the text-sizing block
      below, which is why it reads larger here than in the Figma frame. */
-  /* Not a footnote in the throwaway sense — see the note on .sub-summary above. */
-  .module-caption {
-    margin-top: 40px;
-    text-align: left;
-    line-height: 1.6;
-    color: var(--muted-2);
+/* Not a footnote in the throwaway sense — see the note on .sub-summary above. */
+.module-caption {
+  margin-top: 40px;
+  text-align: left;
+  line-height: 1.6;
+  color: var(--muted-2);
+}
+/* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
+@media (max-width: 1240px) {
+  .module-head,
+  .module-layout,
+  .module-caption,
+  .module-nav {
+    width: 100%;
+    margin-left: 0;
   }
-  /* Too narrow for the 1162px break-out: fall back to the page's own width and stack. */
-  @media (max-width: 1240px) {
-    .module-head,
-    .module-layout,
-    .module-caption,
-    .module-nav {
-      width: 100%;
-      margin-left: 0;
-    }
-    .module-layout {
-      flex-direction: column;
-      align-items: center;
-      gap: 24px;
-    }
-    .module-layout .module-grid-2 { flex: 0 1 auto; margin: 8px auto 0; }
-    .sub-summary { flex: 0 0 auto; width: 100%; max-width: 642px; margin: 0 auto; }
+  .module-layout {
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
   }
-  @media (max-width: 700px) {
-    .module-grid-2 { grid-template-columns: 1fr; gap: 28px; max-width: 320px; }
-    .module-burst { display: none; }
+  .module-layout .module-grid-2 {
+    flex: 0 1 auto;
+    margin: 8px auto 0;
+  }
+  .sub-summary {
+    flex: 0 0 auto;
+    width: 100%;
+    max-width: 642px;
+    margin: 0 auto;
+  }
+}
+@media (max-width: 700px) {
+  .module-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    max-width: 320px;
+  }
+  .module-burst {
+    display: none;
+  }
 
-    /* 40px a side of a ~340px panel left 259px of content — the cat then covered half
+  /* 40px a side of a ~340px panel left 259px of content — the cat then covered half
        of it. 20px gives the text back 80px before anything else is touched. */
-    .sub-summary { padding: 20px 20px 24px; }
+  .sub-summary {
+    padding: 20px 20px 24px;
+  }
 
-    /* The cat scales with the panel, it does not go: at 190px on a phone it sat on top
+  /* The cat scales with the panel, it does not go: at 190px on a phone it sat on top
        of "SuperMinty" and "Both modules selected". 120px clears both. The bundle block
        gives back the height reserved for the bigger one at the same time. */
-    .sub-plan-art { width: 120px; top: 30px; right: -8px; }
-    .sub-plan.is-bundle { min-height: 150px; }
-    .sub-plan.is-bundle .sub-plan-value { margin-top: 28px; }
+  .sub-plan-art {
+    width: 120px;
+    top: 30px;
+    right: -8px;
   }
-  /* All set */
-  .celebrate { text-align: center; padding: 24px 0 12px; }
-  .check-circle {
-    width: 88px; height: 88px; border-radius: 50%;
-    background: var(--accent-soft);
-    display: grid; place-items: center;
-    margin: 0 auto 22px;
-    color: var(--accent);
-    position: relative;
+  .sub-plan.is-bundle {
+    min-height: 150px;
   }
-  .check-circle::before, .check-circle::after {
-    content: ''; position: absolute; border-radius: 50%; border: 1.5px solid var(--accent-soft);
+  .sub-plan.is-bundle .sub-plan-value {
+    margin-top: 28px;
   }
-  .check-circle::before { inset: -14px; opacity: 0.6; }
-  .check-circle::after { inset: -28px; opacity: 0.3; }
+}
+/* All set */
+.celebrate {
+  text-align: center;
+  padding: 24px 0 12px;
+}
+.check-circle {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  display: grid;
+  place-items: center;
+  margin: 0 auto 22px;
+  color: var(--accent);
+  position: relative;
+}
+.check-circle::before,
+.check-circle::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent-soft);
+}
+.check-circle::before {
+  inset: -14px;
+  opacity: 0.6;
+}
+.check-circle::after {
+  inset: -28px;
+  opacity: 0.3;
+}
 
-  /* --- 01-E · All Set ------------------------------------------------------
+/* --- 01-E · All Set ------------------------------------------------------
      The frame is 1440 wide and lays its content in a 446px column centred on the page.
      Inside that column everything is LEFT-aligned — the sentence, the label/value pair
      and the nudge share an edge — while the buttons below centre on the page rather than
      on the column. Checked against the render, not just the node boxes. */
-  .allset-title { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.02em; }
-  .allset-facts {
-    width: 446px; max-width: 100%;
-    margin: 55px auto 0;
-    text-align: left;
-    font-size: 15px; line-height: normal; color: #16202E;
-  }
-  .allset-lede { margin: 0; }
-  /* A definition list because that is what it is: three labels and their values. Grid
+.allset-title {
+  margin: 0;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.allset-facts {
+  width: 446px;
+  max-width: 100%;
+  margin: 55px auto 0;
+  text-align: left;
+  font-size: 15px;
+  line-height: normal;
+  color: #16202e;
+}
+.allset-lede {
+  margin: 0;
+}
+/* A definition list because that is what it is: three labels and their values. Grid
      rather than the browser's default dl layout, so the values line up in a column.
      146px + 15px is the frame's own gutter. */
-  .allset-grid {
-    display: grid;
-    grid-template-columns: 146px auto;
-    align-content: start;
-    gap: 0 15px;
-    margin: 18px 0 0;
-  }
-  .allset-grid dt { font-weight: 700; }
-  .allset-grid dd { margin: 0; }
-  /* The entity's own name is the one value the frame colours — it is the thing the payer
+.allset-grid {
+  display: grid;
+  grid-template-columns: 146px auto;
+  align-content: start;
+  gap: 0 15px;
+  margin: 18px 0 0;
+}
+.allset-grid dt {
+  font-weight: 700;
+}
+.allset-grid dd {
+  margin: 0;
+}
+/* The entity's own name is the one value the frame colours — it is the thing the payer
      came here to create. */
-  .allset-grid dd.is-entity { color: var(--pick-ink); }
-  .allset-nudge { margin: 14px 0 0; }
+.allset-grid dd.is-entity {
+  color: var(--pick-ink);
+}
+.allset-nudge {
+  margin: 14px 0 0;
+}
 
-  .allset-actions {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 10px; margin-top: 36px;
-  }
+.allset-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 36px;
+}
 
-  /* THE SAME BLOCK, BEFORE IT KNOWS WHAT IT SAYS.
+/* THE SAME BLOCK, BEFORE IT KNOWS WHAT IT SAYS.
      Two requests feed the facts — the commit, for the trial's end date, and the billing
      status, for whether there is anything left to nudge about — and the shapes below stand
      in for every line either of them decides: the lede, three label/value rows, the nudge
      and both buttons. Geometry deliberately mirrors the real thing, so the block resolves
      into its content instead of content arriving where there was nothing. */
-  .allset-skeleton { width: 446px; max-width: 100%; margin: 55px auto 0; }
-  /* 10px of bar in 18px of line keeps the real text rhythm, so nothing below shifts when
+.allset-skeleton {
+  width: 446px;
+  max-width: 100%;
+  margin: 55px auto 0;
+}
+/* 10px of bar in 18px of line keeps the real text rhythm, so nothing below shifts when
      the words arrive. */
-  .skel-bar {
-    display: block; height: 10px; margin: 4px 0;
-    border-radius: 999px;
-    background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
-    background-size: 400% 100%;
-    animation: skeletonShimmer 1.4s ease-in-out infinite;
-  }
-  .allset-skeleton .sk-lede { width: 64%; }
-  .allset-skeleton .sk-rows {
-    display: grid; grid-template-columns: 146px auto;
-    gap: 0 15px; margin-top: 18px;
-  }
-  /* Labels then values, alternating — the label column is the narrower of the pair, as it
+.skel-bar {
+  display: block;
+  height: 10px;
+  margin: 4px 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--surface-2) 25%, var(--line) 37%, var(--surface-2) 63%);
+  background-size: 400% 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+.allset-skeleton .sk-lede {
+  width: 64%;
+}
+.allset-skeleton .sk-rows {
+  display: grid;
+  grid-template-columns: 146px auto;
+  gap: 0 15px;
+  margin-top: 18px;
+}
+/* Labels then values, alternating — the label column is the narrower of the pair, as it
      is in the real grid. */
-  .allset-skeleton .sk-rows .skel-bar:nth-child(odd) { width: 76%; }
-  .allset-skeleton .sk-rows .skel-bar:nth-child(even) { width: 58%; }
-  .allset-skeleton .sk-nudge { width: 82%; margin-top: 18px; }
-  .allset-skeleton .sk-actions {
-    display: flex; flex-direction: column; align-items: center;
-    gap: 10px; margin-top: 36px;
-  }
-  .allset-skeleton .sk-btn { width: 166px; height: 41px; margin: 0; border-radius: 10px; }
-  .allset-skeleton .sk-btn.is-link { width: 132px; height: 20px; }
-  /* 166×41 in the frame; the height comes from .btn's own padding, so only the width is
+.allset-skeleton .sk-rows .skel-bar:nth-child(odd) {
+  width: 76%;
+}
+.allset-skeleton .sk-rows .skel-bar:nth-child(even) {
+  width: 58%;
+}
+.allset-skeleton .sk-nudge {
+  width: 82%;
+  margin-top: 18px;
+}
+.allset-skeleton .sk-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 36px;
+}
+.allset-skeleton .sk-btn {
+  width: 166px;
+  height: 41px;
+  margin: 0;
+  border-radius: 10px;
+}
+.allset-skeleton .sk-btn.is-link {
+  width: 132px;
+  height: 20px;
+}
+/* 166×41 in the frame; the height comes from .btn's own padding, so only the width is
      set here. Gradient rather than the frame's flat fill — one primary button, one
      treatment, as everywhere else in this section. */
-  .allset-pay { min-width: 166px; }
-  /* The frame builds this from the same Button/Primary with its fill alpha at zero, which
+.allset-pay {
+  min-width: 166px;
+}
+/* The frame builds this from the same Button/Primary with its fill alpha at zero, which
      is why the metadata calls both of them primary. It is a text button. */
-  .allset-exit {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    border: 0; background: none;
-    padding: 12px 20px; border-radius: 10px;
-    font-size: 14px; color: var(--pick-ink);
-    cursor: pointer;
-  }
-  .allset-exit:hover { text-decoration: underline; text-underline-offset: 3px; }
-  .allset-exit:disabled { cursor: not-allowed; opacity: .5; }
+.allset-exit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  background: none;
+  padding: 12px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: var(--pick-ink);
+  cursor: pointer;
+}
+.allset-exit:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.allset-exit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
-  @media (max-width: 560px) {
-    .allset-facts, .allset-skeleton { margin-top: 32px; }
-    .allset-skeleton .sk-rows { grid-template-columns: 1fr; }
-    .allset-skeleton .sk-btn, .allset-skeleton .sk-btn.is-link { width: 100%; }
-    /* The label column stops being worth 146px of a phone, and "Module enabled" beside a
+@media (max-width: 560px) {
+  .allset-facts,
+  .allset-skeleton {
+    margin-top: 32px;
+  }
+  .allset-skeleton .sk-rows {
+    grid-template-columns: 1fr;
+  }
+  .allset-skeleton .sk-btn,
+  .allset-skeleton .sk-btn.is-link {
+    width: 100%;
+  }
+  /* The label column stops being worth 146px of a phone, and "Module enabled" beside a
        value leaves neither room. Stacked, with the label above its value. */
-    .allset-grid { grid-template-columns: 1fr; gap: 0; }
-    .allset-grid dd { margin-bottom: 10px; }
-    .allset-pay, .allset-exit { width: 100%; }
+  .allset-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
-  /* Responsive */
-  @media (max-width: 760px) {
-    .stepper { grid-template-columns: repeat(var(--step-count, 7), minmax(120px, 1fr)); overflow-x: auto; }
-    .module-grid { grid-template-columns: 1fr; }    .page { padding: 36px 18px 80px; }
+  .allset-grid dd {
+    margin-bottom: 10px;
   }
-  /* ---- Minimum text sizing ---- */
-  .page-head h2 { font-size: 30px; }
-  .page-head p { font-size: 16px; }
-  .field label,
-  .pc-sub,
-  .pc-section-sub,
-  .pc-hint,
-  .acc-sub,
-  .acc-all-label,
-  .acc-name,
-  .acc-empty,
-  .method-name,
-  .invite-name,
-  .invite-email,
-  .invite-card-title,
-  .invite-list-title,
-  .invite-field > label,
-  .invite-role,
-  .module-caption,
-  .autofill-hint,
-  .info-tip-pop,
-  .substep-label,
-  .pc-side-title,
-  .pc-side-item,
-  .notice-body,
-  .notice-title,
-  .status-meta,
-  .status-meta b,
-  .card-title,
-  .pill-status,
-  .field-required,
-  .acc-search input { font-size: 16px; }
-  /* Field text & form inputs */
-  .field input, .field select, .field textarea { font-size: 16px; }
-  .field .input-prefix input { font-size: 16px; }
-  .field .input-prefix .prefix { font-size: 16px; }
-  /* Larger card / section titles → tighter heading hierarchy */
-  .pc-title,
-  .method-title,
-  .pc-section-title { font-size: 18px; }
-  /* Caption / tooltip text */
-  .info-tip-pop p { font-size: 16px; }
-  /* Avoid bumping ultra-compact UI chrome like step pills and badges */
+  .allset-pay,
+  .allset-exit {
+    width: 100%;
+  }
+}
+/* Responsive */
+@media (max-width: 760px) {
+  .stepper {
+    grid-template-columns: repeat(var(--step-count, 7), minmax(120px, 1fr));
+    overflow-x: auto;
+  }
+  .module-grid {
+    grid-template-columns: 1fr;
+  }
+  .page {
+    padding: 36px 18px 80px;
+  }
+}
+/* ---- Minimum text sizing ---- */
+.page-head h2 {
+  font-size: 30px;
+}
+.page-head p {
+  font-size: 16px;
+}
+.field label,
+.pc-sub,
+.pc-section-sub,
+.pc-hint,
+.acc-sub,
+.acc-all-label,
+.acc-name,
+.acc-empty,
+.method-name,
+.invite-name,
+.invite-email,
+.invite-card-title,
+.invite-list-title,
+.invite-field > label,
+.invite-role,
+.module-caption,
+.autofill-hint,
+.info-tip-pop,
+.substep-label,
+.pc-side-title,
+.pc-side-item,
+.notice-body,
+.notice-title,
+.status-meta,
+.status-meta b,
+.card-title,
+.pill-status,
+.field-required,
+.acc-search input {
+  font-size: 16px;
+}
+/* Field text & form inputs */
+.field input,
+.field select,
+.field textarea {
+  font-size: 16px;
+}
+.field .input-prefix input {
+  font-size: 16px;
+}
+.field .input-prefix .prefix {
+  font-size: 16px;
+}
+/* Larger card / section titles → tighter heading hierarchy */
+.pc-title,
+.method-title,
+.pc-section-title {
+  font-size: 18px;
+}
+/* Caption / tooltip text */
+.info-tip-pop p {
+  font-size: 16px;
+}
+/* Avoid bumping ultra-compact UI chrome like step pills and badges */
 
-  /* Billing sheet (Step 2: which free trial to start).
+/* Billing sheet (Step 2: which free trial to start).
 
      Above .skip-modal-overlay (1000) rather than level with it: both are portalled to
      the body, so equal z-indexes would be resolved by DOM order — which is mount order,
      not what the user is looking at. */
-  /* The entrance, shared with Minty's dialogs and the payer portal's: a 150ms fade on the
+/* The entrance, shared with Minty's dialogs and the payer portal's: a 150ms fade on the
      scrim and a 180ms fade-and-rise on the sheet.
 
      TRANSLATE ONLY — NEVER SCALE. `transform: scale()` changes what
@@ -1713,26 +3247,45 @@
      sheet still scaling at 0.98 when the Elements iframe mounts lays the card form out
      to a width the dialog does not have. A translate moves the box without resizing it,
      so the same entrance is safe on the one dialog that hosts an iframe. */
-  @keyframes billingOverlayIn { from { opacity: 0; } to { opacity: 1; } }
-  @keyframes billingSheetIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to   { opacity: 1; transform: translateY(0); }
+@keyframes billingOverlayIn {
+  from {
+    opacity: 0;
   }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes billingSheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
-  .billing-overlay {
-    position: fixed; inset: 0; z-index: 1100;
-    animation: billingOverlayIn .15s ease-out both;
-    display: flex; align-items: center; justify-content: center;
-    padding: 20px; overflow-y: auto; overscroll-behavior: contain;
-    /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
+.billing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  animation: billingOverlayIn 0.15s ease-out both;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* The design's scrim: #16202E at 12% behind a 6px blur. Far lighter than the
        near-black wash it replaces, and the difference in job is the point — at 12% the
        darkening barely separates anything, so it is the BLUR doing the work. Dropping the
        blur here does not degrade to "slightly less separation", it degrades to none. */
-    background: rgba(22, 32, 46, 0.12);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
-  }
-  /* THREE FRAMES, THREE WIDTHS. Figma section 01 draws the picker at 481px, the new
+  background: rgba(22, 32, 46, 0.12);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+/* THREE FRAMES, THREE WIDTHS. Figma section 01 draws the picker at 481px, the new
      billing account form at 880 and the success card at 435 — measured in a 1440px content
      column, which is what this app lays out at, so the numbers transfer directly.
 
@@ -1740,11 +3293,11 @@
      Stripe measures the box it mounts into, and a dialog still animating from 481 to 880
      when the Elements iframe comes up lays the card form out to a width the dialog is
      about to stop having. */
-  .billing-sheet {
-    animation: billingSheetIn .18s cubic-bezier(.16, 1, .3, 1) both;
-    position: relative;
-    background: var(--bg);
-    /* NO BORDER. Over a 12% scrim the shadow is the whole separation, and a 1px grey line
+.billing-sheet {
+  animation: billingSheetIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  position: relative;
+  background: var(--bg);
+  /* NO BORDER. Over a 12% scrim the shadow is the whole separation, and a 1px grey line
        drawn on top of it reads as a seam rather than an edge.
 
        ONE SHELL FOR ALL THREE STATES, though the frames draw three: radius 16 with this
@@ -1752,198 +3305,385 @@
        two-layer shadow (01-J). 01-D's is the only one that reads as a modal rather than a
        rectangle with a default shadow, and a dialog that changes shape as the payer moves
        through it is three dialogs. */
-    border: 0;
-    border-radius: 16px;
-    box-shadow: 0 16px 44px rgba(22, 32, 46, 0.16);
-    padding: 30px;
-    max-width: 481px; width: 100%;
-    margin: auto;
-  }
-  .billing-sheet.is-form { max-width: 880px; padding: 26px 28px 28px; }
-  /* `overflow: visible` is kept rather than needed: the cat sits inside the card (see
+  border: 0;
+  border-radius: 16px;
+  box-shadow: 0 16px 44px rgba(22, 32, 46, 0.16);
+  padding: 30px;
+  max-width: 481px;
+  width: 100%;
+  margin: auto;
+}
+.billing-sheet.is-form {
+  max-width: 880px;
+  padding: 26px 28px 28px;
+}
+/* `overflow: visible` is kept rather than needed: the cat sits inside the card (see
      `.billing-done-art`), and nothing else here draws outside it. A dialog has no reason
      to clip its own contents, so leaving it costs nothing — but it is no longer load
      bearing, and the cat's placement must not be changed on the assumption that it is. */
-  .billing-sheet.is-done { max-width: 435px; padding: 67px 48px 40px; overflow: visible; }
+.billing-sheet.is-done {
+  max-width: 435px;
+  padding: 67px 48px 40px;
+  overflow: visible;
+}
 
-  /* Asked not to move, it does not move. The dialog still appears; it simply arrives
+/* Asked not to move, it does not move. The dialog still appears; it simply arrives
      rather than travelling. */
-  @media (prefers-reduced-motion: reduce) {
-    .billing-overlay, .billing-sheet { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .billing-overlay,
+  .billing-sheet {
+    animation: none;
   }
+}
 
-  .billing-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 22px; }
-  .billing-headtext { min-width: 0; }
-  /* The head is EMPTY on the success card, which carries its own two-colour heading — only
+.billing-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.billing-headtext {
+  min-width: 0;
+}
+/* The head is EMPTY on the success card, which carries its own two-colour heading — only
      the close button is left in it. Without this the margin still lands and 01-J opens with
      22px of nothing above the cat. */
-  .is-done .billing-head { margin-bottom: 0; }
-  /* The type scale is the payer portal's, so the same dialog is the same size wherever it
+.is-done .billing-head {
+  margin-bottom: 0;
+}
+/* The type scale is the payer portal's, so the same dialog is the same size wherever it
      is opened from. 19px here rather than the old 18: the design sets both dialog titles
      at that, and it is the first line of the dialog. */
-  .billing-title { margin: 0 0 6px; font-size: 20px; line-height: normal; font-weight: 700; letter-spacing: -0.01em; color: #16202E; }
-  /* The picker titles itself smaller than the form — 16px semibold against 20px bold.
+.billing-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  line-height: normal;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #16202e;
+}
+/* The picker titles itself smaller than the form — 16px semibold against 20px bold.
      Kept as two sizes rather than normalised, because the design sizes each heading to what
      it introduces: a short list under a label, against a page of fields. */
-  .is-list .billing-title { font-size: 16px; font-weight: 600; }
-  .billing-sub { margin: 0; font-size: 13.5px; line-height: normal; color: #6B7A80; max-width: 434px; }
-  .billing-close {
-    flex: none; margin-left: auto;
-    background: transparent; border: 0; cursor: pointer;
-    color: var(--muted); padding: 4px; border-radius: 8px; line-height: 0;
-  }
-  .billing-close:hover { background: var(--surface-2); color: var(--ink-2); }
-  .billing-close:disabled { cursor: not-allowed; opacity: 0.5; }
+.is-list .billing-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+.billing-sub {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: normal;
+  color: #6b7a80;
+  max-width: 434px;
+}
+.billing-close {
+  flex: none;
+  margin-left: auto;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--muted);
+  padding: 4px;
+  border-radius: 8px;
+  line-height: 0;
+}
+.billing-close:hover {
+  background: var(--surface-2);
+  color: var(--ink-2);
+}
+.billing-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
-  .billing-loading { margin: 0; padding: 18px 0; font-size: 14px; color: var(--muted); }
+.billing-loading {
+  margin: 0;
+  padding: 18px 0;
+  font-size: 14px;
+  color: var(--muted);
+}
 
-  /* --- 01-L · the card picker ---------------------------------------------- */
+/* --- 01-L · the card picker ---------------------------------------------- */
 
-  /* SCROLLS RATHER THAN COLLAPSING. A wallet of seven cards used to hide everything but
+/* SCROLLS RATHER THAN COLLAPSING. A wallet of seven cards used to hide everything but
      the chosen row behind a "Change" toggle, which kept the sheet inside the viewport by
      hiding the choice the dialog exists to offer. The cap is ~3.5 rows, so a fourth card
      is visibly cut off — that is the affordance, and a list that ended flush on the fourth
      row would look complete. */
-  .billing-list {
-    list-style: none; margin: 0; padding: 2px;
-    display: grid; gap: 10px;
-    max-height: 370px; overflow-y: auto; overscroll-behavior: contain;
-  }
-  .billing-pm {
-    display: flex; align-items: center; gap: 18px;
-    min-height: 95px;
-    padding: 14px 20px; cursor: pointer;
-    /* NO BORDER — the design separates one row from the next with a shadow alone. */
-    border: 0; border-radius: 12px;
-    background: var(--bg); box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    outline: 2px solid transparent; outline-offset: -2px;
-    transition: box-shadow .15s, outline-color .15s;
-  }
-  .billing-pm:hover { box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14); }
-  /* AN OUTLINE, NOT A BORDER, so choosing a row does not change its size and shunt the
+.billing-list {
+  list-style: none;
+  margin: 0;
+  padding: 2px;
+  display: grid;
+  gap: 10px;
+  max-height: 370px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.billing-pm {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-height: 95px;
+  padding: 14px 20px;
+  cursor: pointer;
+  /* NO BORDER — the design separates one row from the next with a shadow alone. */
+  border: 0;
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  outline: 2px solid transparent;
+  outline-offset: -2px;
+  transition:
+    box-shadow 0.15s,
+    outline-color 0.15s;
+}
+.billing-pm:hover {
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.14);
+}
+/* AN OUTLINE, NOT A BORDER, so choosing a row does not change its size and shunt the
      rest of the list down by 2px.
 
      The frames say nothing about this state: the only row they draw IS the chosen one, and
      it carries no mark of it. Left that way, a 20px radio would be the entire signal in a
      list of three, so the ring stays. */
-  .billing-pm.is-chosen {
-    outline-color: var(--pick-line);
-    box-shadow: 0 2px 10px rgba(79, 199, 199, 0.18);
-  }
-  /* THE RADIO IS DRAWN, NOT THEMED. `accent-color` gives a coloured dot inside a thin
+.billing-pm.is-chosen {
+  outline-color: var(--pick-line);
+  box-shadow: 0 2px 10px rgba(79, 199, 199, 0.18);
+}
+/* THE RADIO IS DRAWN, NOT THEMED. `accent-color` gives a coloured dot inside a thin
      ring; the design draws the inverse — a 6px teal ring around a white core — and no
      property turns one into the other. `appearance: none` is the only route, and it takes
      the native focus ring away with the native appearance, which is what the
      :focus-visible rule below is replacing. Do not delete it. */
-  .billing-pm input {
-    appearance: none; -webkit-appearance: none;
-    flex: none; width: 20px; height: 20px; margin: 0;
-    border: 2px solid #D7DEE2; border-radius: 50%;
-    background: var(--bg);
-    cursor: pointer;
-    transition: border-color .15s, border-width .15s;
-  }
-  .billing-pm input:checked { border: 6px solid #2E9B9B; }
-  .billing-pm input:focus-visible { outline: 2px solid var(--pick-line); outline-offset: 2px; }
-  .billing-pm input:disabled { cursor: not-allowed; opacity: .5; }
-  /* The brand chip — see CardBrand.jsx for why it is our own mark and not the network's
+.billing-pm input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  border: 2px solid #d7dee2;
+  border-radius: 50%;
+  background: var(--bg);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    border-width 0.15s;
+}
+.billing-pm input:checked {
+  border: 6px solid #2e9b9b;
+}
+.billing-pm input:focus-visible {
+  outline: 2px solid var(--pick-line);
+  outline-offset: 2px;
+}
+.billing-pm input:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* The brand chip — see CardBrand.jsx for why it is our own mark and not the network's
      artwork. A fixed box so the labels beside it line up down the list however wide the
      wordmark inside turns out to be. */
-  .pm-brand {
-    flex: none;
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 56px; height: 36px;
-    border: 1px solid #EFF1F3; border-radius: 7px;
-    background: var(--bg);
-  }
-  .billing-pm-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
-  .billing-pm-label { font-size: 14px; font-weight: 700; letter-spacing: -0.005em; color: #16202E; }
-  .billing-pm-meta { display: flex; align-items: baseline; gap: 11px; font-size: 12px; color: #16202E; }
-  /* "Expire on" is the caption and the date is the fact — the design greys the first and
+.pm-brand {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 36px;
+  border: 1px solid #eff1f3;
+  border-radius: 7px;
+  background: var(--bg);
+}
+.billing-pm-main {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.billing-pm-label {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: #16202e;
+}
+.billing-pm-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 11px;
+  font-size: 12px;
+  color: #16202e;
+}
+/* "Expire on" is the caption and the date is the fact — the design greys the first and
      leaves the second in ink, which is why they are two elements rather than one string. */
-  .billing-pm-metalabel { color: #A0A8B2; }
-  .billing-pm-company { font-size: 12.5px; color: var(--muted); }
-  /* The flags, in a fixed order — what a card IS to the account, then how close it is to
+.billing-pm-metalabel {
+  color: #a0a8b2;
+}
+.billing-pm-company {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+/* The flags, in a fixed order — what a card IS to the account, then how close it is to
      not working — so the same card reads the same way here, on Minty's restart screen and
      in the payer portal. Every pill is the same shape; only the colour family changes,
      because they are the same KIND of statement. */
-  .billing-pm-flags { margin-left: auto; flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-  .billing-pm-flag {
-    flex: none;
-    font-size: 11.5px; font-weight: 700; letter-spacing: .02em;
-    border: 1px solid transparent;
-    padding: 3px 8px; border-radius: 999px;
-    white-space: nowrap;
-  }
-  .billing-pm-flag.is-soon    { color: #9e690d; background: #fce6bd; border-color: #f2d59b; }
-  .billing-pm-flag.is-expired { color: #b4231f; background: #fff1f1; border-color: #ffcccc; }
+.billing-pm-flags {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.billing-pm-flag {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.billing-pm-flag.is-soon {
+  color: #9e690d;
+  background: #fce6bd;
+  border-color: #f2d59b;
+}
+.billing-pm-flag.is-expired {
+  color: #b4231f;
+  background: #fff1f1;
+  border-color: #ffcccc;
+}
 
-  /* Centred under the list, in the step's teal. A button rather than an anchor — it opens
+/* Centred under the list, in the step's teal. A button rather than an anchor — it opens
      the form beside it rather than going anywhere — styled as the link the design draws,
      and keeping a button's keyboard behaviour. */
-  .billing-add {
-    display: block; margin: 30px auto 0;
-    border: 0; background: none; padding: 4px 8px;
-    font-size: 16px; font-weight: 400; color: var(--pick-ink);
-    cursor: pointer;
-  }
-  .billing-add:hover { text-decoration: underline; text-underline-offset: 3px; }
-  .billing-add:disabled { cursor: not-allowed; opacity: .5; }
+.billing-add {
+  display: block;
+  margin: 30px auto 0;
+  border: 0;
+  background: none;
+  padding: 4px 8px;
+  font-size: 16px;
+  font-weight: 400;
+  color: var(--pick-ink);
+  cursor: pointer;
+}
+.billing-add:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.billing-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
-  /* --- 01-D · the new billing account form --------------------------------- */
+/* --- 01-D · the new billing account form --------------------------------- */
 
-  /* Form left, cat right. The column is 434px because that is what the frame draws, and
+/* Form left, cat right. The column is 434px because that is what the frame draws, and
      because it is a comfortable measure for a form of single-line fields — a form that
      stretched to the full 880 would put the caret half a screen from the label. */
-  .billing-formwrap { display: flex; align-items: flex-start; gap: 80px; }
-  .billing-formcol { flex: 0 0 434px; max-width: 100%; min-width: 0; }
-  /* 232px, not the frame's 290. The exported asset was cropped to its alpha bounds
+.billing-formwrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 80px;
+}
+.billing-formcol {
+  flex: 0 0 434px;
+  max-width: 100%;
+  min-width: 0;
+}
+/* 232px, not the frame's 290. The exported asset was cropped to its alpha bounds
      (580x840 -> 464x605), so the drawn footprint and the file's own width are not the same
      number — 290 of frame is 232 of this file. */
-  .billing-formart { flex: 1 1 auto; align-self: center; width: 232px; max-width: 100%; height: auto; }
+.billing-formart {
+  flex: 1 1 auto;
+  align-self: center;
+  width: 232px;
+  max-width: 100%;
+  height: auto;
+}
 
-  .billing-form { margin-top: 4px; }
-  .billing-field { margin-bottom: 14px; }
-  .billing-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: #16202E; }
-  /* Matched to the Stripe fields below them (STRIPE_APPEARANCE in BillingSheet.jsx), so
+.billing-form {
+  margin-top: 4px;
+}
+.billing-field {
+  margin-bottom: 14px;
+}
+.billing-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #16202e;
+}
+/* Matched to the Stripe fields below them (STRIPE_APPEARANCE in BillingSheet.jsx), so
      the three inputs the payer meets in one column are one column of inputs. Change either
      and change the other. */
-  .billing-input {
-    display: block; width: 100%; height: 44px;
-    padding: 12px 14px;
-    border: 1px solid #D7DEE2; border-radius: 8px;
-    background: var(--bg);
-    font: inherit; font-size: 14px; color: #16202E;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .billing-input::placeholder { color: #9AA6AC; }
-  .billing-input:focus {
-    outline: none;
-    border-color: var(--pick-line);
-    box-shadow: 0 0 0 3px rgba(79, 199, 199, 0.18);
-  }
-  .billing-input:disabled { background: var(--surface); cursor: not-allowed; }
-  /* The invalid state colours the border rather than adding an icon: the message below it
+.billing-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 12px 14px;
+  border: 1px solid #d7dee2;
+  border-radius: 8px;
+  background: var(--bg);
+  font: inherit;
+  font-size: 14px;
+  color: #16202e;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+.billing-input::placeholder {
+  color: #9aa6ac;
+}
+.billing-input:focus {
+  outline: none;
+  border-color: var(--pick-line);
+  box-shadow: 0 0 0 3px rgba(79, 199, 199, 0.18);
+}
+.billing-input:disabled {
+  background: var(--surface);
+  cursor: not-allowed;
+}
+/* The invalid state colours the border rather than adding an icon: the message below it
      says what is wrong, and the two together are the signal — colour alone would not be. */
-  .billing-input.is-invalid { border-color: #b4231f; }
-  .billing-input.is-invalid:focus { box-shadow: 0 0 0 3px rgba(180, 35, 31, 0.15); }
-  .billing-fielderror { margin: 6px 0 0; font-size: 12.5px; line-height: 1.4; color: #b4231f; }
+.billing-input.is-invalid {
+  border-color: #b4231f;
+}
+.billing-input.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(180, 35, 31, 0.15);
+}
+.billing-fielderror {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #b4231f;
+}
 
-  /* The bordered block around the Stripe elements. It is a boundary as much as a frame:
+/* The bordered block around the Stripe elements. It is a boundary as much as a frame:
      everything inside it is rendered by Stripe, in Stripe's iframe, and is the one part of
      this form whose contents never reach this app. */
-  .billing-stripe {
-    border: 1px solid #D7DEE2; border-radius: 10px;
-    padding: 16px;
-  }
-  /* Spacing only. The AddressElement themes itself from the appearance object, the same as
+.billing-stripe {
+  border: 1px solid #d7dee2;
+  border-radius: 10px;
+  padding: 16px;
+}
+/* Spacing only. The AddressElement themes itself from the appearance object, the same as
      the PaymentElement above it — nothing here should try to restyle its insides. */
-  .billing-address { margin-top: 16px; }
+.billing-address {
+  margin-top: 16px;
+}
 
-  /* --- 01-J · the card was saved ------------------------------------------- */
+/* --- 01-J · the card was saved ------------------------------------------- */
 
-  .billing-done { position: relative; }
-  /* ONE ROW: heading left, cat right, centred against each other.
+.billing-done {
+  position: relative;
+}
+/* ONE ROW: heading left, cat right, centred against each other.
 
      It was an absolutely positioned overlay, which is why this is worth a note. That
      version took the cat out of flow, so the row had only the heading's height while the
@@ -1954,105 +3694,208 @@
      `align-items: center` rather than the frame's exact offset: measured off the render
      the cat sits a little lower than the heading's centre, which is within the error of
      reading it off a raster and not worth pinning a magic number to. */
-  .billing-done-head {
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  }
-  /* 106px is measured from the frame's RENDER, not its node coordinates — the two
+.billing-done-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* 106px is measured from the frame's RENDER, not its node coordinates — the two
      disagree. `get_metadata` places "Minty celebrating" (2234:3281) far enough right to
      hang two thirds of it outside the card; the rendered frame plainly shows it wholly
      inside. The render is what the design looks like; do not "correct" this back. */
-  .billing-done-art {
-    flex: none;
-    width: 106px; height: auto;
-    pointer-events: none;
-  }
-  /* No max-width any more — the flex row is what keeps the heading clear of the cat, and
+.billing-done-art {
+  flex: none;
+  width: 106px;
+  height: auto;
+  pointer-events: none;
+}
+/* No max-width any more — the flex row is what keeps the heading clear of the cat, and
      a fixed cap on top of it would only wrap the words earlier than the space requires. */
-  .billing-done-title {
-    margin: 0;
-    font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em;
-    color: #16202E;
-  }
-  .billing-done-title span { color: var(--pick-ink); }
-  /* 48/18/48 and a 1.2 leading are the frame's own spacing, and together with the 67px
+.billing-done-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #16202e;
+}
+.billing-done-title span {
+  color: var(--pick-ink);
+}
+/* 48/18/48 and a 1.2 leading are the frame's own spacing, and together with the 67px
      top padding they add up to its 469px card exactly:
      67 + 128.6 (the cat, tallest in the row) + 66 + 54 + 114 + 40 = 469. */
-  .billing-done-body { margin: 0; padding-top: 48px; font-size: 15px; line-height: 1.2; color: var(--sum-label); }
-  .billing-done-body + .billing-done-body { padding-top: 18px; }
-  /* The card that was saved, in its own colour so the sentence can be scanned for the
+.billing-done-body {
+  margin: 0;
+  padding-top: 48px;
+  font-size: 15px;
+  line-height: 1.2;
+  color: var(--sum-label);
+}
+.billing-done-body + .billing-done-body {
+  padding-top: 18px;
+}
+/* The card that was saved, in its own colour so the sentence can be scanned for the
      one fact it carries. */
-  .billing-done-card { color: #EA9713; }
-  .billing-done-actions { display: flex; justify-content: center; margin-top: 48px; }
-  .billing-done-btn { min-width: 169px; height: 66px; border-radius: 14px; font-size: 18px; font-weight: 700; }
+.billing-done-card {
+  color: #ea9713;
+}
+.billing-done-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+.billing-done-btn {
+  min-width: 169px;
+  height: 66px;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: 700;
+}
 
-  .billing-mandate,
-  .billing-error {
-    margin: 24px 0 0; font-size: 12.5px; line-height: 1.5;
-    overflow-wrap: anywhere;
-  }
-  /* Half a point larger than the mandate, as it is in the payer portal. An error is read
+.billing-mandate,
+.billing-error {
+  margin: 24px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+/* Half a point larger than the mandate, as it is in the payer portal. An error is read
      once, under pressure, and the mandate is standing text — they are not the same job. */
-  .billing-error { font-size: 13.5px; }
-  .billing-mandate { color: #6B7A80; }
-  /* NOT UNDERLINED, and in the design's darker teal rather than the step's bright one. It
+.billing-error {
+  font-size: 13.5px;
+}
+.billing-mandate {
+  color: #6b7a80;
+}
+/* NOT UNDERLINED, and in the design's darker teal rather than the step's bright one. It
      is the tail of a mandate sentence, not navigation — the design marks it with colour
      and nothing else, and the underline arrives on hover to say it is clickable. */
-  .billing-mandate a {
-    color: #128F92; font-weight: 600;
-    text-decoration: none;
-  }
-  .billing-mandate a:hover { text-decoration: underline; text-underline-offset: 2px; }
-  .billing-error {
-    color: #b4231f; background: #fff1f1;
-    border: 1px solid #ffcccc; border-radius: var(--radius-sm);
-    padding: 10px 12px;
-  }
+.billing-mandate a {
+  color: #128f92;
+  font-weight: 600;
+  text-decoration: none;
+}
+.billing-mandate a:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.billing-error {
+  color: #b4231f;
+  background: #fff1f1;
+  border: 1px solid #ffcccc;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
 
-  /* 01-D's pair: a narrow Cancel and a wide Save filling the form column, in the design's
+/* 01-D's pair: a narrow Cancel and a wide Save filling the form column, in the design's
      150/270 proportion. */
-  .billing-actions { display: flex; gap: 14px; margin-top: 20px; }
-  /* 8px rather than the app's 10px --radius-sm: the design draws these at the same radius
+.billing-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 20px;
+}
+/* 8px rather than the app's 10px --radius-sm: the design draws these at the same radius
      as the inputs above them, which is what makes the form read as one stack rather than a
      form with a toolbar under it. */
-  .billing-actions .btn { height: 44px; border-radius: 8px; justify-content: center; }
-  .billing-actions .btn-ghost { border-color: #D7DEE2; color: #16202E; }
-  .billing-cancel { flex: 0 0 150px; }
-  .billing-save { flex: 1 1 auto; }
-  /* 01-L has one button and it is centred, because there is nothing for it to be balanced
+.billing-actions .btn {
+  height: 44px;
+  border-radius: 8px;
+  justify-content: center;
+}
+.billing-actions .btn-ghost {
+  border-color: #d7dee2;
+  color: #16202e;
+}
+.billing-cancel {
+  flex: 0 0 150px;
+}
+.billing-save {
+  flex: 1 1 auto;
+}
+/* 01-L has one button and it is centred, because there is nothing for it to be balanced
      against. */
-  .billing-actions.is-single { justify-content: center; margin-top: 28px; }
-  .billing-actions.is-single .btn { min-width: 130px; }
+.billing-actions.is-single {
+  justify-content: center;
+  margin-top: 28px;
+}
+.billing-actions.is-single .btn {
+  min-width: 130px;
+}
 
+/* --- narrow ---------------------------------------------------------------- */
 
-  /* --- narrow ---------------------------------------------------------------- */
-
-  /* Below the two-column form the cat is the first thing to go: at 250px it is more than
+/* Below the two-column form the cat is the first thing to go: at 250px it is more than
      half the width of a phone dialog, and it is decoration beside a form the payer is
      typing a card number into. */
-  @media (max-width: 900px) {
-    .billing-sheet.is-form { max-width: 481px; }
-    .billing-formwrap { display: block; }
-    .billing-formcol { flex: none; }
-    .billing-formart { display: none; }
+@media (max-width: 900px) {
+  .billing-sheet.is-form {
+    max-width: 481px;
   }
-  @media (max-width: 560px) {
-    .billing-sheet { padding: 22px 18px; }
-    .billing-sheet.is-form { padding: 22px 18px; }
-    .billing-sheet.is-done { padding: 30px 22px 32px; }
-    /* The row becomes a column on a phone: a 106px cat beside a 24px heading leaves the
+  .billing-formwrap {
+    display: block;
+  }
+  .billing-formcol {
+    flex: none;
+  }
+  .billing-formart {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .billing-sheet {
+    padding: 22px 18px;
+  }
+  .billing-sheet.is-form {
+    padding: 22px 18px;
+  }
+  .billing-sheet.is-done {
+    padding: 30px 22px 32px;
+  }
+  /* The row becomes a column on a phone: a 106px cat beside a 24px heading leaves the
        heading about half a 300px dialog, which wraps it to four lines. `column-reverse`
        puts the cat back ON TOP, which is the arrangement this had before and reads better
        centred than a cat squeezed alongside. */
-    .billing-done-head { flex-direction: column-reverse; align-items: center; gap: 6px; }
-    .billing-done-art { width: 120px; }
-    .billing-done-title { font-size: 24px; text-align: center; }
-    .billing-done-actions { margin-top: 32px; }
-    .billing-done-btn { width: 100%; }
-    /* The brand chip and the two-line label no longer fit beside the flag rail. The flags
-       go under the label, where they still read as facts about this card. */
-    .billing-pm { flex-wrap: wrap; gap: 14px; padding: 14px 16px; }
-    .billing-pm-flags { flex-direction: row; margin-left: 0; flex-basis: 100%; justify-content: flex-start; }
-    .billing-actions { flex-direction: column-reverse; }
-    .billing-actions .btn { width: 100%; }
-    .billing-cancel, .billing-save { flex: none; }
+  .billing-done-head {
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 6px;
   }
+  .billing-done-art {
+    width: 120px;
+  }
+  .billing-done-title {
+    font-size: 24px;
+    text-align: center;
+  }
+  .billing-done-actions {
+    margin-top: 32px;
+  }
+  .billing-done-btn {
+    width: 100%;
+  }
+  /* The brand chip and the two-line label no longer fit beside the flag rail. The flags
+       go under the label, where they still read as facts about this card. */
+  .billing-pm {
+    flex-wrap: wrap;
+    gap: 14px;
+    padding: 14px 16px;
+  }
+  .billing-pm-flags {
+    flex-direction: row;
+    margin-left: 0;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+  .billing-actions {
+    flex-direction: column-reverse;
+  }
+  .billing-actions .btn {
+    width: 100%;
+  }
+  .billing-cancel,
+  .billing-save {
+    flex: none;
+  }
+}

@@ -7,17 +7,17 @@ npm run test:e2e
 These run a real browser against a **stack that is already running**. They start nothing:
 booting four services from a test runner would turn "Flask isn't up" into a failed
 assertion instead of a readable message. Each spec checks what it needs is reachable and
-**skips with a reason** when it is not, so an unconfigured run reads as *not run here*,
-never as *passed*.
+**skips with a reason** when it is not, so an unconfigured run reads as _not run here_,
+never as _passed_.
 
 ## What has to be up
 
-| Service | Port | Repo |
-|---|---|---|
-| Next (the wizard) | 3001 | this one — `npm run dev` |
-| Flask (Minty) | 5001 | `C:\dev\Minty` |
+| Service                 | Port | Repo                        |
+| ----------------------- | ---- | --------------------------- |
+| Next (the wizard)       | 3001 | this one — `npm run dev`    |
+| Flask (Minty)           | 5001 | `C:\dev\Minty`              |
 | Onboarding API (Django) | 8001 | `C:\dev\onboarding-backend` |
-| PostgreSQL | 5432 | — |
+| PostgreSQL              | 5432 | —                           |
 
 Override any of them with `E2E_BASE_URL`, `E2E_FLASK_URL`, `E2E_ONBOARDING_API_URL`.
 
@@ -26,11 +26,11 @@ Override any of them with `E2E_BASE_URL`, `E2E_FLASK_URL`, `E2E_ONBOARDING_API_U
 `stack.spec.ts` needs no login. `resume.spec.ts` does, and it skips entirely unless all
 three of these are set:
 
-| Variable | What |
-|---|---|
+| Variable         | What                                                        |
+| ---------------- | ----------------------------------------------------------- |
 | `E2E_JWT_SECRET` | the `SECRET_KEY` shared by Minty and the onboarding service |
-| `E2E_USER_ID` | a user who is an approved member of the entity below |
-| `E2E_ENTITY_ID` | **a disposable entity — the specs WRITE to it** |
+| `E2E_USER_ID`    | a user who is an approved member of the entity below        |
+| `E2E_ENTITY_ID`  | **a disposable entity — the specs WRITE to it**             |
 
 Never commit these. Export them for the run:
 
@@ -53,7 +53,7 @@ forged, expired or wrong-scope token is refused.
 
 ### The dedicated test entity
 
-`ee72f706-49f2-4690-83d6-e5f8d284ba2c` — *"E2E Test Entity (do not use)"*, status
+`ee72f706-49f2-4690-83d6-e5f8d284ba2c` — _"E2E Test Entity (do not use)"_, status
 `onboarding`, saved step 2, with `68bfc5d3…` as an approved admin. It exists so runs
 never touch an entity anyone cares about. To recreate it:
 

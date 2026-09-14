@@ -7,7 +7,7 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       # host:container — dev server runs on 3001 (distinct from billing FE 3000).
-      - "3001:3001"
+      - '3001:3001'
     environment:
       # Backend URLs the frontend calls. These MUST come from the environment
       # (never hardcoded) so the orchestrator can inject shared values later.

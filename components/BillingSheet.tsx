@@ -174,7 +174,10 @@ const PAYMENT_ELEMENT_OPTIONS: StripePaymentElementOptions = {
      too and the payer fills the same fields twice. */
   fields: { billingDetails: { name: 'never', address: 'never' } },
 };
-const ADDRESS_ELEMENT_OPTIONS: StripeAddressElementOptions = { mode: 'billing', display: { name: 'full' } };
+const ADDRESS_ELEMENT_OPTIONS: StripeAddressElementOptions = {
+  mode: 'billing',
+  display: { name: 'full' },
+};
 
 /**
  * 01-D — the new billing account form.
@@ -196,7 +199,11 @@ const ADDRESS_ELEMENT_OPTIONS: StripeAddressElementOptions = { mode: 'billing', 
 type CardFormProps = {
   setupIntent: string;
   /** (setup intent id, payment method id, the account to put the card on). */
-  onSaved: (setupIntentId: string, paymentMethodId: string | null | undefined, account: BillingAccountChoice) => Promise<void>;
+  onSaved: (
+    setupIntentId: string,
+    paymentMethodId: string | null | undefined,
+    account: BillingAccountChoice,
+  ) => Promise<void>;
   onBack: () => void;
   busyLabel: string;
 };
@@ -392,8 +399,8 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }: CardFormProps) {
       </div>
 
       <p className="billing-mandate">
-        By providing your payment method, you authorise Minty to charge applicable
-        subscription fees in accordance with the Subscription Terms.{' '}
+        By providing your payment method, you authorise Minty to charge applicable subscription fees
+        in accordance with the Subscription Terms.{' '}
         {/* Placeholder, as on the subscription card: there is no terms page in this app
             yet, so the click is swallowed rather than jumping to the top of the dialog.
             This link is part of a mandate disclosure — it needs a real URL before the
@@ -450,7 +457,15 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }: CardFormProps) {
  * someone flipping the flag back — the sentence should disappear rather than quietly
  * become a lie on the screen that confirms the payer's billing.
  */
-function CardAdded({ card, isDefault, onDone }: { card: PaymentMethod; isDefault: boolean; onDone: () => void }) {
+function CardAdded({
+  card,
+  isDefault,
+  onDone,
+}: {
+  card: PaymentMethod;
+  isDefault: boolean;
+  onDone: () => void;
+}) {
   // Done is the only control on this card, and the button that was focused a moment ago
   // (Save) has just unmounted — without this the focus falls to <body> and a keyboard
   // user is outside the dialog while looking at it.
@@ -711,7 +726,11 @@ export default function BillingSheet({
    * this the "New billing account" form rather than an add-a-card form. Passing neither
    * keeps the older behaviour: the card is saved, and that is all that happens.
    */
-  const saveNewCard = async (setupIntentId: string, paymentMethodId: string | null | undefined, account: BillingAccountChoice) => {
+  const saveNewCard = async (
+    setupIntentId: string,
+    paymentMethodId: string | null | undefined,
+    account: BillingAccountChoice,
+  ) => {
     /* ADDING A CARD *IS* CHOOSING IT, so saving nominates — every time, whether or not the
      * payer already had a billing account.
      *
@@ -802,9 +821,7 @@ export default function BillingSheet({
                 Nothing on the success card — 01-J carries its own heading, in two
                 colours, and a second title above it would be a heading for a heading. */}
             {loading || stage === 'done' ? null : (
-              <p className="billing-title">
-                {adding ? 'New billing account' : 'Payment Methods'}
-              </p>
+              <p className="billing-title">{adding ? 'New billing account' : 'Payment Methods'}</p>
             )}
             {/* ON THE FORM ONLY, because that is where the frame draws one: what happens
                 to the card number, worded identically in Minty and the payer portal — the
@@ -820,8 +837,8 @@ export default function BillingSheet({
                 note in the component docblock before writing another. */}
             {adding && !loading && stage !== 'done' ? (
               <p className="billing-sub">
-                Card details are held by our payment provider, Stripe — they are never
-                stored by Minty.
+                Card details are held by our payment provider, Stripe — they are never stored by
+                Minty.
               </p>
             ) : null}
           </div>
@@ -916,16 +933,12 @@ export default function BillingSheet({
                             {m.expiry}
                           </span>
                         ) : (
-                          <span className="billing-pm-meta">
-                            {m.wallet_label || m.brand_label}
-                          </span>
+                          <span className="billing-pm-meta">{m.wallet_label || m.brand_label}</span>
                         )}
                         {/* Which billing account invoices on this card, when the payer has
                             named one. Absent for everybody who has never opened a second
                             account, which is the case the design draws. */}
-                        {company ? (
-                          <span className="billing-pm-company">{company}</span>
-                        ) : null}
+                        {company ? <span className="billing-pm-company">{company}</span> : null}
                       </span>
                       {/* The flags, as PILLS rather than words appended to the meta line.
                           What a card IS to the account and when it stops working are facts
@@ -948,12 +961,7 @@ export default function BillingSheet({
               })}
             </ul>
 
-            <button
-              type="button"
-              className="billing-add"
-              onClick={openCardForm}
-              disabled={saving}
-            >
+            <button type="button" className="billing-add" onClick={openCardForm} disabled={saving}>
               Add New Card
             </button>
 

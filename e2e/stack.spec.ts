@@ -17,7 +17,10 @@ import { BASE_URL, FLASK_URL, ONBOARDING_API_URL } from './urls';
 import { reachable } from './helpers';
 
 test.beforeEach(async () => {
-  test.skip(!(await reachable(BASE_URL)), `Nothing is serving ${BASE_URL} -- start the wizard with npm run dev`);
+  test.skip(
+    !(await reachable(BASE_URL)),
+    `Nothing is serving ${BASE_URL} -- start the wizard with npm run dev`,
+  );
 });
 
 test('the wizard is served and reaches a usable screen', async ({ page }) => {
@@ -92,7 +95,9 @@ test.describe('the onboarding API is reachable from the browser origin', () => {
     expect((res.headers()['vary'] || '').toLowerCase()).toContain('origin');
   });
 
-  test('server-time agrees with the machine running the service, not the browser', async ({ request }) => {
+  test('server-time agrees with the machine running the service, not the browser', async ({
+    request,
+  }) => {
     const res = await request.get(`${ONBOARDING_API_URL}/api/onboarding/server-time`);
     const { today } = await res.json();
     // Not asserting it equals the test machine's today -- that is the very coupling the

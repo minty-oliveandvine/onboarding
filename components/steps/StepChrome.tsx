@@ -18,7 +18,13 @@ type SaveExitLinkProps = {
   style?: CSSProperties;
 };
 
-export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style }: SaveExitLinkProps) {
+export function SaveExitLink({
+  saveAndExit,
+  submitFn,
+  disabled = false,
+  className = 'btn-link-center',
+  style,
+}: SaveExitLinkProps) {
   const [exiting, setExiting] = useState(false);
   const onClick = async () => {
     if (exiting || disabled) return;
@@ -60,7 +66,14 @@ type StepNavProps = {
   isLastContentStep?: boolean;
 };
 
-export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep }: StepNavProps) {
+export function StepNav({
+  back,
+  saveAndExit,
+  stepSubmit,
+  tryNext,
+  saving,
+  isLastContentStep,
+}: StepNavProps) {
   return (
     <div className="step-nav">
       <button className="btn btn-ghost" onClick={back}>
@@ -69,7 +82,15 @@ export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLast
       <div className="step-actions">
         <SaveExitLink saveAndExit={saveAndExit} submitFn={stepSubmit} disabled={saving} />
         <button className="btn btn-primary" onClick={tryNext} disabled={saving}>
-          {saving ? 'Saving…' : isLastContentStep ? 'Complete' : <>Save &amp; Next <Icon.Arrow /></>}
+          {saving ? (
+            'Saving…'
+          ) : isLastContentStep ? (
+            'Complete'
+          ) : (
+            <>
+              Save &amp; Next <Icon.Arrow />
+            </>
+          )}
         </button>
       </div>
     </div>

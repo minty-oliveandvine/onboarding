@@ -1,0 +1,8 @@
+.next
+node_modules
+public
+test-results
+playwright-report
+package-lock.json
+CODE_CLEANSE_NOTES.md
+ERROR_COPY.md

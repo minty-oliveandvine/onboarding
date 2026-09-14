@@ -6,7 +6,6 @@
 // bundle price applies, otherwise the standalone prices are summed. There is no separate
 // discount field, and inventing one would double-count.
 
-
 // --- Step 2: Select Module ---
 // `tile` and `art` come off the card exports rather than being derived from `accent`:
 // the design gives each module its own tile wash and its own illustration size (Petty
@@ -37,15 +36,35 @@ export type ModuleCard = {
 /** A picked module with its live plan. */
 export type PricedRow = { module: ModuleCard; plan: Plan; on: boolean };
 export const MODULES: ModuleCard[] = [
-  { id: 'pettyCash', title: 'Petty Cash', desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.', img: '/pettycash-icon.png', accent: '#f5b945', tile: '#FFF7EC', art: 80, price: '280 HKD per Month' },
-  { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', tile: '#EDF5FC', art: 95, price: '280 HKD per Month' },
+  {
+    id: 'pettyCash',
+    title: 'Petty Cash',
+    desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.',
+    img: '/pettycash-icon.png',
+    accent: '#f5b945',
+    tile: '#FFF7EC',
+    art: 80,
+    price: '280 HKD per Month',
+  },
+  {
+    id: 'bills',
+    title: 'Payment Request',
+    desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.',
+    img: '/payment-icon.png',
+    accent: '#3aa6f5',
+    tile: '#EDF5FC',
+    art: 95,
+    price: '280 HKD per Month',
+  },
 ];
 
 // Backend module codes → the ids used by MODULES / state.modules above, so the
 // live plan catalog from /api/onboarding/plans can be matched to the picked cards.
 
 /** Index the live plan catalog by frontend module id (empty when it didn't load). */
-export function plansByModuleId(catalog: PlanCatalog | null | undefined): Partial<Record<ModuleId, Plan>> {
+export function plansByModuleId(
+  catalog: PlanCatalog | null | undefined,
+): Partial<Record<ModuleId, Plan>> {
   const byId: Partial<Record<ModuleId, Plan>> = {};
   (catalog?.plans || []).forEach((p) => {
     const id = MODULE_ID_BY_CODE[p.code];
@@ -62,7 +81,10 @@ export function plansByModuleId(catalog: PlanCatalog | null | undefined): Partia
  * code "HKD" rather than a symbol. "HKD560" runs together; "HKD 560" reads. The same
  * space is what lib/amount.js formatMoney() already puts there.
  */
-export function money(symbol: string | null | undefined, value: string | number | null | undefined): string {
+export function money(
+  symbol: string | null | undefined,
+  value: string | number | null | undefined,
+): string {
   const text = trimZeroCents(formatAmount(value));
   if (!text) return '';
   return symbol ? `${symbol} ${text}` : text;
@@ -124,10 +146,14 @@ export function priceSelection(catalog: PlanCatalog | null | undefined, picked: 
  * The priced rows for a selection, in canonical order — or [] when there is nothing to
  * price (no catalog, or no module picked yet).
  */
-export function pricedRows(catalog: PlanCatalog | null | undefined, selected: readonly ModuleId[]): PricedRow[] {
+export function pricedRows(
+  catalog: PlanCatalog | null | undefined,
+  selected: readonly ModuleId[],
+): PricedRow[] {
   const byId = plansByModuleId(catalog);
-  return MODULES.map((m) => ({ module: m, plan: byId[m.id], on: selected.includes(m.id) }))
-    .filter((r): r is PricedRow => !!r.plan && r.on);
+  return MODULES.map((m) => ({ module: m, plan: byId[m.id], on: selected.includes(m.id) })).filter(
+    (r): r is PricedRow => !!r.plan && r.on,
+  );
 }
 
 /**
@@ -167,7 +193,13 @@ type ModuleSubscriptionSummaryProps = {
   onOpenBilling: () => void;
 };
 
-export function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onOpenBilling }: ModuleSubscriptionSummaryProps) {
+export function ModuleSubscriptionSummary({
+  catalog,
+  selected,
+  card,
+  cardLoading,
+  onOpenBilling,
+}: ModuleSubscriptionSummaryProps) {
   const picked = pricedRows(catalog, selected);
 
   // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.
@@ -204,7 +236,12 @@ export function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading
           )}
         </div>
         {isBundle ? (
-          <img className="sub-plan-art" src="/assets/superminty-cat.png" alt="" aria-hidden="true" />
+          <img
+            className="sub-plan-art"
+            src="/assets/superminty-cat.png"
+            alt=""
+            aria-hidden="true"
+          />
         ) : null}
       </div>
 
@@ -232,11 +269,7 @@ export function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading
             long as the request took, before the row corrected itself. Offering an action
             that is about to be withdrawn is worse than a moment of visible waiting. */}
         {cardLoading ? (
-          <span
-            className="sub-pay-loading"
-            role="status"
-            aria-label="Checking your payment method"
-          >
+          <span className="sub-pay-loading" role="status" aria-label="Checking your payment method">
             <span className="sub-pay-bar" aria-hidden="true" />
             <span className="sub-pay-bar is-short" aria-hidden="true" />
           </span>

@@ -24,7 +24,9 @@ function cachedListFetch<Row>(key: string): () => Promise<Row[]> {
     if (!promise) {
       promise = fetch(urlFor(`/api/onboarding/${key}`))
         .then((res) => (res.ok ? res.json() : null))
-        .then((data: Record<string, unknown> | null) => (Array.isArray(data?.[key]) ? (data[key] as Row[]) : []))
+        .then((data: Record<string, unknown> | null) =>
+          Array.isArray(data?.[key]) ? (data[key] as Row[]) : [],
+        )
         .catch(() => {
           promise = null;
           return [];
