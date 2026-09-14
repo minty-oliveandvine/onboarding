@@ -23,6 +23,27 @@ import { MODULE_CODE_BY_ID, MODULE_ID_BY_CODE } from '../lib/modules';
 import { STORAGE_KEY, XERO_RESUME_KEY, findLatestSession, readJwtClaims, sessionKey } from '../lib/wizardSession';
 import { STEPS, deriveResumeStep, getActiveStepIds, getDisplaySteps, initialState, isStepComplete } from '../lib/wizardSteps';
 import Stepper from './Stepper';
+import type {
+  AccountCodesResponse,
+  ApiErrorBody,
+  BillCodesResponse,
+  ContactResult,
+  CreateEntityResponse,
+  EntityPayload,
+  EntityResult,
+  FinalizeResult,
+  InvitePayload,
+  InviteResponse,
+  InviteResult,
+  Invitation,
+  ModuleCode,
+  ModuleId,
+  OnboardingState,
+  PlanCatalog,
+  Result,
+  SalesMethods,
+} from '../lib/api';
+import type { AccountOptions, InviteRow, StepProps, SubmitFn, WizardState } from '../lib/types';
 
 // Baked-in defaults that used to live in TWEAK_DEFAULTS (tweaks-panel removed from prod build)
 const ACCENT_DEFAULTS = {
@@ -37,23 +58,23 @@ export default function OnboardingApp() {
   const [maxReached, setMaxReached] = useState(1);
   // Logged-in user, passed in by Module 1 on the launch URL after entity creation
   // (e.g. /?first=Dan&last=Smith or /?name=Dan%20Smith). No backend call needed.
-  const [user, setUser] = useState({ first: '', last: '', name: '' });
+  const [user, setUser] = useState<{ first: string; last: string; name: string }>({ first: '', last: '', name: '' });
   // Short-lived JWT from Module 1 used to create the entity on Step 1.
   const [token, setToken] = useState('');
   // Module 2 profile handoff URL (no entity context) passed in by Module 1.
   const [profileUrl, setProfileUrl] = useState('');
-  const [accountOptions, setAccountOptions] = useState({ bank: [], cashSale: [], director: [], discrepancy: [], expense: [], contacts: [], bill: [] });
+  const [accountOptions, setAccountOptions] = useState<AccountOptions>({ bank: [], cashSale: [], director: [], discrepancy: [], expense: [], contacts: [], bill: [] });
   // Live module prices + bulk-discount unit from Stripe, for Step 2's subscription
   // summary. Stays null until loaded (and if the fetch fails), which hides the
   // summary rather than showing invented figures.
-  const [modulePlans, setModulePlans] = useState(null);
+  const [modulePlans, setModulePlans] = useState<PlanCatalog | null>(null);
   // Set on resume when the user landed past step 4 but Xero isn't connected in
   // the DB — drives the "connect to accounting first" pop-up.
   const [needsXeroPrompt, setNeedsXeroPrompt] = useState(false);
   // Why the needs-Xero pop-up is showing: 'not-connected' (the entity isn't
   // connected in the DB) or 'expired' (the /state re-check came back 401 — the
   // session lapsed, typically after ~30 min past step 4). Drives the modal copy.
-  const [xeroPromptReason, setXeroPromptReason] = useState('not-connected');
+  const [xeroPromptReason, setXeroPromptReason] = useState<'not-connected' | 'expired'>('not-connected');
   // Set when the Xero OAuth round-trip returns `xero=mismatch` — the user logged
   // in with a Xero account whose email differs from the onboarding initiator's,
   // so the backend refused to connect the entity. Holds the email they MUST use
@@ -111,18 +132,18 @@ export default function OnboardingApp() {
   const displaySteps = useMemo(() => getDisplaySteps(state.modules), [state.modules]);
 
   // Helper: find the next active step id after `c`, or stay if at end.
-  const nextActiveId = (c) => {
+  const nextActiveId = (c: number) => {
     const i = activeIds.indexOf(c);
     if (i === -1 || i === activeIds.length - 1) return c;
     return activeIds[i + 1];
   };
-  const prevActiveId = (c) => {
+  const prevActiveId = (c: number) => {
     const i = activeIds.indexOf(c);
     if (i <= 0) return c;
     return activeIds[i - 1];
   };
 
-  const set = (patch) => setState((prev) => ({ ...prev, ...patch }));
+  const set = (patch: Partial<WizardState>) => setState((prev) => ({ ...prev, ...patch }));
 
   // Latest `state` mirrored into a ref for async flows (cold resume) that must
   // both write the state AND keep using the value they wrote. Reading it inside
@@ -140,7 +161,7 @@ export default function OnboardingApp() {
   // every advance (Save & Next) and on Save & Exit, so resume lands on the
   // furthest step reached — this is what lets the Xero gate fire its pop-up when
   // saved_step > 4 but Xero isn't connected. Best-effort: never block the UI.
-  const persistSavedStep = (step) => {
+  const persistSavedStep = (step: number) => {
     if (!token || !state.entity.id) return;
     try {
       fetch(urlFor(`/api/onboarding/saved-step`), {
@@ -161,7 +182,7 @@ export default function OnboardingApp() {
     persistSavedStep(n);
   };
   const back = () => setCurrent((c) => prevActiveId(c));
-  const goto = (id) => {
+  const goto = (id: number) => {
     if (!activeIds.includes(id)) return;
     // Onboarding is finished on the "All Set" step (9) — lock the stepper so the
     // user can't jump back into earlier steps once they've reached it.
@@ -231,8 +252,8 @@ export default function OnboardingApp() {
   // /api/onboarding/state is authoritative; localStorage is a cache-only
   // fallback used if the fetch fails. `resumeToken` is the fresh JWT the resume
   // redirect minted; it authorizes calls for this entity_id (membership-checked).
-  const resumeFromServer = async (entityId, resumeToken) => {
-    let payload = null;
+  const resumeFromServer = async (entityId: string, resumeToken: string) => {
+    let payload: OnboardingState | null = null;
     try {
       const res = await fetch(
         urlFor(`/api/onboarding/state?entity_id=${encodeURIComponent(entityId)}`),
@@ -246,8 +267,8 @@ export default function OnboardingApp() {
 
     if (payload && payload.entity_id) {
       const modules = (Array.isArray(payload.modules) ? payload.modules : [])
-        .map((code) => MODULE_ID_BY_CODE[code])
-        .filter(Boolean);
+        .map((code: ModuleCode) => MODULE_ID_BY_CODE[code])
+        .filter((id): id is ModuleId => Boolean(id));
       // Build the FE-shaped state once so the wizard and the resume-step
       // derivation see exactly the same data (deriveResumeStep/isStepComplete
       // read the FE `state` shape, not the raw backend payload).
@@ -258,9 +279,9 @@ export default function OnboardingApp() {
       // `opening_balance.cash_addition` is now forced to 0 by the backend and
       // must NOT be used. `opening_balance` (the object) is null when no draft
       // exists yet.
-      const sm = payload.sales_methods || {};
-      const ob = payload.opening_balance || {};
-      const obAmount = ob.opening_balance;
+      const sm: Partial<SalesMethods> = payload.sales_methods || {};
+      const ob = payload.opening_balance;
+      const obAmount = ob?.opening_balance;
       // Built from `stateRef`, not from inside a setState updater: the updater
       // only runs synchronously when nothing else is queued on this component,
       // and the resume path queues setToken/setUser/entity-name first — so the
@@ -270,7 +291,7 @@ export default function OnboardingApp() {
       // the init effect, so its batched updates (incl. the URL entity_name) have
       // rendered and the mirror effect has run.
       const prev = stateRef.current;
-      const nextState = {
+      const nextState: WizardState = {
         ...prev,
         entity: {
           ...prev.entity,
@@ -293,7 +314,7 @@ export default function OnboardingApp() {
           ...prev.pettyCash,
           ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),
           ...(Array.isArray(sm.delivery) ? { deliveryMethods: sm.delivery } : {}),
-          ...(ob.opening_date ? { openingDate: ob.opening_date } : {}),
+          ...(ob?.opening_date ? { openingDate: ob.opening_date } : {}),
           ...(obAmount !== undefined && obAmount !== null ? { openingBalance: String(obAmount) } : {}),
         },
       };
@@ -589,7 +610,7 @@ export default function OnboardingApp() {
   // (still resumable); the backend revokes on Xero's side and clears the token.
   // When run standalone (no entity/token), just flip local state so the
   // prototype still works.
-  const disconnectXero = async () => {
+  const disconnectXero = async (): Promise<Result> => {
     if (!token || !state.entity.id) {
       set({ xero: { ...state.xero, connected: false, org: '' } });
       return { ok: true };
@@ -704,13 +725,13 @@ export default function OnboardingApp() {
   // Snapshot of the entity fields as they were last persisted to the backend,
   // so a revisit can tell whether the user actually changed anything (and skip
   // the network round-trip if not).
-  const savedEntityRef = useRef(null);
+  const savedEntityRef = useRef<EntityPayload | null>(null);
 
   // Create the entity in Module 1 (Step 1), or update it in place when the user
   // goes back and edits an already-created entity. Token-authenticated; no
   // cookies. When launched standalone (no token), it no-ops so the prototype
   // still runs.
-  const submitEntity = async () => {
+  const submitEntity = async (): Promise<EntityResult> => {
     if (!token) return { ok: true }; // standalone / no Module 1 handoff
     const payload = {
       entity_name: state.entity.name,
@@ -778,7 +799,7 @@ export default function OnboardingApp() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(payload),
       });
-      const data = await res.json().catch(() => ({}));
+      const data: Partial<CreateEntityResponse> & ApiErrorBody = await res.json().catch(() => ({}));
       if (!res.ok) {
         // The backend returns 409 only for a name collision (uniqueness is
         // GLOBAL across all users — see /api/onboarding/create). Key off the
@@ -808,7 +829,7 @@ export default function OnboardingApp() {
     }
   };
 
-  const submitModule = async () => {
+  const submitModule = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const moduleCodes = (state.modules || [])
       .map((id) => MODULE_CODE_BY_ID[id])
@@ -828,7 +849,7 @@ export default function OnboardingApp() {
     }
   };
 
-  const submitSalesMethods = async () => {
+  const submitSalesMethods = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     try {
       const res = await fetch(urlFor(`/api/onboarding/sales-methods`), {
@@ -848,7 +869,7 @@ export default function OnboardingApp() {
     }
   };
 
-  const submitOpeningBalance = async () => {
+  const submitOpeningBalance = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const p = state.pettyCash;
     const empty = p.openingBalance === undefined || p.openingBalance === null || String(p.openingBalance).trim() === '';
@@ -864,7 +885,7 @@ export default function OnboardingApp() {
           // is forced to 0 by the backend); send it here so save and resume agree.
           // Normalized to an exact 2dp decimal string so the payload doesn't depend
           // on whether the user blurred the field before saving.
-          opening_balance: toAmountString(p.openingBalance),
+          opening_balance: toAmountString(p.openingBalance ?? ''),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -883,7 +904,7 @@ export default function OnboardingApp() {
     fetch(urlFor(`/api/onboarding/account-codes?entity_id=${encodeURIComponent(state.entity.id)}`), {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => (res.ok ? (res.json() as Promise<AccountCodesResponse>) : null))
       .then((data) => {
         if (!data || !data.connected) return;
         const bank = data.bank_accounts || [];
@@ -892,11 +913,15 @@ export default function OnboardingApp() {
         const discrepancy = data.discrepancy_accounts || [];
         const expense = data.expense_codes || [];
         const contacts = data.contacts || [];
-        setAccountOptions({ bank, cashSale, director, discrepancy, expense, contacts });
+        // `bill: []` is what this call has ALWAYS done, made explicit: it replaces the
+        // whole object and drops any bill codes already loaded. A resume that lands on
+        // step 8, then revisits 5, loses them -- and billLoadedRef stops the refetch.
+        // Kept as-is in the typing pass; the fix is `(prev) => ({ ...prev, ... })`.
+        setAccountOptions({ bank, cashSale, director, discrepancy, expense, contacts, bill: [] });
 
         const md = data.mapping_defaults || {};
         const cd = data.contact_defaults || {};
-        const labelFor = (list, id) => {
+        const labelFor = (list: { id: string; label: string }[], id: string | undefined) => {
           const found = id ? list.find((o) => o.id === id) : null;
           return found ? found.label : '';
         };
@@ -904,7 +929,7 @@ export default function OnboardingApp() {
         if (data.default_all) {
           expenseCodesVal = { all: true, selected: {} };
         } else {
-          const selMap = {};
+          const selMap: Record<string, boolean> = {};
           (data.selected_codes || []).forEach((c) => {
             selMap[c] = true;
           });
@@ -931,10 +956,10 @@ export default function OnboardingApp() {
       });
   }, [current, token, state.entity.id]);
 
-  const submitAccountCodes = async () => {
+  const submitAccountCodes = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const p = state.pettyCash;
-    const idFor = (list, label) => {
+    const idFor = (list: { id: string; label: string }[], label: string) => {
       const found = label ? (list || []).find((o) => o.label === label) : null;
       return found ? found.id : '';
     };
@@ -964,10 +989,10 @@ export default function OnboardingApp() {
     }
   };
 
-  const submitContacts = async () => {
+  const submitContacts = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const p = state.pettyCash;
-    const idFor = (label) => {
+    const idFor = (label: string) => {
       const found = label ? (accountOptions.contacts || []).find((o) => o.label === label) : null;
       return found ? found.id : '';
     };
@@ -994,7 +1019,7 @@ export default function OnboardingApp() {
   // don't have to leave onboarding to add one. On success the returned
   // {id, label} is appended to accountOptions.contacts (no re-fetch needed) and
   // returned so the caller can select it in the relevant role dropdown.
-  const createContact = async (name) => {
+  const createContact = async (name: string): Promise<ContactResult> => {
     const trimmed = (name || '').trim();
     if (!trimmed) return { ok: false, error: 'Who should I put down as the contact?' };
     if (!token || !state.entity.id) {
@@ -1035,7 +1060,7 @@ export default function OnboardingApp() {
     fetch(urlFor(`/api/onboarding/bill-codes?entity_id=${encodeURIComponent(state.entity.id)}`), {
       headers: { Authorization: `Bearer ${token}` },
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => (res.ok ? (res.json() as Promise<BillCodesResponse>) : null))
       .then((data) => {
         if (!data || !data.connected) return;
         const bill = data.bill_codes || [];
@@ -1044,7 +1069,7 @@ export default function OnboardingApp() {
         if (data.default_all) {
           billCodesVal = { all: true, selected: {} };
         } else {
-          const selMap = {};
+          const selMap: Record<string, boolean> = {};
           (data.selected_codes || []).forEach((c) => {
             selMap[c] = true;
           });
@@ -1057,7 +1082,7 @@ export default function OnboardingApp() {
       });
   }, [current, token, state.entity.id]);
 
-  const submitBills = async () => {
+  const submitBills = async (): Promise<Result> => {
     if (!token || !state.entity.id) return { ok: true };
     const allCodes = (accountOptions.bill || []).map((e) => e.code);
     const bc = state.bills.billCodes || { all: true, selected: {} };
@@ -1078,7 +1103,7 @@ export default function OnboardingApp() {
     }
   };
 
-  const submitInvite = async ({ email, role, first_name, last_name }) => {
+  const submitInvite = async ({ email, role, first_name, last_name }: InvitePayload): Promise<InviteResult> => {
     // Standalone prototype (no Module 1 handoff): keep the invite local-only.
     if (!token || !state.entity.id) return { ok: true, invitation: { email, role, first_name, last_name } };
     try {
@@ -1087,7 +1112,7 @@ export default function OnboardingApp() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ entity_id: state.entity.id, email, role, first_name, last_name }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data: Partial<InviteResponse> & ApiErrorBody = await res.json().catch(() => ({}));
       if (!res.ok) return { ok: false, error: friendlyError(data, "I couldn't send that invitation. Mind trying again?") };
       // The invitation row can be created even when the email itself fails to
       // go out (Brevo/SMTP error) — the backend signals that with
@@ -1106,7 +1131,7 @@ export default function OnboardingApp() {
     }
   };
 
-  const cancelInvite = async (invitationId) => {
+  const cancelInvite = async (invitationId: string): Promise<Result> => {
     if (!token || !invitationId) return { ok: true };
     try {
       const res = await fetch(urlFor(`/api/onboarding/invite/cancel`), {
@@ -1136,12 +1161,12 @@ export default function OnboardingApp() {
         setState((prev) => {
           // Keep any names typed this session (backend stores only email/role),
           // matching by email; fall back to email-derived initials otherwise.
-          const known = {};
+          const known: Record<string, InviteRow> = {};
           (prev.invites || []).forEach((x) => {
             if (x.email) known[x.email.toLowerCase()] = x;
           });
-          const invites = data.invitations.map((inv) => {
-            const prior = known[(inv.email || '').toLowerCase()] || {};
+          const invites: InviteRow[] = (data.invitations as Invitation[]).map((inv) => {
+            const prior: Partial<InviteRow> = known[(inv.email || '').toLowerCase()] || {};
             return {
               id: inv.id,
               email: inv.email,
@@ -1174,7 +1199,7 @@ export default function OnboardingApp() {
    * must not strand the payer on a dead end, so it resolves ok with a null date and the
    * screen drops that one row.
    */
-  const completeOnboarding = async () => {
+  const completeOnboarding = async (): Promise<FinalizeResult | Result> => {
     // Onboarding done — drop this entity's saved session (and any bare draft).
     try {
       window.localStorage.removeItem(sessionKey(state.entity.id));
@@ -1211,7 +1236,7 @@ export default function OnboardingApp() {
   // dashboard. localStorage already persists current+state, so re-entering
   // onboarding resumes the user where they left off. A failed save does NOT
   // block the exit — we save what's valid and go.
-  const saveAndExit = async (submitFn) => {
+  const saveAndExit = async (submitFn?: SubmitFn) => {
     try {
       if (typeof submitFn === 'function') await submitFn();
     } catch {
@@ -1279,7 +1304,7 @@ export default function OnboardingApp() {
   // the selected modules: Bills (8) when bills is on, otherwise Others (7).
   const isLastContentStep = current === activeIds[activeIds.length - 2];
 
-  const stepProps = { state, set, next, back, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
+  const stepProps: StepProps = { state, set, next, back, submitEntity, submitModule, modulePlans, token, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch: () => setXeroMismatch(''), xeroConflict, clearXeroConflict: () => setXeroConflict(''), submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, accountOptions, submitAccountCodes, submitContacts, createContact, submitBills, submitInvite, cancelInvite, completeOnboarding, exitToEntityList, saveAndExit, isLastContentStep };
 
   return (
     <>

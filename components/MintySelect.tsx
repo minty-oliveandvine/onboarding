@@ -3,28 +3,46 @@
 // Themed dropdown — replaces native <select> for unified styling.
 // `searchable` turns the field itself into a type-to-filter combobox
 // (like Module 1 create-entity: type in the field, suggestions filter below).
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, type SyntheticEvent } from 'react';
 import { UUID_RE } from '../lib/validation';
+import type { ContactResult } from '../lib/api';
 
-export default function MintySelect({ value, onChange, options, placeholder = 'Select an option', disabled = false, searchable = false, onCreate = null, createNoun = 'contact', clearable = false }) {
+/** An option is a plain string (value === label) or a { value, label } pair. */
+export type SelectOption = string | { value: string; label: string };
+
+type MintySelectProps = {
+  value: string | null | undefined;
+  onChange: (value: string) => void;
+  options: SelectOption[] | null | undefined;
+  placeholder?: string;
+  disabled?: boolean;
+  /** Turns the field into a type-to-filter combobox. */
+  searchable?: boolean;
+  /** When given, an unmatched typed name offers "+ Add" and this creates it. */
+  onCreate?: ((name: string) => Promise<ContactResult>) | null;
+  createNoun?: string;
+  clearable?: boolean;
+};
+
+export default function MintySelect({ value, onChange, options, placeholder = 'Select an option', disabled = false, searchable = false, onCreate = null, createNoun = 'contact', clearable = false }: MintySelectProps) {
   const [open, setOpen] = useState(false);
   const [activeIdx, setActiveIdx] = useState(-1);
   // null = not typing (show the selected value); a string = the live search text.
-  const [query, setQuery] = useState(null);
+  const [query, setQuery] = useState<string | null>(null);
   // Inline "new contact" panel: null = closed; a string = the pre-filled name.
-  const [creating, setCreating] = useState(null);
+  const [creating, setCreating] = useState<string | null>(null);
   const [createBusy, setCreateBusy] = useState(false);
   const [createError, setCreateError] = useState('');
-  const rootRef = useRef(null);
-  const menuRef = useRef(null);
-  const inputRef = useRef(null);
-  const createRef = useRef(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const createRef = useRef<HTMLInputElement>(null);
 
   // Options are either plain strings (value === label) or { value, label }
   // objects — e.g. registry rows where the uuid is submitted but the name is
   // shown. Normalize once so the rest of the component only sees objects.
   const items = useMemo(
-    () => (options || []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)),
+    () => (options || []).map((o): { value: string; label: string } => (typeof o === 'string' ? { value: o, label: o } : o)),
     [options]
   );
 
@@ -47,13 +65,13 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
     setCreating(null);
     setCreateError('');
   };
-  const choose = (opt) => {
+  const choose = (opt: { value: string; label: string }) => {
     onChange(opt.value);
     close();
   };
   // Clear the current selection (persisted as an empty value on the next save).
   // Stops propagation so clicking the × doesn't also open/toggle the dropdown.
-  const clear = (e) => {
+  const clear = (e: SyntheticEvent) => {
     e.stopPropagation();
     if (disabled) return;
     onChange('');
@@ -62,7 +80,7 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   };
 
   // Open the inline new-contact panel with the typed name pre-filled.
-  const startCreate = (name) => {
+  const startCreate = (name: string) => {
     setCreateError('');
     setCreating(name);
     requestAnimationFrame(() => createRef.current && createRef.current.focus());
@@ -74,7 +92,9 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   };
   const submitCreate = async () => {
     const name = (creating || '').trim();
-    if (!name || createBusy) return;
+    // The panel only opens through startCreate, which canCreate gates on onCreate
+    // existing -- so this never fires. It is here for the checker, not the user.
+    if (!name || createBusy || !onCreate) return;
     setCreateError('');
     setCreateBusy(true);
     const result = await onCreate(name);
@@ -90,10 +110,10 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) close();
+    const onDoc = (e: globalThis.MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) close();
     };
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       // While the inline new-contact panel is open, its own input owns the keys.
       if (creating !== null) return;
       if (e.key === 'Escape') {
@@ -135,7 +155,7 @@ export default function MintySelect({ value, onChange, options, placeholder = 'S
   const selectedLabel = useMemo(() => {
     const match = items.find((o) => o.value === value);
     if (match) return match.label;
-    return UUID_RE.test(value || '') ? '' : value;
+    return UUID_RE.test(value || '') ? '' : value || '';
   }, [items, value]);
   const display = selectedLabel || placeholder;
   const hasValue = !!value;

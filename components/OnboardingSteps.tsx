@@ -1,7 +1,7 @@
 'use client';
 
 // Step content components. Each receives { state, set, next, back }.
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type CSSProperties } from 'react';
 import ReactDOM from 'react-dom';
 import Icon from './Icon';
 import MintySelect from './MintySelect';
@@ -19,10 +19,14 @@ import { toIsoDate } from '../lib/date';
 import { SaveExitLink, StepNav } from './steps/StepChrome';
 import { MODULES, ModuleSubscriptionSummary, priceSelection, pricedRows } from './steps/modulePricing';
 import { AccountCodesCard, MethodList, PCSection, currencyCode } from './steps/pettyCashFields';
+import type { BillsForm, EntityForm, PettyCashForm, StepProps } from '../lib/types';
+import type { CurrencyRow } from '../lib/refData';
+import type { PaymentMethod } from '../lib/billing';
+import type { ModuleId, Result } from '../lib/api';
 
-export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }) {
+export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'submitEntity' | 'saveAndExit'>) {
   const s = state.entity;
-  const upd = (k, v) => set({ entity: { ...s, [k]: v } });
+  const upd = <K extends keyof EntityForm>(k: K, v: EntityForm[K]) => set({ entity: { ...s, [k]: v } });
   // Phone and email are optional — but if the user does type something, it must
   // still be valid (Module 1 create-entity: 8–11 digits; standard email shape).
   const emailOk = s.email.trim() === '' || isEmail(s.email);
@@ -38,8 +42,8 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
   // (country_info / currency_info): the dropdown shows the name but its
   // value — what gets stored and submitted — is the registry uuid, so the
   // created entity's country_id / currency_id FKs receive uuids.
-  const [countryOptions, setCountryOptions] = useState([]);
-  const [currencyOptions, setCurrencyOptions] = useState([]);
+  const [countryOptions, setCountryOptions] = useState<{ value: string; label: string }[]>([]);
+  const [currencyOptions, setCurrencyOptions] = useState<{ value: string; label: string }[]>([]);
   useEffect(() => {
     let cancelled = false;
     fetchCountries().then((list) => {
@@ -58,7 +62,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
   // 'Hong Kong Dollar', or an old saved session) to their registry uuids once
   // the options are in, so submits always carry uuids.
   useEffect(() => {
-    const byLabel = (opts, v) =>
+    const byLabel = (opts: { value: string; label: string }[], v: string) =>
       v && !opts.some((o) => o.value === v) ? opts.find((o) => o.label === v) : null;
     const country = byLabel(countryOptions, s.country);
     const currency = byLabel(currencyOptions, s.currency);
@@ -84,7 +88,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
         // A duplicate name is announced by the inline field message, which points
         // at the field the user has to change. Raising the toast too would say the
         // same thing twice, so only non-duplicate failures get one.
-        if (result?.duplicate) setNameTaken(true);
+        if ('duplicate' in result && result.duplicate) setNameTaken(true);
         else toast.error(result.error);
         return;
       }
@@ -152,7 +156,7 @@ export function StepCreateEntity({ state, set, next, submitEntity, saveAndExit }
   );
 }
 
-export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, saveAndExit }) {
+export function StepSelectModule({ state, set, next, back, submitModule, modulePlans, token, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitModule' | 'modulePlans' | 'token' | 'saveAndExit'>) {
   const sel = state.modules.filter((id) => MODULES.some((m) => m.id === id));
   // No per-card price lookup any more: the cards carry a trial status, not a figure,
   // and the ONE price on this step is the summary's "After trial" tile. It reads the
@@ -160,7 +164,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
   // Multi-select toggle: clicking a card adds or removes it from the
   // selection. Continue is gated on sel.length > 0 so users must pick at
   // least one — both can be picked together for a full setup.
-  const pick = (id) => {
+  const pick = (id: ModuleId) => {
     const next = sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id];
     set({ modules: next });
   };
@@ -206,7 +210,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
    *
    * Re-read after the billing dialog reports a confirmation, which is the only thing on
    * this step that can change the answer. */
-  const [savedCard, setSavedCard] = useState(null);
+  const [savedCard, setSavedCard] = useState<PaymentMethod | null>(null);
   const [cardEpoch, setCardEpoch] = useState(0);
   // Starts TRUE so the first paint shows the placeholder rather than "Add card" — see the
   // note on the row itself. Set back to true on every re-read, because a confirmation
@@ -330,7 +334,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
               }}
             >
               <div className="mp-card">
-                <div className="mp-art" style={{ '--art-accent': m.accent, '--art-tile': m.tile, '--art-size': m.art + 'px' }}>
+                <div className="mp-art" style={{ '--art-accent': m.accent, '--art-tile': m.tile, '--art-size': m.art + 'px' } as CSSProperties}>
                   {m.img ? <img src={m.img} alt="" className="mp-img" /> : I ? <I width={m.art} height={m.art} /> : null}
                 </div>
                 <div className="mp-name">{m.title}</div>
@@ -389,7 +393,9 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
       {billingOpen && pricing ? (
         <BillingSheet
           token={token}
-          entityId={state.entity.id}
+          // Absent only in the standalone prototype (no token), where the sheet's first
+          // call fails on the missing token before the id is ever read.
+          entityId={state.entity.id ?? ''}
           /* WHICH CARD IS CURRENTLY BILLING THIS ENTITY, so the picker opens on it rather
              than on the payer's account default. Those are the same card until somebody
              changes one — which is exactly what the Change button above is for. */
@@ -416,7 +422,7 @@ export function StepSelectModule({ state, set, next, back, submitModule, moduleP
 }
 
 // --- Step 3: Connect to Xero ---
-export function StepConnectXero({ state, next, back, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, xeroConflict, clearXeroConflict, saveAndExit }) {
+export function StepConnectXero({ state, next, back, connectXero, disconnectXero, xeroMismatch, clearXeroMismatch, xeroConflict, clearXeroConflict, saveAndExit }: Pick<StepProps, 'state' | 'next' | 'back' | 'connectXero' | 'disconnectXero' | 'xeroMismatch' | 'clearXeroMismatch' | 'xeroConflict' | 'clearXeroConflict' | 'saveAndExit'>) {
   const connected = state.xero.connected;
   const lastConnected = state.xero.lastConnected || '07 May 2026';
   const xeroEntity = state.xero.org || state.entity.name || 'Olive & Vine Inc';
@@ -469,7 +475,7 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
         <h2 style={{ fontSize: 30, display: 'inline-flex', alignItems: 'center', gap: 10, justifyContent: 'center' }}>
           <img src="/xero-logo.webp" alt="Xero" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover', display: 'block' }} />
           Xero Integration
-          <span className="info-tip" tabIndex="0" aria-label="More info">
+          <span className="info-tip" tabIndex={0} aria-label="More info">
             <Icon.Info />
             <span className="info-tip-pop" role="tooltip">
               <p>
@@ -578,12 +584,12 @@ export function StepConnectXero({ state, next, back, connectXero, disconnectXero
   );
 }
 
-export function StepSalesSetting({ state, set, next, back, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }) {
+export function StepSalesSetting({ state, set, next, back, submitSalesMethods, submitOpeningBalance, fetchExistingSalesMethods, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitSalesMethods' | 'submitOpeningBalance' | 'fetchExistingSalesMethods' | 'saveAndExit'>) {
   // Save everything on this step: sales methods AND the opening balance/date.
   // submitOpeningBalance no-ops when the balance is empty, so a blank balance
   // never blocks Save & Next / Save & Exit — we persist whatever's filled in.
   // completeOnboarding re-submits the opening balance later; that's idempotent.
-  const stepSubmit = async () => {
+  const stepSubmit = async (): Promise<Result> => {
     const methodsResult = await submitSalesMethods();
     if (!methodsResult?.ok) return methodsResult;
     if (typeof submitOpeningBalance === 'function') {
@@ -593,10 +599,10 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
     return { ok: true };
   };
   const p = state.pettyCash;
-  const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
-  const balanceRef = useRef(null);
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
+  const balanceRef = useRef<HTMLDivElement>(null);
   // Currency registry for the amount prefix — entity.currency is a uuid.
-  const [currencyRegistry, setCurrencyRegistry] = useState([]);
+  const [currencyRegistry, setCurrencyRegistry] = useState<CurrencyRow[]>([]);
   useEffect(() => {
     let cancelled = false;
     fetchCurrencies().then((list) => { if (!cancelled) setCurrencyRegistry(list); });
@@ -613,7 +619,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   // Server-authoritative "today" in Hong Kong time — caps the opening date so a
   // future date can't be selected. Falls back to an HK date derived in the
   // browser if the server call fails (the raw browser timezone isn't trusted).
-  const dateRef = useRef(null);
+  const dateRef = useRef<HTMLDivElement>(null);
   const [serverToday, setServerToday] = useState('');
   const [showDateError, setShowDateError] = useState(false);
   const hkTodayFallback = (() => {
@@ -691,7 +697,7 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   const DEFAULT_ELECTRONIC = ['Visa', 'Alipay', 'WeChat Pay', 'Mastercard', 'UnionPay', 'Amex', 'Octopus'];
   const DEFAULT_DELIVERY = ['Foodpanda', 'Deliveroo', 'KeeTa'];
   const todayIso = toIsoDate(new Date());
-  const sameList = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  const sameList = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i]);
   const isAutofilled = sameList(p.electronicMethods || [], DEFAULT_ELECTRONIC) && sameList(p.deliveryMethods || [], DEFAULT_DELIVERY);
 
   const [autoFilling, setAutoFilling] = useState(false);
@@ -831,22 +837,22 @@ export function StepSalesSetting({ state, set, next, back, submitSalesMethods, s
   );
 }
 
-export function StepAccountCode({ state, set, next, back, accountOptions, submitAccountCodes, saveAndExit }) {
+export function StepAccountCode({ state, set, next, back, accountOptions, submitAccountCodes, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitAccountCodes' | 'saveAndExit'>) {
   const stepSubmit = submitAccountCodes;
   const p = state.pettyCash;
-  const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
 
-  const pcAccountRef = useRef(null);
-  const depositAccountRef = useRef(null);
-  const directorCodeRef = useRef(null);
-  const cashSalesCodeRef = useRef(null);
-  const discrepancyCodeRef = useRef(null);
+  const pcAccountRef = useRef<HTMLDivElement>(null);
+  const depositAccountRef = useRef<HTMLDivElement>(null);
+  const directorCodeRef = useRef<HTMLDivElement>(null);
+  const cashSalesCodeRef = useRef<HTMLDivElement>(null);
+  const discrepancyCodeRef = useRef<HTMLDivElement>(null);
 
   const opts = accountOptions || {};
-  const labelsOf = (list) => (list || []).map((o) => o.label);
+  const labelsOf = (list: { label: string }[] | undefined) => (list || []).map((o) => o.label);
   const bankLabels = labelsOf(opts.bank);
   // Hide each chosen bank from the other dropdown — they can't be the same.
   const pcBankOptions = bankLabels.filter((l) => l !== p.depositAccount);
@@ -981,7 +987,7 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
         <div className="pc-section-head">
           <div className="pc-section-title">
             Cash Discrepancy — Other Expense
-            <span className="info-tip" tabIndex="0" aria-label="More info">
+            <span className="info-tip" tabIndex={0} aria-label="More info">
               <Icon.Info />
               <span className="info-tip-pop" role="tooltip">
                 <p>Account code to record the outliers such as extra cash or lost cash.</p>
@@ -1018,17 +1024,17 @@ export function StepAccountCode({ state, set, next, back, accountOptions, submit
   );
 }
 
-export function StepOthers({ state, set, next, back, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }) {
+export function StepOthers({ state, set, next, back, accountOptions, submitContacts, createContact, saveAndExit, isLastContentStep }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitContacts' | 'createContact' | 'saveAndExit' | 'isLastContentStep'>) {
   const stepSubmit = submitContacts;
   const p = state.pettyCash;
-  const upd = (k, v) => set({ pettyCash: { ...p, [k]: v } });
+  const upd = <K extends keyof PettyCashForm>(k: K, v: PettyCashForm[K]) => set({ pettyCash: { ...p, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
   const [showErrors, setShowErrors] = useState(false);
 
-  const directorContactRef = useRef(null);
-  const cashSaleContactRef = useRef(null);
-  const discrepancyContactRef = useRef(null);
+  const directorContactRef = useRef<HTMLDivElement>(null);
+  const cashSaleContactRef = useRef<HTMLDivElement>(null);
+  const discrepancyContactRef = useRef<HTMLDivElement>(null);
 
   const contactLabels = ((accountOptions || {}).contacts || []).map((c) => c.label);
 
@@ -1130,10 +1136,10 @@ export function StepOthers({ state, set, next, back, accountOptions, submitConta
 
 // --- Step 7: Bill Settings ---
 
-export function StepBills({ state, set, next, back, accountOptions, submitBills, saveAndExit, isLastContentStep }) {
+export function StepBills({ state, set, next, back, accountOptions, submitBills, saveAndExit, isLastContentStep }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'accountOptions' | 'submitBills' | 'saveAndExit' | 'isLastContentStep'>) {
   const stepSubmit = submitBills;
   const b = state.bills;
-  const upd = (k, v) => set({ bills: { ...b, [k]: v } });
+  const upd = <K extends keyof BillsForm>(k: K, v: BillsForm[K]) => set({ bills: { ...b, [k]: v } });
   const [saving, setSaving] = useState(false);
   const toast = useToast();
 
@@ -1199,16 +1205,16 @@ export function StepBills({ state, set, next, back, accountOptions, submitBills,
 const ROLES = ['Admin', 'Accountant', 'Shop Manager', 'Cashier'];
 
 // Display label ↔ backend role value (matches Settings' _normalize_role_name).
-const roleToValue = (label) => (label || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
-const roleLabel = (value) => (value || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const roleToValue = (label: string | null | undefined): string => (label || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+const roleLabel = (value: string | null | undefined): string => (value || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-export function StepInvite({ state, set, next, back, submitInvite, cancelInvite, saveAndExit }) {
+export function StepInvite({ state, set, next, back, submitInvite, cancelInvite, saveAndExit }: Pick<StepProps, 'state' | 'set' | 'next' | 'back' | 'submitInvite' | 'cancelInvite' | 'saveAndExit'>) {
   const list = state.invites.filter((x) => x.email && x.email.includes('@'));
   const [form, setForm] = useState({ first: '', last: '', email: '', role: '' });
   const notify = useToast();
   // Rows whose long name/email is expanded (wrapped) instead of truncated.
-  const [expandedRows, setExpandedRows] = useState({});
-  const toggleExpanded = (key) => setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (key: string) => setExpandedRows((prev) => ({ ...prev, [key]: !prev[key] }));
   // Confirmation modal nudging the user to invite an accountant — the later
   // steps need expertise. Shown automatically on arrival at the Invite step
   // (right after Save & Next on Select Module) and again on "Skip for now".
@@ -1221,7 +1227,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
   useEffect(() => {
     setMounted(true);
   }, []);
-  const setF = (k, v) => setForm({ ...form, [k]: v });
+  const setF = (k: keyof typeof form, v: string) => setForm({ ...form, [k]: v });
   // Show the "invalid email" hint only once the user has interacted with the
   // field, so a pristine empty form doesn't start out shouting an error.
   const [emailTouched, setEmailTouched] = useState(false);
@@ -1260,7 +1266,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
       notify.error(`That invite didn't reach ${sentEmail}! Want to try again?`);
       return;
     }
-    const inv = result.invitation || {};
+    const inv: Partial<{ id: string; email: string; role: string }> = result.invitation || {};
     const nextList = [
       ...list,
       { id: inv.id, first: form.first.trim(), last: form.last.trim(), email: inv.email || sentEmail, role: inv.role || roleToValue(form.role) },
@@ -1275,7 +1281,7 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
     setForm({ first: '', last: '', email: '', role: '' });
     setEmailTouched(false);
   };
-  const removeRow = async (i) => {
+  const removeRow = async (i: number) => {
     const target = list[i];
     if (target?.id) {
       const result = await cancelInvite(target.id);
@@ -1359,9 +1365,9 @@ export function StepInvite({ state, set, next, back, submitInvite, cancelInvite,
             {list.map((u, i) => {
               const hasName = (u.first || u.last);
               const initials = hasName
-                ? `${(u.first[0] || '').toUpperCase()}${(u.last[0] || '').toUpperCase()}`
+                ? `${(u.first?.[0] || '').toUpperCase()}${(u.last?.[0] || '').toUpperCase()}`
                 : (u.email[0] || '').toUpperCase();
-              const rowKey = u.id || u.email || i;
+              const rowKey = u.id || u.email || String(i);
               const expanded = !!expandedRows[rowKey];
               return (
                 <div className="invite-row-card" key={rowKey}>
@@ -1480,14 +1486,14 @@ export function StepAllSet({
   modulePlans,
   completeOnboarding,
   exitToEntityList,
-}) {
-  const [trialEnd, setTrialEnd] = useState(null);
+}: Pick<StepProps, 'state' | 'token' | 'modulePlans' | 'completeOnboarding' | 'exitToEntityList'>) {
+  const [trialEnd, setTrialEnd] = useState<string | null>(null);
   const [committing, setCommitting] = useState(true);
   const [billingOpen, setBillingOpen] = useState(false);
   // `null` while unknown, so the nudge renders in NEITHER state until the answer is in.
   // Showing "add a payment method" and then retracting it is the flicker the subscription
   // summary was just fixed for.
-  const [hasConsent, setHasConsent] = useState(null);
+  const [hasConsent, setHasConsent] = useState<boolean | null>(null);
   const toast = useToast();
 
   /* COMMITTED ONCE, AND THE HANDLE IS KEPT. This ref does two jobs.
@@ -1509,7 +1515,7 @@ export function StepAllSet({
    * anything thrown is caught below — so a failed commit still lets the payer leave rather
    * than trapping them on a screen whose buttons no longer work.
    */
-  const commit = useRef(null);
+  const commit = useRef<Promise<void> | null>(null);
   useEffect(() => {
     if (commit.current) return;
     if (typeof completeOnboarding !== 'function') {
@@ -1521,7 +1527,7 @@ export function StepAllSet({
       try {
         const result = await completeOnboarding();
         if (!result?.ok) toast.error(result?.error || "Couldn't finish setting up.");
-        setTrialEnd(result?.trialEnd || null);
+        setTrialEnd(result?.ok && 'trialEnd' in result ? result.trialEnd || null : null);
       } catch {
         toast.error("Couldn't finish setting up.");
       } finally {

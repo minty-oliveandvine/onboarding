@@ -6,10 +6,23 @@
 // browser, incognito, or on another device. Everything here is an optimisation on top of
 // that, and losing all of it costs a round trip, not the user's progress.
 
+import type { WizardState, WizardUser } from './types';
+
 // Scoped only to the Xero OAuth round-trip: we stash progress here right
 // before leaving for Xero and restore it on return. Cleared immediately after,
 // so it does NOT persist across an ordinary refresh.
 export const XERO_RESUME_KEY = 'minty_onboarding_xero_resume';
+
+/** What OnboardingApp writes under a session key. `savedAt` orders competing blobs. */
+export type SavedSession = {
+  current?: number;
+  maxReached?: number;
+  state: WizardState;
+  token?: string;
+  profileUrl?: string;
+  user?: WizardUser;
+  savedAt: number;
+};
 
 export const STORAGE_KEY = 'minty_onboarding_session';
 
@@ -17,21 +30,21 @@ export const STORAGE_KEY = 'minty_onboarding_session';
 // clobber each other. Before an entity is created it has no id yet, so its
 // draft lives under the bare global key; once `submitEntity` assigns an id,
 // writes move to `minty_onboarding_session:<id>` and the bare draft is cleared.
-export const sessionKey = (entityId) => (entityId ? `${STORAGE_KEY}:${entityId}` : STORAGE_KEY);
+export const sessionKey = (entityId?: string | null): string => (entityId ? `${STORAGE_KEY}:${entityId}` : STORAGE_KEY);
 
 // On a plain refresh the URL carries no entity_id, so we can't look up the
 // per-entity session key directly. Scan localStorage for every
 // `minty_onboarding_session:<id>` blob and return the most recently saved one
 // (by `savedAt`). This is what makes an ordinary refresh restore progress
 // instead of resetting to the empty initial state.
-export const findLatestSession = () => {
+export const findLatestSession = (): SavedSession | null => {
   if (typeof window === 'undefined') return null;
-  let best = null;
+  let best: SavedSession | null = null;
   try {
     for (let i = 0; i < window.localStorage.length; i++) {
       const key = window.localStorage.key(i);
       if (!key || !key.startsWith(`${STORAGE_KEY}:`)) continue;
-      let blob = null;
+      let blob: Partial<SavedSession> | null = null;
       try {
         blob = JSON.parse(window.localStorage.getItem(key) || 'null');
       } catch {
@@ -39,7 +52,7 @@ export const findLatestSession = () => {
       }
       if (!blob || !blob.state) continue;
       const ts = typeof blob.savedAt === 'number' ? blob.savedAt : 0;
-      if (!best || ts > best.savedAt) best = { ...blob, savedAt: ts };
+      if (!best || ts > best.savedAt) best = { ...blob, state: blob.state, savedAt: ts };
     }
   } catch {
     return null;
@@ -48,7 +61,7 @@ export const findLatestSession = () => {
 };
 
 // No signature verification — client-side cache invalidation only.
-export function readJwtClaims(token) {
+export function readJwtClaims(token?: string | null): { user_id: string | null; exp: number } | null {
   if (!token) return null;
   try {
     const part = token.split('.')[1];

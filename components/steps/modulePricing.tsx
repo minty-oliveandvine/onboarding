@@ -14,9 +14,29 @@
 // `accent` is kept because the illustration inherits it as `currentColor`.
 
 import CardBrand from '../CardBrand';
+import Icon from '../Icon';
 import { formatAmount } from '@/lib/amount';
 import { MODULE_ID_BY_CODE } from '../../lib/modules';
-export const MODULES = [
+import type { ModuleId, Plan, PlanCatalog } from '../../lib/api';
+import type { PaymentMethod } from '../../lib/billing';
+
+/** One module card in the picker. `price` is the static fallback copy. */
+export type ModuleCard = {
+  id: ModuleId;
+  title: string;
+  desc: string;
+  img: string;
+  accent: string;
+  tile: string;
+  art: number;
+  price: string;
+  /** An Icon member to draw instead of `img`. No card sets it today. */
+  icon?: keyof typeof Icon;
+};
+
+/** A picked module with its live plan. */
+export type PricedRow = { module: ModuleCard; plan: Plan; on: boolean };
+export const MODULES: ModuleCard[] = [
   { id: 'pettyCash', title: 'Petty Cash', desc: 'Track and reimburse small office expenses with receipt capture and instant approvals.', img: '/pettycash-icon.png', accent: '#f5b945', tile: '#FFF7EC', art: 80, price: '280 HKD per Month' },
   { id: 'bills', title: 'Payment Request', desc: 'Capture vendor payments, schedule payments, and reconcile with your accounting ledger.', img: '/payment-icon.png', accent: '#3aa6f5', tile: '#EDF5FC', art: 95, price: '280 HKD per Month' },
 ];
@@ -25,8 +45,8 @@ export const MODULES = [
 // live plan catalog from /api/onboarding/plans can be matched to the picked cards.
 
 /** Index the live plan catalog by frontend module id (empty when it didn't load). */
-export function plansByModuleId(catalog) {
-  const byId = {};
+export function plansByModuleId(catalog: PlanCatalog | null | undefined): Partial<Record<ModuleId, Plan>> {
+  const byId: Partial<Record<ModuleId, Plan>> = {};
   (catalog?.plans || []).forEach((p) => {
     const id = MODULE_ID_BY_CODE[p.code];
     if (id) byId[id] = p;
@@ -42,7 +62,7 @@ export function plansByModuleId(catalog) {
  * code "HKD" rather than a symbol. "HKD560" runs together; "HKD 560" reads. The same
  * space is what lib/amount.js formatMoney() already puts there.
  */
-export function money(symbol, value) {
+export function money(symbol: string | null | undefined, value: string | number | null | undefined): string {
   const text = trimZeroCents(formatAmount(value));
   if (!text) return '';
   return symbol ? `${symbol} ${text}` : text;
@@ -55,7 +75,7 @@ export function money(symbol, value) {
  * arrives with the cents on, because it is the same formatter the invoice memo and the
  * charge-confirmation dialog use, where the cents belong.
  */
-export function trimZeroCents(text) {
+export function trimZeroCents(text: string | null | undefined): string {
   return String(text ?? '').replace(/\.00$/, '');
 }
 
@@ -68,7 +88,7 @@ export function trimZeroCents(text) {
  *
  * `picked` is the priced rows (module + plan), already filtered to the selection.
  */
-export function priceSelection(catalog, picked) {
+export function priceSelection(catalog: PlanCatalog | null | undefined, picked: PricedRow[]) {
   const symbol = picked[0].plan.currency_symbol || picked[0].plan.currency_code || '';
   const interval = picked[0].plan.billing_interval || 'month';
   const subtotal = picked.reduce((sum, r) => sum + r.plan.amount, 0);
@@ -76,8 +96,8 @@ export function priceSelection(catalog, picked) {
   // The bundle is a price in its own right, not a per-line discount, so it applies
   // only when the picked set is EXACTLY the set it covers — the same test as
   // BundlePlanView.covers() and the settings summary.
-  const bundleCodes = (catalog.bundle_codes || []).map((c) => String(c).toUpperCase());
-  const bundleAmount = Number(catalog.bundle_amount || 0);
+  const bundleCodes = (catalog?.bundle_codes || []).map((c) => String(c).toUpperCase());
+  const bundleAmount = Number(catalog?.bundle_amount || 0);
   const pickedCodes = picked.map((r) => String(r.plan.code).toUpperCase());
   const isBundle =
     bundleAmount > 0 &&
@@ -96,7 +116,7 @@ export function priceSelection(catalog, picked) {
     bundleAmount,
     total: isBundle ? bundleAmount : subtotal,
     saving: isBundle ? subtotal - bundleAmount : 0,
-    trialDays: Number(catalog.trial_period_days || 0),
+    trialDays: Number(catalog?.trial_period_days || 0),
   };
 }
 
@@ -104,10 +124,10 @@ export function priceSelection(catalog, picked) {
  * The priced rows for a selection, in canonical order — or [] when there is nothing to
  * price (no catalog, or no module picked yet).
  */
-export function pricedRows(catalog, selected) {
+export function pricedRows(catalog: PlanCatalog | null | undefined, selected: readonly ModuleId[]): PricedRow[] {
   const byId = plansByModuleId(catalog);
   return MODULES.map((m) => ({ module: m, plan: byId[m.id], on: selected.includes(m.id) }))
-    .filter((r) => r.plan && r.on);
+    .filter((r): r is PricedRow => !!r.plan && r.on);
 }
 
 /**
@@ -138,7 +158,16 @@ export function pricedRows(catalog, selected) {
  * The button is OPTIONAL. Consent decides how the trial ENDS — converts to paid, or
  * lapses — not whether it can start, so the step's own Save & Next moves on without it.
  */
-export function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onOpenBilling }) {
+type ModuleSubscriptionSummaryProps = {
+  catalog: PlanCatalog | null | undefined;
+  selected: readonly ModuleId[];
+  /** This entity's nominated card, or null. */
+  card: PaymentMethod | null | undefined;
+  cardLoading: boolean;
+  onOpenBilling: () => void;
+};
+
+export function ModuleSubscriptionSummary({ catalog, selected, card, cardLoading, onOpenBilling }: ModuleSubscriptionSummaryProps) {
   const picked = pricedRows(catalog, selected);
 
   // Nothing to price — no catalog (endpoint unreachable) or no module picked yet.

@@ -3,9 +3,14 @@
 // Confetti pieces for the "All Set" celebration page.
 // Each piece is an SVG drawn in a 100×100 viewBox so they scale uniformly.
 // Shapes are inspired by the colourful squiggles & dots in the brand palette.
-import { useMemo } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 
-const CONFETTI_SHAPES = [
+type Shape = { c: string; d: string; solid?: boolean };
+
+/** Inline style plus the `--*` custom properties the keyframes read. */
+type PieceStyle = CSSProperties & Record<`--${string}`, string>;
+
+const CONFETTI_SHAPES: Shape[] = [
   { c: '#A18BE6', d: 'M20 70 C 10 45, 30 30, 45 35 S 70 60, 60 70 S 35 55, 50 40 S 80 25, 75 50' }, // purple curly loop
   { c: '#3B7BE6', d: 'M30 50 Q 50 30, 70 50' }, // blue arc
   { c: '#1F9D55', d: 'M15 25 C 30 10, 30 40, 50 25 S 70 50, 85 35' }, // green wavy
@@ -20,7 +25,7 @@ const CONFETTI_SHAPES = [
   { c: '#A18BE6', d: 'M25 60 Q 50 35, 75 55' }, // purple arc
 ];
 
-function ConfettiPiece({ shape, style }) {
+function ConfettiPiece({ shape, style }: { shape: Shape; style: PieceStyle }) {
   const stroke = !shape.solid;
   return (
     <svg className="confetti-piece" viewBox="0 0 100 100" style={style} aria-hidden>
@@ -36,9 +41,9 @@ function ConfettiPiece({ shape, style }) {
   );
 }
 
-export default function Confetti({ count = 36 }) {
+export default function Confetti({ count = 36 }: { count?: number }) {
   const pieces = useMemo(() => {
-    const rand = (a, b) => a + Math.random() * (b - a);
+    const rand = (a: number, b: number) => a + Math.random() * (b - a);
     return Array.from({ length: count }, (_, i) => {
       const shape = CONFETTI_SHAPES[i % CONFETTI_SHAPES.length];
       const size = rand(28, 62);

@@ -321,7 +321,7 @@ describe('PCSection', () => {
   const field = (over = {}) => ({
     label: 'Director',
     value: '',
-    options: [{ id: 'a', label: 'Alice' }],
+    options: ['Alice'],
     onChange: vi.fn(),
     onAddNew: vi.fn(),
     ...over,

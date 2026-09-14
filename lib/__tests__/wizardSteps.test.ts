@@ -9,6 +9,10 @@
 // single test.
 
 import { describe, expect, it } from 'vitest';
+import type { ModuleId } from '../api';
+import type { WizardState } from '../types';
+
+const MODULE_SETS: ModuleId[][] = [[], ['pettyCash'], ['bills'], ['pettyCash', 'bills']];
 import {
   STEPS,
   deriveResumeStep,
@@ -18,36 +22,35 @@ import {
   isStepComplete,
 } from '../wizardSteps';
 
-// Both helpers are deliberately typed loosely. `lib/wizardSteps.js` is still
-// untyped, so tsc infers `initialState()` as a closed object literal with
-// `modules: never[]` and no `entity.id` -- shapes the wizard genuinely does produce
-// at runtime but the inference cannot see. Part 2 replaces `Payload`/`State` here
-// with the real `WizardState`, and these casts go away with it.
-// `unknown` would block the nested reads these helpers exist to make
-// (`over.entity`, `s.pettyCash.openingBalance`), so this is deliberately the
-// loosest type in the suite -- and scoped to this one file.
+// The override parameter is loose ON PURPOSE. Several cases below hand the functions
+// shapes the type forbids -- `invites: null`, a missing `xero`, `pettyCash: undefined`
+// -- because the wizard has produced every one of them at runtime (a partial /state
+// payload, a session saved by an older build). The tests pin that the functions
+// survive them. `unknown` would block those cases; this is the one loose type in
+// the suite, and it is scoped to this file.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Loose = Record<string, any>;
 
-/** A /state payload with the fields deriveResumeStep reads. */
-function payload(over: Loose = {}): Loose {
+/** A wizard state as the resume path builds it, with the fields deriveResumeStep reads. */
+function payload(over: Loose = {}): WizardState {
   return {
-    entity: { name: 'Acme Ltd', phone: '', email: '' },
+    ...initialState(),
+    entity: { ...initialState().entity, name: 'Acme Ltd', phone: '', email: '' },
     modules: [],
     invites: [],
     xero: { connected: false, org: '' },
     ...over,
-  };
+  } as WizardState;
 }
 
 /** A wizard state that passes step 1, for the completion-gate cases. */
-function state(over: Loose = {}): Loose {
-  const base = initialState() as Loose;
+function state(over: Loose = {}): WizardState {
+  const base = initialState();
   return {
     ...base,
     ...over,
     entity: { ...base.entity, name: 'Acme Ltd', ...(over.entity || {}) },
-  };
+  } as WizardState;
 }
 
 describe('deriveResumeStep -- with a persisted savedStep', () => {
@@ -77,7 +80,8 @@ describe('deriveResumeStep -- with a persisted savedStep', () => {
   it('treats a missing xero key as not connected', () => {
     const { xero, ...withoutXero } = payload();
     expect(xero).toBeDefined(); // the key really was there to begin with
-    expect(deriveResumeStep(withoutXero, 6)).toEqual({ step: 6, needsXero: true });
+    // A payload with no `xero` at all -- the type forbids it, the function tolerates it.
+    expect(deriveResumeStep(withoutXero as WizardState, 6)).toEqual({ step: 6, needsXero: true });
   });
 
   it.each([
@@ -213,7 +217,7 @@ describe('getDisplaySteps', () => {
   });
 
   it('always ends on All Set', () => {
-    for (const mods of [[], ['pettyCash'], ['bills'], ['pettyCash', 'bills']]) {
+    for (const mods of MODULE_SETS) {
       const out = getDisplaySteps(mods);
       expect(out[out.length - 1].ids).toEqual([9]);
     }
@@ -227,7 +231,7 @@ describe('getDisplaySteps', () => {
 });
 
 describe('getActiveStepIds', () => {
-  it.each([
+  it.each<[ModuleId[], number[]]>([
     [[], [1, 2, 3, 4, 9]],
     [['pettyCash'], [1, 2, 3, 4, 5, 6, 7, 9]],
     [['bills'], [1, 2, 3, 4, 8, 9]],
@@ -238,7 +242,7 @@ describe('getActiveStepIds', () => {
 
   it('agrees with getDisplaySteps for the same modules', () => {
     // The two are separate functions over the same rule, so they can drift apart.
-    for (const mods of [[], ['pettyCash'], ['bills'], ['pettyCash', 'bills']]) {
+    for (const mods of MODULE_SETS) {
       expect(getActiveStepIds(mods)).toEqual(getDisplaySteps(mods).flatMap((d) => d.ids));
     }
   });
@@ -253,10 +257,8 @@ describe('initialState', () => {
   it('returns a fresh object each call, not a shared one', () => {
     // It is spread into React state, and a shared nested object would leak one
     // wizard's edits into the next.
-    // `as Loose` only because initialState's empty arrays infer as never[]; the
-    // push is a real mutation of the first object.
-    const a = initialState() as Loose;
-    const b = initialState() as Loose;
+    const a = initialState();
+    const b = initialState();
     expect(a).not.toBe(b);
     expect(a.pettyCash).not.toBe(b.pettyCash);
     a.modules.push('pettyCash');
@@ -285,10 +287,8 @@ describe('initialState', () => {
     // later by the create call and by the Sales step. Pinned because the TypeScript
     // conversion has to type them as optional, and a future edit that "helpfully"
     // adds them to the initial state would change step 5's completion gate.
-    // Read through an index rather than a dotted access: the fields are missing
-    // from the INFERRED type too, which is the same fact the assertion makes at
-    // runtime -- a dotted read would be a compile error rather than a test.
-    const s = initialState() as Loose;
+    // Both are typed `?` in lib/types for exactly this reason.
+    const s = initialState();
     expect(s.entity.id).toBeUndefined();
     expect(s.pettyCash.openingBalance).toBeUndefined();
     expect(Object.keys(s.entity)).not.toContain('id');

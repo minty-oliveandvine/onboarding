@@ -8,34 +8,44 @@ import { toIsoDate } from '../lib/date';
 const DP_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DP_DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-function dpParse(iso) {
+function dpParse(iso: string | null | undefined): Date | null {
   if (!iso) return null;
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d);
 }
-function dpFormat(date) {
+function dpFormat(date: Date | null): string {
   return date ? toIsoDate(date) : '';
 }
-function dpPretty(date) {
+function dpPretty(date: Date | null): string {
   if (!date) return '';
   return `${String(date.getDate()).padStart(2, '0')} ${DP_MONTHS[date.getMonth()].slice(0, 3)} ${date.getFullYear()}`;
 }
-function dpSameDay(a, b) {
-  return a && b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+function dpSameDay(a: Date | null, b: Date | null): boolean {
+  return !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-export default function MintyDatePicker({ value, onChange, placeholder = 'Select a date', minDate, maxDate }) {
+type MintyDatePickerProps = {
+  /** `YYYY-MM-DD`, or empty. */
+  value: string | null | undefined;
+  onChange: (iso: string) => void;
+  placeholder?: string;
+  minDate?: string | number | Date | null;
+  /** `YYYY-MM-DD` is parsed as LOCAL midnight; anything else goes through `new Date`. */
+  maxDate?: string | number | Date | null;
+};
+
+export default function MintyDatePicker({ value, onChange, placeholder = 'Select a date', minDate, maxDate }: MintyDatePickerProps) {
   const selected = dpParse(value);
   const today = new Date();
   const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const isToday = dpSameDay(selected, today);
   const [open, setOpen] = useState(false);
   const [view, setView] = useState(selected || today);
-  const ref = useRef(null);
+  const ref = useRef<HTMLDivElement>(null);
 
   const minD = minDate ? new Date(minDate) : null;
-  const isBeforeMin = (d) => minD && d < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
+  const isBeforeMin = (d: Date): boolean => !!minD && d < new Date(minD.getFullYear(), minD.getMonth(), minD.getDate());
   const canStepPrev = !minD || new Date(view.getFullYear(), view.getMonth(), 1) > new Date(minD.getFullYear(), minD.getMonth(), 1);
 
   // maxDate caps how far forward the user can go — e.g. the server's "today" in
@@ -43,17 +53,17 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
   // dpParse (local midnight) to avoid the UTC shift of new Date('YYYY-MM-DD').
   const maxD = maxDate ? (typeof maxDate === 'string' ? dpParse(maxDate) : new Date(maxDate)) : null;
   const maxDay = maxD ? new Date(maxD.getFullYear(), maxD.getMonth(), maxD.getDate()) : null;
-  const isAfterMax = (d) => maxDay && d > maxDay;
+  const isAfterMax = (d: Date): boolean => !!maxDay && d > maxDay;
   const canStepNext = !maxDay || new Date(view.getFullYear(), view.getMonth(), 1) < new Date(maxDay.getFullYear(), maxDay.getMonth(), 1);
   // The "Today" shortcut must stay within the cap (browser clock may be ahead).
   const effectiveToday = maxDay && todayMid > maxDay ? maxDay : todayMid;
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    const onDoc = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
@@ -73,12 +83,12 @@ export default function MintyDatePicker({ value, onChange, placeholder = 'Select
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const stepMonth = (dir) => {
+  const stepMonth = (dir: -1 | 1) => {
     if (dir < 0 && !canStepPrev) return;
     if (dir > 0 && !canStepNext) return;
     setView(new Date(year, month + dir, 1));
   };
-  const pick = (d) => {
+  const pick = (d: Date) => {
     if (isBeforeMin(d) || isAfterMax(d)) return;
     onChange(dpFormat(d));
     setOpen(false);

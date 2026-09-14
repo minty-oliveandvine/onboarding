@@ -5,14 +5,20 @@
 // logic and an extra hint node, so sharing would parameterise more than it saves. That was a
 // considered decision in the first cleanse; do not "finish the job" by folding it in.
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import Icon from '../Icon';
-// `style` and `isLastContentStep` below carry an explicit `= undefined`. It changes
-// nothing at runtime -- destructuring a key that is not there already yields
-// undefined -- but it is the only way a .jsx file can say the prop is OPTIONAL, and
-// without it every type-checked caller is told the prop is required. Do not tidy the
-// defaults away; the component tests are type-checked and will fail.
-export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style = undefined }) {
+import type { StepProps, SubmitFn } from '../../lib/types';
+
+type SaveExitLinkProps = {
+  saveAndExit: StepProps['saveAndExit'];
+  /** The step's own save. Optional: two steps have nothing of their own to persist. */
+  submitFn?: SubmitFn;
+  disabled?: boolean;
+  className?: string;
+  style?: CSSProperties;
+};
+
+export function SaveExitLink({ saveAndExit, submitFn, disabled = false, className = 'btn-link-center', style }: SaveExitLinkProps) {
   const [exiting, setExiting] = useState(false);
   const onClick = async () => {
     if (exiting || disabled) return;
@@ -44,7 +50,17 @@ export function SaveExitLink({ saveAndExit, submitFn, disabled = false, classNam
 // StepSelectModule deliberately does NOT use this: its primary button has
 // different disabled logic and an extra sibling hint, so sharing would mean
 // parameterizing more than it saves.
-export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep = undefined }) {
+type StepNavProps = {
+  back: () => void;
+  saveAndExit: StepProps['saveAndExit'];
+  stepSubmit?: SubmitFn;
+  tryNext: () => void;
+  saving: boolean;
+  /** Only the steps that can be last pass this; undefined falls through to "Save & Next". */
+  isLastContentStep?: boolean;
+};
+
+export function StepNav({ back, saveAndExit, stepSubmit, tryNext, saving, isLastContentStep }: StepNavProps) {
   return (
     <div className="step-nav">
       <button className="btn btn-ghost" onClick={back}>

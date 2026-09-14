@@ -11,10 +11,17 @@
 //
 // Derive the inverse rather than writing it twice — that is what guarantees they agree.
 
+import type { ModuleCode, ModuleId } from './api';
+
 /** Backend `function_code` -> frontend module id. */
-export const MODULE_ID_BY_CODE = Object.freeze({ PETTY_CASH: 'pettyCash', BILL: 'bills' });
+export const MODULE_ID_BY_CODE: Readonly<Record<ModuleCode, ModuleId>> = Object.freeze({
+  PETTY_CASH: 'pettyCash',
+  BILL: 'bills',
+});
 
 /** Frontend module id -> backend `function_code`. Derived, never hand-written. */
-export const MODULE_CODE_BY_ID = Object.freeze(
-  Object.fromEntries(Object.entries(MODULE_ID_BY_CODE).map(([code, id]) => [id, code])),
+export const MODULE_CODE_BY_ID: Readonly<Record<ModuleId, ModuleCode>> = Object.freeze(
+  Object.fromEntries(
+    (Object.entries(MODULE_ID_BY_CODE) as [ModuleCode, ModuleId][]).map(([code, id]) => [id, code]),
+  ) as Record<ModuleId, ModuleCode>,
 );

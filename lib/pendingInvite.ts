@@ -10,6 +10,16 @@
 // navigation through Xero but is scoped to the tab and clears when it closes,
 // so a stale invite can't leak into an unrelated login in another session.
 
+/** The stashed invite. `ts` is when it was stashed, on the caller's clock. */
+export type PendingInvite = {
+  /** The invite token from the accept link. */
+  invite: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  ts: number;
+};
+
 const KEY = "pendingInvite";
 // Recovery is only meant to bridge the Xero round-trip, which is seconds to a
 // couple of minutes. Cap it so an abandoned invite can't resurface hours later
@@ -18,7 +28,7 @@ const MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
 // Stash the invite just before the Xero hop. `ts` is passed in by the caller
 // (Date.now() isn't available everywhere) so this stays a pure writer.
-export function savePendingInvite({ invite, email, firstName, lastName, ts }) {
+export function savePendingInvite({ invite, email, firstName, lastName, ts }: Partial<PendingInvite> & { invite?: string | null }): void {
   if (typeof window === "undefined" || !invite) return;
   try {
     window.sessionStorage.setItem(
@@ -39,24 +49,24 @@ export function savePendingInvite({ invite, email, firstName, lastName, ts }) {
 
 // Read the stashed invite, or null if absent/expired/malformed. `now` is passed
 // in by the caller for the same reason as `ts` above.
-export function readPendingInvite(now) {
+export function readPendingInvite(now?: number): PendingInvite | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(KEY);
     if (!raw) return null;
-    const data = JSON.parse(raw);
+    const data = JSON.parse(raw) as Partial<PendingInvite> | null;
     if (!data || !data.invite) return null;
     if (typeof now === "number" && data.ts && now - data.ts > MAX_AGE_MS) {
       window.sessionStorage.removeItem(KEY);
       return null;
     }
-    return data;
+    return data as PendingInvite;
   } catch {
     return null;
   }
 }
 
-export function clearPendingInvite() {
+export function clearPendingInvite(): void {
   if (typeof window === "undefined") return;
   try {
     window.sessionStorage.removeItem(KEY);

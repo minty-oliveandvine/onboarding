@@ -12,11 +12,24 @@
 // draining `get_flashed_messages()` on page load; here it's the `{ ok, error }`
 // result objects that OnboardingApp's submit functions already return.
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type SVGProps,
+} from 'react';
 import { createPortal } from 'react-dom';
 
 // Each tone swaps four colours plus the icon. Values match the Flask template.
-const TONES = {
+export type Tone = 'success' | 'error' | 'warning' | 'info';
+
+type ToneStyle = { border: string; bg: string; title: string; sub: string; label: string };
+
+const TONES: Record<Tone, ToneStyle> = {
   success: { border: '#a9d7cb', bg: '#f1fffc', title: '#017155', sub: '#92c6b9', label: 'Success' },
   error: { border: '#ffcccc', bg: '#fff1f1', title: '#F03D3D', sub: '#f57e7e', label: 'Error' },
   warning: { border: '#fee0aa', bg: '#fffaf1', title: '#DA8700', sub: '#e8b765', label: 'Warning' },
@@ -31,9 +44,9 @@ const DISMISS_MS = 4000;
 // swapping an <img src> lets the *previous* tone's icon paint for one frame
 // (a green checkmark flashing on an error toast). React re-renders the whole
 // node, so there is no stale frame to guard against.
-function ToastIcon({ tone }) {
+function ToastIcon({ tone }: { tone: Tone }) {
   const c = TONES[tone].title;
-  const common = {
+  const common: SVGProps<SVGSVGElement> = {
     width: 36,
     height: 44,
     viewBox: '0 0 36 44',
@@ -76,15 +89,27 @@ function ToastIcon({ tone }) {
   );
 }
 
-const ToastContext = createContext(null);
+/** `toast.error(message)` and friends. One call per message you want shown. */
+export type ToastApi = {
+  show: (message: string, tone?: Tone) => void;
+  hide: () => void;
+  success: (message?: string) => void;
+  error: (message?: string) => void;
+  warning: (message?: string) => void;
+  info: (message?: string) => void;
+};
+
+type ToastState = { id: number; message: string; tone: Tone };
+
+const ToastContext = createContext<ToastApi | null>(null);
 
 // Rendered once, at the app root. Holds the single visible toast; a new call
 // replaces whatever is showing rather than stacking.
-export function ToastProvider({ children }) {
-  const [toast, setToast] = useState(null); // { id, message, tone }
+export function ToastProvider({ children }: { children: ReactNode }) {
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const timerRef = useRef(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -94,28 +119,33 @@ export function ToastProvider({ children }) {
     setVisible(false);
   }, []);
 
-  const show = useCallback((message, tone = 'success') => {
+  const show = useCallback((message: string, tone: Tone = 'success') => {
     if (!message) return;
     // Auto-dismiss is scoped to THIS invocation. The Flask version's comment is
     // worth keeping in mind: an earlier iteration swept every `.toast` in the
     // DOM on a timer, which killed unrelated client-side validation toasts.
     if (timerRef.current) clearTimeout(timerRef.current);
-    setToast({ id: Date.now(), message, tone: TONES[tone] ? tone : 'success' });
+    setToast({ id: Date.now(), message, tone: tone in TONES ? tone : 'success' });
     setVisible(true);
     timerRef.current = setTimeout(() => setVisible(false), DISMISS_MS);
   }, []);
 
-  useEffect(() => () => timerRef.current && clearTimeout(timerRef.current), []);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
 
-  const api = useRef(null);
+  const api = useRef<ToastApi | null>(null);
   if (!api.current) {
     api.current = {
       show,
       hide,
-      success: (m) => show(m || 'All done!', 'success'),
-      error: (m) => show(m || "Something went wrong on my end. Mind trying again?", 'error'),
-      warning: (m) => show(m || "Worth a quick look before you carry on.", 'warning'),
-      info: (m) => show(m || "Here's something worth knowing.", 'info'),
+      success: (m?: string) => show(m || 'All done!', 'success'),
+      error: (m?: string) => show(m || "Something went wrong on my end. Mind trying again?", 'error'),
+      warning: (m?: string) => show(m || "Worth a quick look before you carry on.", 'warning'),
+      info: (m?: string) => show(m || "Here's something worth knowing.", 'info'),
     };
   }
 
@@ -170,7 +200,7 @@ export function ToastProvider({ children }) {
   );
 }
 
-export function useToast() {
+export function useToast(): ToastApi {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error('useToast must be used inside <ToastProvider>');
   return ctx;

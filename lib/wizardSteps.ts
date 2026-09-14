@@ -9,6 +9,8 @@
 // users straight to "Connect to Accounting" past an incomplete step, so `current_step` and
 // `max_reached` are used only to raise the ceiling on steps already unlocked.
 
+import type { ModuleId } from './api';
+import type { DisplayStep, ResumeDecision, WizardState } from './types';
 import { isEmail } from './validation';
 import { toIsoDate } from './date';
 
@@ -35,7 +37,7 @@ import { toIsoDate } from './date';
 // (entity / modules / invites / xero.connected), which only judges steps 1–4.
 //
 // Returns { step, needsXero }.
-export function deriveResumeStep(s, savedStep) {
+export function deriveResumeStep(s: WizardState, savedStep: unknown): ResumeDecision {
   const xeroConnected = !!(s.xero && s.xero.connected);
   const saved = Number(savedStep);
 
@@ -52,7 +54,7 @@ export function deriveResumeStep(s, savedStep) {
   // "Saved" per step. Invite (3) is optional, so isStepComplete always passes
   // it — but for resume we only count it as saved when invites were actually
   // added, otherwise saving at Module Selection would skip the user onto Invite.
-  const isSaved = (id) => {
+  const isSaved = (id: number): boolean => {
     if (id === 3) return Array.isArray(s.invites) && s.invites.length > 0;
     return isStepComplete(id, s);
   };
@@ -73,7 +75,7 @@ export function deriveResumeStep(s, savedStep) {
   return { step: lastSaved, needsXero: false };
 }
 
-export const STEPS = [
+export const STEPS: ReadonlyArray<{ id: number; label: string }> = [
   { id: 1, label: 'Basic Information' },
   { id: 2, label: 'Select Module' },
   { id: 3, label: 'User Invite' },
@@ -88,10 +90,10 @@ export const STEPS = [
 // Display-only structure: collapses Sales (5) + Account Code (6) + Others (7)
 // into a single "Petty Cash Settings" segment with sub-items. Petty Cash and
 // Bill segments only appear when their respective modules are selected on step 2.
-export function getDisplaySteps(modules) {
+export function getDisplaySteps(modules: readonly ModuleId[]): DisplayStep[] {
   const hasPetty = modules.includes('pettyCash');
   const hasBills = modules.includes('bills');
-  const out = [
+  const out: DisplayStep[] = [
     { label: 'Basic Information', tiny: 'Basic', ids: [1] },
     { label: 'Select Module', tiny: 'Module', ids: [2] },
     { label: 'User Invite', tiny: 'Invite', ids: [3] },
@@ -112,7 +114,7 @@ export function getDisplaySteps(modules) {
 }
 
 // Flat list of step ids that are part of the active flow given the selected modules.
-export function getActiveStepIds(modules) {
+export function getActiveStepIds(modules: readonly ModuleId[]): number[] {
   const hasPetty = modules.includes('pettyCash');
   const hasBills = modules.includes('bills');
   const ids = [1, 2, 3, 4];
@@ -122,7 +124,7 @@ export function getActiveStepIds(modules) {
   return ids;
 }
 
-export const initialState = () => ({
+export const initialState = (): WizardState => ({
   entity: {
     name: '',
     type: 'Private Limited',
@@ -168,7 +170,7 @@ export const initialState = () => ({
 });
 
 // Validation rules for completion gate
-export function isStepComplete(id, state) {
+export function isStepComplete(id: number, state: WizardState): boolean {
   switch (id) {
     case 1: {
       const e = state.entity;

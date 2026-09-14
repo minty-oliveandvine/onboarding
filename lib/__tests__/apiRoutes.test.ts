@@ -27,7 +27,7 @@ async function loadRoutes() {
   vi.resetModules();
   vi.stubEnv('NEXT_PUBLIC_MODULE1_API_URL', FLASK);
   vi.stubEnv('NEXT_PUBLIC_ONBOARDING_API_URL', DJANGO);
-  return import('../apiRoutes.js');
+  return import('../apiRoutes');
 }
 
 beforeEach(() => {
@@ -108,7 +108,7 @@ describe('the list itself', () => {
     const { baseFor } = await loadRoutes();
     // Resolved from the vitest root rather than import.meta.url: vite rewrites
     // import.meta.url to a non-file scheme, which readFile refuses.
-    const source = await readFile(join(process.cwd(), 'lib', 'apiRoutes.js'), 'utf8');
+    const source = await readFile(join(process.cwd(), 'lib', 'apiRoutes.ts'), 'utf8');
     const block = source.split('const DJANGO_PATHS = [')[1].split('];')[0];
     const declared = [...block.matchAll(/'([^']+)'/g)].map((m) => m[1]);
     expect(declared.length).toBeGreaterThan(20);
@@ -170,7 +170,7 @@ describe('the properties the list alone does not show', () => {
     vi.resetModules();
     vi.stubEnv('NEXT_PUBLIC_MODULE1_API_URL', FLASK + '/');
     vi.stubEnv('NEXT_PUBLIC_ONBOARDING_API_URL', DJANGO + '/');
-    const { urlFor } = await import('../apiRoutes.js');
+    const { urlFor } = await import('../apiRoutes');
     // Without the strip these come out with a doubled slash, which some proxies 404
     // and others silently redirect -- losing the request body on a POST.
     expect(urlFor('/api/onboarding/state')).toBe(DJANGO + '/api/onboarding/state');
@@ -181,7 +181,7 @@ describe('the properties the list alone does not show', () => {
     vi.resetModules();
     vi.stubEnv('NEXT_PUBLIC_MODULE1_API_URL', FLASK);
     vi.stubEnv('NEXT_PUBLIC_ONBOARDING_API_URL', '');
-    const { ONBOARDING_API_BASE } = await import('../apiRoutes.js');
+    const { ONBOARDING_API_BASE } = await import('../apiRoutes');
     // The port its docker service and `manage.py runserver` both use.
     expect(ONBOARDING_API_BASE).toBe('http://localhost:8001');
   });

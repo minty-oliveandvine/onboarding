@@ -25,17 +25,9 @@ const MONTH_LETTERS = 3;
  * as a billing document — "19 Aug 2026" sits in a sentence there, and a shouted month
  * mid-sentence reads as an abbreviation of something rather than a date.
  */
-/**
- * The JSDoc types here are load-bearing, not decoration: everything after `upper` is
- * spread straight into Intl, and without the annotation TypeScript infers the whole
- * parameter as `{ upper?: boolean }` and rejects `day` / `month` / `year` at every
- * type-checked call site.
- *
- * @param {Date} date
- * @param {Intl.DateTimeFormatOptions & { upper?: boolean }} [options]
- * @returns {string}
- */
-export function formatDate(date, { upper = true, ...opts } = {}) {
+export type FormatDateOptions = Intl.DateTimeFormatOptions & { upper?: boolean };
+
+export function formatDate(date: Date, { upper = true, ...opts }: FormatDateOptions = {}): string {
   const out = new Intl.DateTimeFormat('en-GB', opts)
     .formatToParts(date)
     .map((part) =>
@@ -48,7 +40,7 @@ export function formatDate(date, { upper = true, ...opts } = {}) {
 }
 
 /** Today, as the flow writes it: "12 JUN 2026". */
-export function formatToday() {
+export function formatToday(): string {
   return formatDate(new Date(), {
     day: '2-digit',
     month: 'short',
@@ -65,7 +57,7 @@ export function formatToday() {
  * This was written out four separate times across three components -- twice inside the same
  * function, 71 lines apart.
  */
-export function toIsoDate(date) {
+export function toIsoDate(date: Date | string | number): string {
   const d = date instanceof Date ? date : new Date(date);
   if (Number.isNaN(d.getTime())) return '';
   const m = String(d.getMonth() + 1).padStart(2, '0');

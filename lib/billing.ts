@@ -1,3 +1,4 @@
+import type { ApiErrorBody } from './api';
 import { urlFor } from './apiRoutes';
 import { errorCopy, HOUSE_FALLBACK } from './errorCopy';
 
@@ -33,19 +34,80 @@ import { errorCopy, HOUSE_FALLBACK } from './errorCopy';
 // and forwards the caller's own token -- so the card flow is unchanged, and the
 // wizard talks to one base URL instead of two.
 
+//  ── Shapes ──────────────────────────────────────────────────────────
+
+/** A saved card as Minty describes it for display. Fields past `id` are presentational. */
+export type PaymentMethod = {
+  id: string;
+  brand?: string;
+  brand_label?: string;
+  last4?: string;
+  expiry?: string;
+  expired?: boolean;
+  expires_soon?: boolean;
+  wallet_label?: string;
+  label?: string;
+  /** Card art, when Minty has one for the brand. */
+  art?: string;
+  png?: string;
+};
+
+export type BillingStatus = {
+  has_payment_method: boolean;
+  has_billing_consent: boolean;
+  /** THIS ENTITY'S nominated card, or null -- not the payer's default. */
+  card: PaymentMethod | null;
+};
+
+export type CardSetup = {
+  client_secret: string;
+  publishable_key: string;
+  setup_intent: string;
+};
+
+export type BillingAccount = {
+  id: string;
+  billing_email: string | null;
+  billing_company: string | null;
+  /** The card this account charges. */
+  default_id: string | null;
+  cards: PaymentMethod[];
+};
+
+export type BillingAccountsResponse = {
+  accounts: BillingAccount[];
+  methods: PaymentMethod[];
+  /** The payer's default card across the whole wallet -- a suggestion, not this entity's nomination. */
+  default_id?: string | null;
+};
+
+/** Which billing account a confirmed card goes on. Every field optional -- see confirmCardSetup. */
+export type BillingAccountChoice = {
+  billingGroupId?: string | null;
+  email?: string | null;
+  company?: string | null;
+};
+
+//  ── Calls ───────────────────────────────────────────────────────────
+
 /** An error whose `message` is safe to show the payer as written. */
 export class BillingError extends Error {
-  constructor(message, status) {
+  /** HTTP status, or 0 when the server was never reached. */
+  status: number;
+
+  constructor(message: string, status: number) {
     super(message);
     this.name = 'BillingError';
     this.status = status;
   }
 }
 
-async function call(token, path, { method = 'GET', body } = {}) {
+type CallOptions = { method?: string; body?: Record<string, unknown> };
+
+async function call<T>(token: string | null | undefined, path: string, { method = 'GET', body }: CallOptions = {}): Promise<T> {
   if (!token) throw new BillingError('Your session expired. Sign in again to keep going.', 401);
 
-  let res;
+  let res: Response;
   try {
     res = await fetch(urlFor(path), {
       method,
@@ -59,7 +121,7 @@ async function call(token, path, { method = 'GET', body } = {}) {
     throw new BillingError("I couldn't reach the server. Mind trying again?", 0);
   }
 
-  const data = await res.json().catch(() => ({}));
+  const data = (await res.json().catch(() => ({}))) as T & ApiErrorBody;
   if (!res.ok) {
     // The status used to be shown so a CORS/proxy failure could be told apart
     // from a real server reason. That distinction is for the log, not the payer.
@@ -81,16 +143,16 @@ async function call(token, path, { method = 'GET', body } = {}) {
  * `has_billing_consent` before printing anything at all: a nomination without consent is
  * a card the payer has not agreed to be billed on.
  */
-export function fetchBillingStatus(token, entityId) {
-  return call(
+export function fetchBillingStatus(token: string | null | undefined, entityId: string): Promise<BillingStatus> {
+  return call<BillingStatus>(
     token,
     `/api/onboarding/payment-method?entity_id=${encodeURIComponent(entityId)}`,
   );
 }
 
 /** `{client_secret, publishable_key, setup_intent}` for mounting Stripe Elements. */
-export function startCardSetup(token) {
-  return call(token, '/api/onboarding/billing/payment-methods/setup-intent', {
+export function startCardSetup(token: string | null | undefined): Promise<CardSetup> {
+  return call<CardSetup>(token, '/api/onboarding/billing/payment-methods/setup-intent', {
     method: 'POST',
   });
 }
@@ -101,8 +163,13 @@ export function startCardSetup(token) {
  * Not optional and not cosmetic: for a payer's first card this is the call that creates
  * the Stripe customer and attaches the method. Skipped, the card is saved to nothing.
  */
-export function confirmCardSetup(token, setupIntent, makeDefault, account) {
-  return call(token, '/api/onboarding/billing/payment-methods/confirm', {
+export function confirmCardSetup(
+  token: string | null | undefined,
+  setupIntent: string,
+  makeDefault: boolean,
+  account?: BillingAccountChoice | null,
+): Promise<BillingAccountsResponse> {
+  return call<BillingAccountsResponse>(token, '/api/onboarding/billing/payment-methods/confirm', {
     method: 'POST',
     body: {
       setup_intent: setupIntent,
@@ -131,8 +198,8 @@ export function confirmCardSetup(token, setupIntent, makeDefault, account) {
  * cards on this account" are different questions, and the dialog asks both. This replaced
  * the flat `fetchPaymentMethods` wrapper, which is why that one is gone (see the header).
  */
-export function fetchBillingAccounts(token) {
-  return call(token, '/api/onboarding/billing/accounts');
+export function fetchBillingAccounts(token: string | null | undefined): Promise<BillingAccountsResponse> {
+  return call<BillingAccountsResponse>(token, '/api/onboarding/billing/accounts');
 }
 
 /**
@@ -146,8 +213,12 @@ export function fetchBillingAccounts(token) {
  * the consent, so consent is never written against a card the payer was not shown.
  * Omitted, Minty falls back to the payer's default — the old behaviour, kept as a backstop.
  */
-export function authorizeBilling(token, entityId, paymentMethod) {
-  return call(token, '/api/onboarding/billing/authorize', {
+export function authorizeBilling(
+  token: string | null | undefined,
+  entityId: string,
+  paymentMethod?: string | null,
+): Promise<Record<string, unknown>> {
+  return call<Record<string, unknown>>(token, '/api/onboarding/billing/authorize', {
     method: 'POST',
     body: paymentMethod
       ? { entity_id: entityId, payment_method: paymentMethod }

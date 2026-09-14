@@ -5,18 +5,30 @@
 // `is-overflow` class and a `--scroll-end` custom property, remeasured on resize, so the CSS
 // can scroll it rather than truncating a step name to something unreadable.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import Icon from './Icon';
+import type { DisplayStep } from '../lib/types';
 
-export default function Stepper({ current, onClick, maxReached, displaySteps }) {
-  const ref = useRef(null);
+type StepperProps = {
+  current: number;
+  maxReached: number;
+  displaySteps: DisplayStep[];
+  onClick: (stepId: number) => void;
+};
+
+export default function Stepper({ current, onClick, maxReached, displaySteps }: StepperProps) {
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!ref.current) return;
+    // Captured once. The ResizeObserver callback below runs after this effect returns,
+    // and by then `ref.current` could in principle be null -- reading the captured
+    // element instead is what the checker was asking for at this line.
+    const el = ref.current;
+    if (!el) return;
     const check = () => {
-      ref.current.querySelectorAll('.step .label').forEach((label) => {
+      el.querySelectorAll<HTMLElement>('.step .label').forEach((label) => {
         if (getComputedStyle(label).display === 'none') return;
-        const inner = label.querySelector('.label-inner');
+        const inner = label.querySelector<HTMLElement>('.label-inner');
         if (!inner) return;
         const overflow = inner.scrollWidth - label.clientWidth;
         if (overflow > 1) {
@@ -30,7 +42,7 @@ export default function Stepper({ current, onClick, maxReached, displaySteps }) 
     };
     check();
     const ro = new ResizeObserver(check);
-    ro.observe(ref.current);
+    ro.observe(el);
     window.addEventListener('resize', check);
     return () => {
       ro.disconnect();
@@ -39,7 +51,7 @@ export default function Stepper({ current, onClick, maxReached, displaySteps }) 
   }, [current, maxReached]);
 
   return (
-    <div className="stepper" ref={ref} data-screen-label="Stepper" style={{ '--step-count': displaySteps.length }}>
+    <div className="stepper" ref={ref} data-screen-label="Stepper" style={{ '--step-count': displaySteps.length } as CSSProperties}>
       {displaySteps.map((d) => {
         const isActive = d.ids.includes(current);
         const isDone = d.ids.every((i) => current > i);

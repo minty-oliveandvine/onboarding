@@ -7,8 +7,14 @@ import {
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  loadStripe,
+  type Appearance,
+  type Stripe,
+  type StripeAddressElementOptions,
+  type StripePaymentElementOptions,
+} from '@stripe/stripe-js';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import ReactDOM from 'react-dom';
 
 import {
@@ -17,6 +23,10 @@ import {
   confirmCardSetup,
   fetchBillingAccounts,
   startCardSetup,
+  type BillingAccount,
+  type BillingAccountChoice,
+  type CardSetup,
+  type PaymentMethod,
 } from '@/lib/billing';
 import CardBrand from './CardBrand';
 import Icon from './Icon';
@@ -86,9 +96,9 @@ import { isEmail } from '../lib/validation';
  * rather than an env var (Minty is what knows which Stripe account is configured), so
  * this is a small cache rather than the single top-level constant Stripe's docs show.
  */
-const stripeByKey = new Map();
+const stripeByKey = new Map<string, Promise<Stripe | null>>();
 
-function stripeFor(key) {
+function stripeFor(key: string): Promise<Stripe | null> {
   let promise = stripeByKey.get(key);
   if (!promise) {
     // Resolves to null rather than rejecting when the script can't be fetched at all — an
@@ -104,7 +114,7 @@ function stripeFor(key) {
 }
 
 /** Stripe's own message when there is one — it is the only account of what the issuer said. */
-function reason(err, fallback) {
+function reason(err: unknown, fallback: string): string {
   return err instanceof BillingError ? err.message : fallback;
 }
 
@@ -120,7 +130,7 @@ function reason(err, fallback) {
  * Frozen at module scope because a new object identity on every render remounts the
  * Element — the payer would watch a half-typed card number disappear.
  */
-const STRIPE_APPEARANCE = {
+const STRIPE_APPEARANCE: Appearance = {
   theme: 'stripe',
   variables: {
     fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
@@ -152,7 +162,7 @@ const STRIPE_APPEARANCE = {
 
 /* Options objects, out here for the same reason: a fresh literal each render is a new
    prop, and these Elements remount when their options change identity. */
-const PAYMENT_ELEMENT_OPTIONS = {
+const PAYMENT_ELEMENT_OPTIONS: StripePaymentElementOptions = {
   layout: 'tabs',
   /* `terms.card: 'never'` suppresses Stripe's own mandate line, which is rendered inside
      the iframe and names the STRIPE ACCOUNT rather than Minty — in test mode that reads
@@ -164,7 +174,7 @@ const PAYMENT_ELEMENT_OPTIONS = {
      too and the payer fills the same fields twice. */
   fields: { billingDetails: { name: 'never', address: 'never' } },
 };
-const ADDRESS_ELEMENT_OPTIONS = { mode: 'billing', display: { name: 'full' } };
+const ADDRESS_ELEMENT_OPTIONS: StripeAddressElementOptions = { mode: 'billing', display: { name: 'full' } };
 
 /**
  * 01-D — the new billing account form.
@@ -183,7 +193,15 @@ const ADDRESS_ELEMENT_OPTIONS = { mode: 'billing', display: { name: 'full' } };
  * this is a rule about what a payer may CREATE, not an invariant about what exists.
  * Anything reading these columns must still handle null.
  */
-function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
+type CardFormProps = {
+  setupIntent: string;
+  /** (setup intent id, payment method id, the account to put the card on). */
+  onSaved: (setupIntentId: string, paymentMethodId: string | null | undefined, account: BillingAccountChoice) => Promise<void>;
+  onBack: () => void;
+  busyLabel: string;
+};
+
+function CardForm({ setupIntent, onSaved, onBack, busyLabel }: CardFormProps) {
   const stripe = useStripe();
   const elements = useElements();
   const [busy, setBusy] = useState(false);
@@ -216,7 +234,7 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
     return !next.email && !next.company;
   };
 
-  const submit = async (event) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (!stripe || !elements || busy) return;
 
@@ -261,7 +279,10 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
          column is nullable and an empty string is a NAME — it would sit on the invoice
          as a blank company overriding the payer's own record. The guard is the form's;
          this is the belt. */
-      await onSaved(confirmed?.id || setupIntent, confirmed?.payment_method, {
+      // `payment_method` is a string unless the intent was expanded, which this one is
+      // not; the object form is narrowed to its id for the same reason.
+      const pm = confirmed?.payment_method;
+      await onSaved(confirmed?.id || setupIntent, typeof pm === 'string' ? pm : pm?.id, {
         email: email.trim() || null,
         company: company.trim() || null,
       });
@@ -429,11 +450,11 @@ function CardForm({ setupIntent, onSaved, onBack, busyLabel }) {
  * someone flipping the flag back — the sentence should disappear rather than quietly
  * become a lie on the screen that confirms the payer's billing.
  */
-function CardAdded({ card, isDefault, onDone }) {
+function CardAdded({ card, isDefault, onDone }: { card: PaymentMethod; isDefault: boolean; onDone: () => void }) {
   // Done is the only control on this card, and the button that was focused a moment ago
   // (Save) has just unmounted — without this the focus falls to <body> and a keyboard
   // user is outside the dialog while looking at it.
-  const doneRef = useRef(null);
+  const doneRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (doneRef.current) doneRef.current.focus();
   }, []);
@@ -506,26 +527,35 @@ function CardAdded({ card, isDefault, onDone }) {
  * paths that open this sheet have not saved the wizard's own state, so anything here that
  * advanced the wizard would advance it over unsaved work.
  */
+type BillingSheetProps = {
+  token: string;
+  entityId: string;
+  /** The card this entity is already nominated onto, if any. */
+  nominatedId?: string | null;
+  onClose: () => void;
+  onDone: () => void;
+};
+
 export default function BillingSheet({
   token,
   entityId,
   nominatedId,
   onClose,
   onDone,
-}) {
+}: BillingSheetProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [methods, setMethods] = useState([]);
-  const [accounts, setAccounts] = useState([]);
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [accounts, setAccounts] = useState<BillingAccount[]>([]);
   const [chosen, setChosen] = useState('');
   const [adding, setAdding] = useState(false);
-  const [intent, setIntent] = useState(null);
-  const [stripePromise, setStripePromise] = useState(null);
+  const [intent, setIntent] = useState<CardSetup | null>(null);
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [saving, setSaving] = useState(false);
   // The 01-J card, once there is one: `{card, isDefault}`. Non-null means the save
   // succeeded and the payer is looking at the confirmation rather than either form.
-  const [saved, setSaved] = useState(null);
-  const closeRef = useRef(null);
+  const [saved, setSaved] = useState<{ card: PaymentMethod; isDefault: boolean } | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   /* Read the wallet, on open.
    *
@@ -598,7 +628,7 @@ export default function BillingSheet({
   // focus behind it would let a keyboard user tab through a form they can't see. (The
   // success card focuses its own Done button; the X is not rendered there.)
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && !saving) dismiss();
     };
     window.addEventListener('keydown', onKey);
@@ -641,7 +671,7 @@ export default function BillingSheet({
      taken and the rest are left to the payer portal, where an account is the subject
      rather than an annotation. */
   const companyByCard = useMemo(() => {
-    const map = new Map();
+    const map = new Map<string, string>();
     for (const account of accounts) {
       if (!account.billing_company) continue;
       for (const card of account.cards || []) {
@@ -681,7 +711,7 @@ export default function BillingSheet({
    * this the "New billing account" form rather than an add-a-card form. Passing neither
    * keeps the older behaviour: the card is saved, and that is all that happens.
    */
-  const saveNewCard = async (setupIntentId, paymentMethodId, account) => {
+  const saveNewCard = async (setupIntentId: string, paymentMethodId: string | null | undefined, account: BillingAccountChoice) => {
     /* ADDING A CARD *IS* CHOOSING IT, so saving nominates — every time, whether or not the
      * payer already had a billing account.
      *
@@ -811,7 +841,7 @@ export default function BillingSheet({
 
         {loading ? (
           <p className="billing-loading">Loading your payment methods…</p>
-        ) : stage === 'done' ? (
+        ) : stage === 'done' && saved ? (
           <CardAdded card={saved.card} isDefault={saved.isDefault} onDone={onDone} />
         ) : adding ? (
           <div className="billing-formwrap">

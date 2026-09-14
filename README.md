@@ -61,9 +61,10 @@ authenticated half needs three environment variables — [e2e/README.md](e2e/REA
 the details, including **the one sharp edge: a test must never land on step 9**, because
 arriving at "All Set" finalizes the entity and opens trial subscriptions.
 
-Test files are written in TypeScript against the untyped `.jsx` sources on purpose, so
-`npx tsc --noEmit` covers them. That is currently the ONLY type-checked code that
-exercises the components — see `CODE_CLEANSE_NOTES.md`.
+The whole app is TypeScript — `app/`, `components/`, `lib/` and the tests — at full
+`strict`, with `allowJs` off. `npx tsc --noEmit` is a gate; keep it at zero. The shapes
+the wizard holds live in [`lib/types.ts`](lib/types.ts) and the API contract in
+[`lib/api.ts`](lib/api.ts) — add to those rather than inlining a type at a call site.
 
 **There is no CI in this repo**, so "gate" means a command somebody runs.
 

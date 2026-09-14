@@ -7,11 +7,15 @@
 
 // --- Step 4: Petty Cash Settings ---
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type DragEvent, type ReactNode, type Ref } from 'react';
 import Icon from '../Icon';
-import MintySelect from '../MintySelect';
+import MintySelect, { type SelectOption } from '../MintySelect';
 import { UUID_RE } from '../../lib/validation';
-export const CURRENCY_CODES = {
+import type { CurrencyRow } from '../../lib/refData';
+import type { ContactResult } from '../../lib/api';
+import type { CodeSelection } from '../../lib/types';
+
+export const CURRENCY_CODES: Record<string, string> = {
   'Hong Kong Dollar': 'HKD',
   'Singapore Dollar': 'SGD',
   'Australian Dollar': 'AUD',
@@ -24,31 +28,41 @@ export const CURRENCY_CODES = {
 // uuids); resolve it to the ISO code via the fetched registry. The name-based
 // map remains as a fallback for sessions saved before the uuid switch. Never
 // render a bare uuid — while the registry is still loading, show nothing.
-export const currencyCode = (c, registry = []) => {
+export const currencyCode = (c: string | null | undefined, registry: readonly Pick<CurrencyRow, 'currency_id' | 'iso_code' | 'currency_name'>[] = []): string => {
   const row = registry.find((r) => r.currency_id === c);
   if (row) return row.iso_code || row.currency_name;
   if (UUID_RE.test(c || '')) return '';
-  return CURRENCY_CODES[c] || (c || '').split(' ')[0];
+  return CURRENCY_CODES[c || ''] || (c || '').split(' ')[0];
 };
 
-export function MethodList({ title, methods, placeholder = 'Enter method name', onAdd, onChange, autoFilled = false }) {
+type MethodListProps = {
+  title: string;
+  methods: string[];
+  placeholder?: string;
+  onAdd: (name: string) => void;
+  /** Receives a fresh array; the list never mutates the one it was given. */
+  onChange: (methods: string[]) => void;
+  autoFilled?: boolean;
+};
+
+export function MethodList({ title, methods, placeholder = 'Enter method name', onAdd, onChange, autoFilled = false }: MethodListProps) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
-  const [dragIdx, setDragIdx] = useState(null);
-  const [overIdx, setOverIdx] = useState(null);
-  const inputRef = useRef(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (adding && inputRef.current) inputRef.current.focus();
   }, [adding]);
 
-  const remove = (i) => {
+  const remove = (i: number) => {
     const copy = methods.slice();
     copy.splice(i, 1);
     onChange(copy);
   };
 
-  const onDragStart = (i) => (e) => {
+  const onDragStart = (i: number) => (e: DragEvent) => {
     setDragIdx(i);
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = 'move';
@@ -57,12 +71,12 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
       } catch {}
     }
   };
-  const onDragOver = (i) => (e) => {
+  const onDragOver = (i: number) => (e: DragEvent) => {
     e.preventDefault();
     if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     if (overIdx !== i) setOverIdx(i);
   };
-  const onDrop = (i) => (e) => {
+  const onDrop = (i: number) => (e: DragEvent) => {
     e.preventDefault();
     if (dragIdx === null || dragIdx === i) {
       setDragIdx(null);
@@ -174,7 +188,7 @@ export function MethodList({ title, methods, placeholder = 'Enter method name', 
   );
 }
 
-export function MintCheck({ checked, onChange, ariaLabel }) {
+export function MintCheck({ checked, onChange, ariaLabel }: { checked: boolean; onChange: (next: boolean) => void; ariaLabel: string }) {
   return (
     <button type="button" role="checkbox" aria-checked={checked} aria-label={ariaLabel} className={'mint-check' + (checked ? ' on' : '')} onClick={() => onChange(!checked)}>
       {checked && <Icon.CheckSm />}
@@ -192,6 +206,21 @@ export function MintCheck({ checked, onChange, ariaLabel }) {
 //   - `labelAria`   Account's checkbox aria-label is the full label; Bill's
 //                    is the bare code.
 // `bodyStyle` carries the two steps' differing padding/display.
+type AccountCodesCardProps = {
+  /** The codes, in display order. Labels come from `labels`. */
+  codes: string[];
+  /** May arrive with `all` or `selected` missing -- both are tolerated, see lib/types. */
+  value: Partial<CodeSelection>;
+  onChange: (next: CodeSelection) => void;
+  labels?: Record<string, string>;
+  header?: ReactNode;
+  /** Account step searches the full label; Bill step searches the raw code only. */
+  searchLabels?: boolean;
+  /** Account step labels the checkbox with the full label; Bill step with the bare code. */
+  labelAria?: boolean;
+  bodyStyle?: React.CSSProperties;
+};
+
 export function AccountCodesCard({
   codes,
   value,
@@ -201,16 +230,16 @@ export function AccountCodesCard({
   searchLabels = true,
   labelAria = true,
   bodyStyle = { padding: 20 },
-}) {
+}: AccountCodesCardProps) {
   const [q, setQ] = useState('');
-  const sel = value.selected || {};
+  const sel: Record<string, boolean> = value.selected || {};
   const isAll = value.all !== false;
-  const isOn = (code) => (isAll ? sel[code] !== false : sel[code] === true);
+  const isOn = (code: string) => (isAll ? sel[code] !== false : sel[code] === true);
   const allOn = codes.length > 0 && codes.every((c) => isOn(c));
-  const labelOf = (code) => (labels && labels[code]) || code;
-  const toggle = (code) => {
+  const labelOf = (code: string) => (labels && labels[code]) || code;
+  const toggle = (code: string) => {
     if (isAll) {
-      const next = {};
+      const next: Record<string, boolean> = {};
       codes.forEach((c) => {
         next[c] = true;
       });
@@ -223,7 +252,7 @@ export function AccountCodesCard({
   };
   const toggleAll = () => {
     if (allOn) {
-      const off = {};
+      const off: Record<string, boolean> = {};
       codes.forEach((c) => {
         off[c] = false;
       });
@@ -232,7 +261,7 @@ export function AccountCodesCard({
       onChange({ all: true, selected: {} });
     }
   };
-  const searchTextOf = (code) => (searchLabels ? labelOf(code) : code);
+  const searchTextOf = (code: string) => (searchLabels ? labelOf(code) : code);
   const filtered = codes.filter((c) => searchTextOf(c).toLowerCase().includes(q.trim().toLowerCase()));
   return (
     <div className="method-card acc-card open">
@@ -270,7 +299,24 @@ export function AccountCodesCard({
   );
 }
 
-export function PCSection({ title, fields, cardRef }) {
+/** One dropdown row in a PCSection. */
+export type PCField = {
+  label: ReactNode;
+  value: string;
+  options: SelectOption[];
+  onChange: (value: string) => void;
+  onAddNew?: ((name: string) => Promise<ContactResult>) | null;
+  error?: boolean;
+};
+
+type PCSectionProps = {
+  title: string;
+  fields: PCField[];
+  /** The step scrolls the card into view when validation fails. */
+  cardRef?: Ref<HTMLDivElement>;
+};
+
+export function PCSection({ title, fields, cardRef }: PCSectionProps) {
   const cardHasError = fields.some((f) => f.error);
   return (
     <div className={'pc-card' + (cardHasError ? ' is-error' : '')} ref={cardRef}>

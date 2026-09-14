@@ -590,6 +590,76 @@ coverage only. The email OTP sign-in is uncovered for the same reason.
 `OnboardingApp.jsx` and `OnboardingSteps.jsx` themselves have **no direct tests** — only the
 pieces extracted out of them do. That is the gap the TypeScript conversion will narrow.
 
+---
+
+# TypeScript (2026-09-14)
+
+All 30 `.js`/`.jsx` files under `app/`, `components/` and `lib/` are now `.ts`/`.tsx`, at
+full `strict`, and `allowJs` is off. Before this, **13.1 % of the code was type-checked**
+(1,115 of 8,528 lines) — `tsconfig` said `strict: true` but its `include` matched only
+`.ts`/`.tsx`, so the 3,137-line core was invisible to the compiler. That is how a missing
+import passed `next build` and `eslint` and failed only in the browser.
+
+The mechanism was the file extension. Renaming a file to `.tsx` is what opts it in; no
+`checkJs`, no `@ts-nocheck`, no second tsconfig. Converted cheapest-first — `lib/` (59
+errors), then the leaf components (151), then the big four — and `tsc --noEmit` was green
+after every file. The plan measured 591 errors at the start; typing `lib/` and the leaves
+first collapsed the big four from 381 to **180**, because their errors were mostly
+downstream of untyped imports.
+
+Gates after: `tsc` **0 errors**, `npm test` **280 passed**, `npm run test:e2e` **17
+passed** in a real browser, `eslint` **35 (16 err, 19 warn)** — the baseline, unchanged.
+
+## The vocabulary
+
+Two new modules, modelled on `billing-frontend/lib/api.ts`:
+
+- **`lib/types.ts`** — `WizardState` and its forms, the `CodeSelection` tri-state,
+  `StepProps` (the 28-prop bag, with each step taking `Pick<StepProps, …>`),
+  `AccountOptions`, `InviteRow`.
+- **`lib/api.ts`** — every `/api/onboarding/*` response the wizard reads, the `Result<T>`
+  discriminated union every `submitX` returns, and the write payloads.
+
+`OpeningBalance.cash_addition` is **deliberately absent** from the type: the backend forces
+it to 0 and `OnboardingApp` says it "must NOT be used". Leaving it out is what makes the
+compiler enforce that sentence.
+
+## What the checker found
+
+Type-only fixes throughout — annotations, generics, guards that are no-ops on the paths
+the code already takes. Where a fix would have changed behaviour it was **recorded, not
+made**. These are the findings, in order of consequence:
+
+1. **`resumeFromServer` writes raw API invitations into `state.invites`.** The API sends
+   `first_name` / `last_name`; the invite cards read `first` / `last`. So after a cold
+   resume the cards show an email and no name until the list is re-fetched on step 8 —
+   and that re-fetch keys its name lookup on the same stale rows. `InviteRow` types both
+   name fields optional because that is the truth. *Not fixed.*
+2. **The account-codes fetch drops `bill` from `accountOptions`.** It replaces the whole
+   object without `bill`. A resume that lands on step 8 (bill codes loaded), then revisits
+   step 5, loses them — and `billLoadedRef` stops the refetch. Made explicit as
+   `bill: []` with a comment; the fix is `(prev) => ({ ...prev, … })`. *Not fixed.*
+3. **`SaveExitLink.style`** is passed by no caller. **`ModuleCard.icon`** is read but no
+   card sets it. Both typed optional, both dead.
+4. **`state.xero.lastConnected`** and **`bills.billCodes`** are two more phantom fields
+   (alongside `entity.id` and `pettyCash.openingBalance`) — read widely, absent from
+   `initialState()`. All four are `?` in `lib/types.ts`, and the tests pin that the first
+   two stay absent.
+5. The five `possibly null` sites the plan listed (`BillingSheet` `saved`, `MintySelect`
+   `onCreate`, `Stepper` `ref.current`, `TermsModal` `doc`, the untyped `useState(null)`s)
+   were each unreachable-in-practice; each got a guard that is a no-op on the real path.
+6. **The test suite had two wrong shapes** the types caught: `PCSection` fields take label
+   *strings* as options (not `{id,label}`), and `formatDate` needed its option type
+   declared. Both were the tests' errors, not the code's.
+
+## What is now gone
+
+- `allowJs` is `false`.
+- The 30-line `no-undef` stanza in `eslint.config.mjs` with its 24 hand-declared globals.
+  It existed only because `.jsx` was unchecked; `lib.dom` does that job at the compiler.
+- `lib/date.js`'s JSDoc annotation, superseded by a real signature.
+- The `= undefined` defaults in `StepChrome`, superseded by a real props type.
+
 ## What went
 
 - **The `&& false` substep popover** and its whole feeder chain: the JSX, `showSubs`,

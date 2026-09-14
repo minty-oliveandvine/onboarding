@@ -15,7 +15,7 @@ export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /** True when `value` looks like an email address. Empty is NOT valid — callers that treat
  *  an empty field as acceptable check for that themselves, because "optional" is their
  *  rule, not this one's. */
-export function isEmail(value) {
+export function isEmail(value: unknown): boolean {
   return EMAIL_RE.test(String(value ?? '').trim());
 }
 
@@ -23,6 +23,6 @@ export function isEmail(value) {
 export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** True when `value` is a uuid. */
-export function isUuid(value) {
+export function isUuid(value: unknown): boolean {
   return UUID_RE.test(String(value ?? ''));
 }

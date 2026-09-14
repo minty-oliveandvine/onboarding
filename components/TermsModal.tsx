@@ -29,11 +29,27 @@ import { useCallback, useEffect, useRef, useState } from "react";
  *   onAgree   — called with the version string once they reach the end and agree
  *   flaskBase — origin of the Flask app
  */
-export default function TermsModal({ open, onClose, onAgree, flaskBase }) {
-  const [doc, setDoc] = useState(null);
+/** What Flask's /legal/content/terms returns. */
+type TermsDoc = {
+  version: string;
+  html: string;
+  effective_date?: string | null;
+  /** false while the wording is still a draft. */
+  is_pinned?: boolean;
+};
+
+type TermsModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onAgree: (version: string) => void;
+  flaskBase: string;
+};
+
+export default function TermsModal({ open, onClose, onAgree, flaskBase }: TermsModalProps) {
+  const [doc, setDoc] = useState<TermsDoc | null>(null);
   const [error, setError] = useState("");
   const [atEnd, setAtEnd] = useState(false);
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Fetch on first open, then keep it — reopening should not refetch or reset
   // how far they had read.
@@ -42,7 +58,7 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }) {
     let cancelled = false;
     fetch(`${flaskBase}/legal/content/terms`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d) => {
+      .then((d: TermsDoc) => {
         if (!cancelled) setDoc(d);
       })
       .catch(() => {
@@ -86,7 +102,7 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }) {
   // nothing has been created yet and the person can simply not sign up.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
@@ -167,7 +183,7 @@ export default function TermsModal({ open, onClose, onAgree, flaskBase }) {
                 type="button"
                 className="tc-accept"
                 disabled={!doc || !atEnd}
-                onClick={() => onAgree(doc.version)}
+                onClick={() => doc && onAgree(doc.version)}
               >
                 Accept &amp; Continue
                 <svg

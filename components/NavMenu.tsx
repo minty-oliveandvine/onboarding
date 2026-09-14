@@ -26,7 +26,12 @@ const SECTIONS = [
   },
 ];
 
-export default function NavMenu({ companyName = 'Minty', showFullMenu = false }) {
+type NavMenuProps = {
+  companyName?: string;
+  showFullMenu?: boolean;
+};
+
+export default function NavMenu({ companyName = 'Minty', showFullMenu = false }: NavMenuProps) {
   const [open, setOpen] = useState(false);
   const [portalReady, setPortalReady] = useState(false);
   const panelId = useId();
@@ -53,7 +58,7 @@ export default function NavMenu({ companyName = 'Minty', showFullMenu = false })
   useEffect(() => {
     if (!open) return;
     // Keep the page scrollable (scrollbar stays visible) while the menu is open.
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', onKey);

@@ -20,12 +20,12 @@ export const MAX_AMOUNT_INT_DIGITS = 11;
 export const MAX_AMOUNT_DECIMALS = 2;
 
 /** Strip grouping commas so only digits and at most one dot remain. */
-export function cleanAmountString(raw) {
+export function cleanAmountString(raw: string | number): string {
   return String(raw).trim().replace(/,/g, '');
 }
 
 /** Insert a comma every 3 digits, right to left. "12345" -> "12,345". */
-function groupThousands(intPart) {
+function groupThousands(intPart: string): string {
   return intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
@@ -36,7 +36,7 @@ function groupThousands(intPart) {
  * truncated, not rounded ("9.999" -> "9.99"). Returns undefined when blank or
  * not a number.
  */
-export function toAmountString(raw) {
+export function toAmountString(raw: string | number): string | undefined {
   const cleaned = cleanAmountString(raw);
   if (!cleaned || cleaned === '.') return undefined;
 
@@ -59,7 +59,7 @@ export function toAmountString(raw) {
  * Accepts a raw user string, an API decimal string, or a number.
  * Returns "" when there is no usable number.
  */
-export function formatAmount(value) {
+export function formatAmount(value: string | number | null | undefined): string {
   if (value === null || value === undefined) return '';
   const raw = typeof value === 'number' ? numberToPlainString(value) : value;
   const normalized = toAmountString(raw);
@@ -82,7 +82,7 @@ export function formatAmount(value) {
  * would show 1.99. Rendering at 8dp first collapses that noise back to
  * 2.00000000, which then truncates cleanly.
  */
-function numberToPlainString(n) {
+function numberToPlainString(n: number): string {
   if (!Number.isFinite(n)) return '';
   return n.toFixed(8);
 }
@@ -95,7 +95,7 @@ function numberToPlainString(n) {
  * formatAmount() on blur to add the commas. Input past the digit limits is
  * silently refused rather than truncated, so the caret never jumps.
  */
-export function acceptAmountInput(next) {
+export function acceptAmountInput(next: string): string | null {
   const cleaned = cleanAmountString(next);
   if (cleaned === '') return '';
   if (!/^\d*\.?\d*$/.test(cleaned)) return null;
@@ -106,7 +106,7 @@ export function acceptAmountInput(next) {
 }
 
 /** Strip grouping so a formatted amount can be edited as plain digits on focus. */
-export function toAmountEditString(raw) {
+export function toAmountEditString(raw: string | number | null | undefined): string {
   if (raw === null || raw === undefined) return '';
   return cleanAmountString(raw);
 }

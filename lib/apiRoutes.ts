@@ -23,12 +23,9 @@
 // auth — they are not part of this extraction and are not listed here, so they fall
 // through to FLASK_BASE.
 
-// Extension included deliberately: the bundler resolves either form, but plain
-// `node` resolves only this one -- which is what lets scripts/check-routes.mjs
-// import this exact file rather than testing a copy of it.
-import { FLASK_BASE } from './flaskBase.js';
+import { FLASK_BASE } from './flaskBase';
 
-const strip = (url) => (url || '').replace(/\/$/, '');
+const strip = (url: string | undefined): string => (url || '').replace(/\/$/, '');
 
 // Where the extracted onboarding API lives. Defaults to the port its docker service
 // and `manage.py runserver` both use.
@@ -85,13 +82,13 @@ const DJANGO_PATHS = [
 
 const DJANGO_PATTERNS = DJANGO_PATHS.map((p) => p.split('/'));
 
-function matches(pattern, segments) {
+function matches(pattern: string[], segments: string[]): boolean {
   if (pattern.length !== segments.length) return false;
   return pattern.every((part, i) => part.startsWith(':') || part === segments[i]);
 }
 
 /** The base URL that answers `path`. Exported for tests and for debugging. */
-export function baseFor(path) {
+export function baseFor(path: string | null | undefined): string {
   // Compare the path only. A query string is never part of the routing decision,
   // and `?entity_id=…` on /state would otherwise defeat an exact match.
   const pathname = String(path || '').split('?')[0].split('#')[0];
@@ -110,7 +107,7 @@ export function baseFor(path) {
  * Used for fetches AND for navigations, because the question is the same either
  * way: which service serves this path.
  */
-export function urlFor(path) {
+export function urlFor(path: string | null | undefined): string {
   const suffix = String(path || '');
   return `${baseFor(suffix)}${suffix.startsWith('/') ? '' : '/'}${suffix}`;
 }

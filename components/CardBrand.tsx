@@ -21,7 +21,9 @@
 /* Each network's own colour, used for the wordmark on a white chip. Anything absent falls
    through to the neutral ink below — a grey chip is a fine answer for a brand we cannot
    name a colour for, and inventing one would be a guess presented as a fact. */
-const BRAND_INK = {
+import type { ReactNode } from 'react';
+
+const BRAND_INK: Record<string, string> = {
   visa: '#1A1F71',
   amex: '#006FCF',
   american_express: '#006FCF',
@@ -37,7 +39,7 @@ const BRAND_INK = {
 
 /* Long names in a 46px chip. The wordmark is what identifies the card, so it is shortened
    rather than shrunk to illegibility or clipped. */
-const SHORT = {
+const SHORT: Record<string, string> = {
   american_express: 'AMEX',
   amex: 'AMEX',
   diners_club: 'DINERS',
@@ -60,14 +62,22 @@ const SHORT = {
  *                        the same wherever it is shown, which is the point of there being
  *                        one component.
  */
-export default function CardBrand({ brand, label, className = 'pm-brand' }) {
+type CardBrandProps = {
+  /** Stripe's brand id (`visa`, `american_express`, ...). Any casing or separator. */
+  brand?: string | null;
+  /** Display name, when Minty already has a nicer one than the id. */
+  label?: string | null;
+  className?: string;
+};
+
+export default function CardBrand({ brand, label, className = 'pm-brand' }: CardBrandProps) {
   const key = (brand || '').toLowerCase().replace(/[\s-]/g, '_');
   const name = label || (brand ? brand.replace(/_/g, ' ') : 'Card');
 
   // The chip is decoration beside a row that already says "Visa ending in 4121" in words.
   // Announcing the brand a second time is noise in a screen reader, so the mark is hidden
   // from the accessibility tree rather than labelled.
-  const shell = (children) => (
+  const shell = (children: ReactNode) => (
     <span className={className} aria-hidden="true" title={name}>
       {children}
     </span>
