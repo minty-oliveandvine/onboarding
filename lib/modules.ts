@@ -1,6 +1,6 @@
 // The two spellings of a module, and the map between them.
 //
-// The backend speaks CODES (`PETTY_CASH`, `BILL`) — they are `entity_function.function_code`
+// The backend speaks CODES (`PETTY_CASH`, `PAYMENT_REQUEST`) — they are `entity_function.function_code`
 // values and appear in every `/api/onboarding/*` payload. The frontend speaks IDS
 // (`pettyCash`, `bills`) because that is what the module-picker state and the display-step
 // grouping key on.
@@ -16,7 +16,7 @@ import type { ModuleCode, ModuleId } from './api';
 /** Backend `function_code` -> frontend module id. */
 export const MODULE_ID_BY_CODE: Readonly<Record<ModuleCode, ModuleId>> = Object.freeze({
   PETTY_CASH: 'pettyCash',
-  BILL: 'bills',
+  PAYMENT_REQUEST: 'bills',
 });
 
 /** Frontend module id -> backend `function_code`. Derived, never hand-written. */

@@ -148,7 +148,7 @@ export async function installXeroFake(
       json: {
         ...real,
         xero: { connected, org: connected ? org : '' },
-        modules: ['PETTY_CASH', 'BILL'],
+        modules: ['PETTY_CASH', 'PAYMENT_REQUEST'],
       },
     });
   });

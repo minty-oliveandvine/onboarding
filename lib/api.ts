@@ -20,7 +20,7 @@
 //  ── Modules ─────────────────────────────────────────────────────────
 
 /** Backend spelling: `entity_function.function_code`. See lib/modules. */
-export type ModuleCode = 'PETTY_CASH' | 'BILL';
+export type ModuleCode = 'PETTY_CASH' | 'PAYMENT_REQUEST';
 
 /** Frontend spelling: what the module picker and the step grouping key on. */
 export type ModuleId = 'pettyCash' | 'bills';
