@@ -716,7 +716,7 @@ Compared side by side at display size before swapping.
 ## Prettier — last, and its own commit
 
 `.prettierrc`: single quotes, width 100, trailing commas. 63 files reflowed. Every gate
-green afterwards. `CODE_CLEANSE_NOTES.md` and `ERROR_COPY.md` are ignored so their prose
+green afterwards. `docs/code_cleanse/CODE_CLEANSE_NOTES.md` and `docs/ERROR_COPY.md` are ignored so their prose
 is not reflowed.
 
 | gate | result |

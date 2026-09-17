@@ -4,5 +4,5 @@ public
 test-results
 playwright-report
 package-lock.json
-CODE_CLEANSE_NOTES.md
-ERROR_COPY.md
+docs/code_cleanse/CODE_CLEANSE_NOTES.md
+docs/ERROR_COPY.md
