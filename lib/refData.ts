@@ -1,7 +1,7 @@
 import { urlFor } from './apiRoutes';
 
 // Country / currency reference data from the Module 1 backend registries
-// (pettycashv2.country_info / currency_info). Rows carry the uuid PKs the
+// (pettycashv3.country_info / currency_info). Rows carry the uuid PKs the
 // entities table references — dropdowns show the names but submit the uuids.
 // Fetches are cached module-wide so Step 1 and the amount-prefix display
 // share one request; a failed fetch clears the cache so the next call retries.
