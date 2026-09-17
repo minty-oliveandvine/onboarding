@@ -6,7 +6,7 @@
 //
 // That is the point of it: no other test proves a company can be walked all the way
 // through. It is also why the entity must be disposable. Arriving at All Set flips the
-// row to `active`, and `resetEntity()` (e2e/onboardingApi.ts) puts it back -- BEFORE the
+// row to `connected` / `disconnected`, and `resetEntity()` (e2e/onboardingApi.ts) puts it back -- BEFORE the
 // walk too, so a run that crashed mid-way cannot poison the next one.
 //
 // What a run leaves behind, by design: the entity's sales methods and a draft opening
@@ -147,7 +147,10 @@ test('walks from Connect to All Set and finalizes the disposable entity', async 
 
     // And the row agrees: the real finalize ran.
     const after = await readState(request, creds);
-    expect(after.status, 'finalize flipped the entity to active').toBe('active');
+    // entity_status is onboarding / connected / disconnected since C2: finalize leaves the
+    // company `connected` when a Xero org is linked, `disconnected` otherwise (the walk fakes
+    // the Xero round-trip, so either is a finished company; `onboarding` would be the failure)
+    expect(['connected', 'disconnected'], 'finalize left the company onboarding').toContain(after.status);
     expect(after.saved_step).toBe(9);
     expect(Number(after.opening_balance?.opening_balance)).toBe(100);
   } finally {
