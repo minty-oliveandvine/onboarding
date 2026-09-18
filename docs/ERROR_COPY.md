@@ -2,7 +2,7 @@
 
 How a failure becomes something a user can read. The copy standard is shared
 across Minty, billing-backend, billing-frontend and onboarding; the canonical
-write-up lives in the Minty repo as `ERROR_MESSAGE_LEAKS.md`.
+write-up lives in the Minty repo as `docs/features/ERROR_MESSAGE_LEAKS.md`.
 
 ## The standard
 
@@ -63,6 +63,6 @@ trailing `||` would be unreachable.
 
 ## Deliberate exception
 
-`components/BuyNowSheet.jsx` shows Stripe.js `error.message` verbatim -- it is
+`components/BillingSheet.tsx` shows Stripe.js `error.message` verbatim -- it is
 the only account of what the card issuer said, and it is written for
 cardholders. See the comment there.

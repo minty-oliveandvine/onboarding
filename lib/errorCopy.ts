@@ -3,7 +3,7 @@
 // This app has one wrapper (lib/billing.js) and ~26 hand-rolled fetch calls, so
 // there is no single place a failure becomes a sentence. These two helpers are
 // that place. They mirror the guards in the Minty and billing-frontend repos --
-// see Minty/ERROR_MESSAGE_LEAKS.md for the copy standard.
+// see Minty/docs/features/ERROR_MESSAGE_LEAKS.md for the copy standard.
 
 // Shown when we have nothing specific to say. Cause-neutral on purpose: it
 // fires for unknown reasons, so it must not assert one.

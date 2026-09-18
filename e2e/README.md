@@ -58,10 +58,10 @@ forged, expired or wrong-scope token is refused.
 never touch an entity anyone cares about. To recreate it:
 
 ```sql
-INSERT INTO pettycashv2.entities (id, name, country_code, currency_id, status, onboarding_saved_step)
+INSERT INTO pettycashv3.entities (id, name, country_code, currency_id, status, onboarding_saved_step)
 VALUES (gen_random_uuid()::text, 'E2E Test Entity (do not use)', 'HK',
         'fc848405-ffc2-4722-a309-b4b6828c4233', 'onboarding', 2);
-INSERT INTO pettycashv2.user_entity (user_id, entity_id, role, approved)
+INSERT INTO pettycashv3.user_entity (user_id, entity_id, role, approved)
 VALUES ('<your dev user id>', '<the id above>', 'admin', TRUE);
 ```
 
@@ -129,7 +129,7 @@ skip modules that already have one. The seed above enables none, so a freshly cr
 test entity accumulates nothing. If yours does, clear them by hand:
 
 ```sql
-DELETE FROM pettycashv2.entity_module_subscription WHERE entity_id = '<the id>';
+DELETE FROM pettycashv3.entity_module_subscription WHERE entity_id = '<the id>';
 ```
 
 ## What this layer deliberately does not cover

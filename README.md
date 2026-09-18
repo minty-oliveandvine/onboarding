@@ -44,9 +44,9 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 
 ## Before changing anything
 
-- **[`CODE_CLEANSE_NOTES.md`](CODE_CLEANSE_NOTES.md)** — records what was deliberately kept, and
+- **[`docs/code_cleanse/CODE_CLEANSE_NOTES.md`](docs/code_cleanse/CODE_CLEANSE_NOTES.md)** — records what was deliberately kept, and
   why. Several things that look like dead code are not.
-- **[`ERROR_COPY.md`](ERROR_COPY.md)** — the user-facing error standard, shared across the Minty
+- **[`docs/ERROR_COPY.md`](docs/ERROR_COPY.md)** — the user-facing error standard, shared across the Minty
   repos. A failure is a sentence, not a status.
 
 ## Testing

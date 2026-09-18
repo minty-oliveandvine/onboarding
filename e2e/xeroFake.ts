@@ -106,7 +106,19 @@ export async function installXeroFake(
       (url) => url.pathname === `${API}${name}`,
       async (route, request) => {
         if (request.method() === 'OPTIONS') return preflight(route);
-        return handler(route, request);
+        try {
+          await handler(route, request);
+        } catch (err) {
+          // A poll (the wizard re-reads /state) can still be in flight when the page
+          // navigates - the OAuth round-trip redirects it - or when the test's last
+          // assertion passes and the page goes away. Playwright then disposes the fetched
+          // response under the handler ("Response has been disposed") and would report
+          // the throw as a failure of a request the browser itself abandoned. What the
+          // wizard shows is asserted by the spec; an answer nobody is waiting for is not.
+          const message = err instanceof Error ? err.message : String(err);
+          if (page.isClosed() || /disposed|has been closed|already handled/.test(message)) return;
+          throw err;
+        }
       },
     );
 
@@ -148,7 +160,7 @@ export async function installXeroFake(
       json: {
         ...real,
         xero: { connected, org: connected ? org : '' },
-        modules: ['PETTY_CASH', 'BILL'],
+        modules: ['PETTY_CASH', 'PAYMENT_REQUEST'],
       },
     });
   });
