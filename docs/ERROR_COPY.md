@@ -63,6 +63,6 @@ trailing `||` would be unreachable.
 
 ## Deliberate exception
 
-`components/BuyNowSheet.jsx` shows Stripe.js `error.message` verbatim -- it is
+`components/BillingSheet.tsx` shows Stripe.js `error.message` verbatim -- it is
 the only account of what the card issuer said, and it is written for
 cardholders. See the comment there.
