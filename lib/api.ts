@@ -98,6 +98,13 @@ export type OnboardingState = {
   opening_balance: OpeningBalance | null;
   /** Empty when the caller may not list invites -- a permission gap must not fail resume. */
   invites: Invitation[];
+  /**
+   * Whether subscriptions are live on the service (its SUBSCRIPTION_ENABLED switch). False
+   * is the state production cut over in: step 2 is a plain module pick with no price and no
+   * billing sheet, and All Set states no trial and asks for no card. Absent (an older
+   * service) reads as live.
+   */
+  subscriptions_enabled?: boolean;
 };
 
 //  ── GET /plans ──────────────────────────────────────────────────────

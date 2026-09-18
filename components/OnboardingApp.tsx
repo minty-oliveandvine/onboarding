@@ -342,6 +342,11 @@ export default function OnboardingApp() {
         invites: Array.isArray(payload.invites)
           ? inviteRows(payload.invites, prev.invites)
           : prev.invites,
+        // The service's feature switch, carried as sent (an older service omits it, which
+        // the steps read as live).
+        ...(typeof payload.subscriptions_enabled === 'boolean'
+          ? { subscriptions_enabled: payload.subscriptions_enabled }
+          : {}),
         pettyCash: {
           ...prev.pettyCash,
           ...(Array.isArray(sm.electronic) ? { electronicMethods: sm.electronic } : {}),

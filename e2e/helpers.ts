@@ -89,3 +89,13 @@ export async function reachable(url: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * The mode the stack under test runs in. ``E2E_SUBSCRIPTIONS=0`` says the backends were
+ * started with ``SUBSCRIPTION_ENABLED=0`` (subscriptions dark, the cutover state); unset
+ * or ``1`` means live. Specs that show different screens in the two states branch on it.
+ */
+export function subscriptionsDark(): boolean {
+  const raw = (process.env.E2E_SUBSCRIPTIONS ?? '1').trim().toLowerCase();
+  return raw === '0' || raw === 'false' || raw === 'off';
+}

@@ -18,7 +18,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 import { IDS, LABELS } from './fixtures/xero';
-import { reachable, requireCredentials, type Credentials } from './helpers';
+import { reachable, requireCredentials, type Credentials, subscriptionsDark } from './helpers';
 import { land, readState, resetEntity, stashSavedStep } from './onboardingApi';
 import { ONBOARDING_API_URL } from './urls';
 import { installXeroFake } from './xeroFake';
@@ -141,8 +141,15 @@ test('walks from Connect to All Set and finalizes the disposable entity', async 
     // The facts block waits on finalize AND the (faked) billing status; both in means
     // the commit has returned.
     await expect(page.locator('.allset-facts')).toBeVisible();
-    await expect(page.locator('.allset-facts')).toContainText('trial has started');
-    await expect(page.getByRole('button', { name: 'Add Payment Now' })).toBeVisible();
+    if (subscriptionsDark()) {
+      // the cutover state: the modules are on, no trial was started and no card is asked for
+      await expect(page.locator('.allset-facts')).toContainText('is ready to use');
+      await expect(page.locator('.allset-facts')).not.toContainText('trial');
+      await expect(page.getByRole('button', { name: 'Add Payment Now' })).toHaveCount(0);
+    } else {
+      await expect(page.locator('.allset-facts')).toContainText('trial has started');
+      await expect(page.getByRole('button', { name: 'Add Payment Now' })).toBeVisible();
+    }
     await expect(page.getByRole('button', { name: 'Go to entity list' })).toBeEnabled();
 
     // And the row agrees: the real finalize ran.

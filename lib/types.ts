@@ -134,6 +134,12 @@ export type WizardState = {
   pettyCash: PettyCashForm;
   bills: BillsForm;
   invites: InviteRow[];
+  /**
+   * Whether subscriptions are live on the service (the server state's
+   * `subscriptions_enabled`). False is the cutover state: step 2 quotes nothing and asks
+   * for no card, All Set states no trial. Absent until the state has been read.
+   */
+  subscriptions_enabled?: boolean;
 };
 
 /** Frontend step ids. 9 is "All Set", which has no gate of its own. */
