@@ -44,6 +44,8 @@ There is no cookie involved: every call carries the onboarding JWT as a bearer t
 
 ## Before changing anything
 
+- **[`docs/features/README.md`](docs/features/README.md)** — one page per feature: the sign-in
+  page and the launch token, the nine steps, the Xero step and its network-layer fake.
 - **[`docs/code_cleanse/CODE_CLEANSE_NOTES.md`](docs/code_cleanse/CODE_CLEANSE_NOTES.md)** — records what was deliberately kept, and
   why. Several things that look like dead code are not.
 - **[`docs/ERROR_COPY.md`](docs/ERROR_COPY.md)** — the user-facing error standard, shared across the Minty
