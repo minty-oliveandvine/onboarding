@@ -48,3 +48,6 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Claude Code per-checkout scratch (settings.local.json holds one machine's permission rules)
+.claude/

@@ -15,8 +15,8 @@ never as _passed_.
 | Service                 | Port | Repo                        |
 | ----------------------- | ---- | --------------------------- |
 | Next (the wizard)       | 3001 | this one — `npm run dev`    |
-| Flask (Minty)           | 5001 | `C:\dev\Minty`              |
-| Onboarding API (Django) | 8001 | `C:\dev\onboarding-backend` |
+| Flask (Minty)           | 5001 | `C:\Github\Minty`              |
+| Onboarding API (Django) | 8001 | `C:\Github\onboarding-backend` |
 | PostgreSQL              | 5432 | —                           |
 
 Override any of them with `E2E_BASE_URL`, `E2E_FLASK_URL`, `E2E_ONBOARDING_API_URL`.
