@@ -2667,9 +2667,9 @@ textarea {
   color: var(--sum-label);
 }
 
-/* CENTRED, not baseline. The right-hand side is two rows tall once it carries a mark
-     over a caption, and a baseline taken against it leaves "Payment method" level with the
-     middle of the logo. */
+/* CENTRED, not baseline. The right-hand side is several rows tall once it carries a mark
+     over a caption over "Change", and a baseline taken against it leaves "Payment method"
+     level with the middle of the logo. */
 .sub-pay {
   display: flex;
   align-items: center;
@@ -2677,18 +2677,12 @@ textarea {
   gap: 12px;
   margin-top: 22px;
 }
-/* The label and its Change button travel together. Without a wrapper the row's
-     `space-between` would push them to opposite ends, which is the one place this control
-     must not be — a "Change" sitting against the card reads as changing something else. */
-.sub-pay-head {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-/* Teal rather than muted grey, and deliberately. It sits beside a grey label; a quiet
-     grey control next to quiet grey text is one a payer never finds. A notch smaller than
-     "Add card", because changing a card that is already working is the lesser errand. */
+/* Teal rather than muted grey, and deliberately. It ends the card column, under the
+     card it changes and right-aligned with it; a quiet grey control tucked beneath grey
+     text is one a payer never finds. A notch smaller than "Add card", because changing a
+     card that is already working is the lesser errand. */
 .sub-pay-change {
+  align-self: flex-end;
   border: 0;
   background: none;
   padding: 0;

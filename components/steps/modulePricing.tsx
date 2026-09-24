@@ -246,22 +246,7 @@ export function ModuleSubscriptionSummary({
       </div>
 
       <div className="sub-pay">
-        <span className="sub-pay-head">
-          <span className="sub-row-label">Payment method</span>
-          {/* ONLY ONCE THERE IS A CARD TO CHANGE. Not while the status is still loading —
-              offering to change something not yet shown — and not instead of "Add card",
-              which is this same action wearing the name that fits when there is nothing
-              there yet.
-
-              The frame draws no such control: once a card is confirmed it simply shows the
-              card. Added because without it a payer who picks the wrong card on this step
-              cannot correct it until onboarding is over and they find the payer portal. */}
-          {!cardLoading && card ? (
-            <button type="button" className="sub-pay-change" onClick={onOpenBilling}>
-              Change
-            </button>
-          ) : null}
-        </span>
+        <span className="sub-row-label">Payment method</span>
         {/* WHILE WE DO NOT YET KNOW, SAY NOTHING — and "Add card" is not nothing.
             The status is a round trip, and until it lands `card` is null, which used to
             fall straight through to the button below. A payer returning to this step with
@@ -286,6 +271,19 @@ export function ModuleSubscriptionSummary({
             <span className="sub-pay-name">
               {card.last4 ? `${card.brand_label} ending in ${card.last4}` : card.label}
             </span>
+            {/* ONLY ONCE THERE IS A CARD TO CHANGE — which is why it lives here, in the
+                card column, rather than beside the label: it sits under the card it
+                changes, right-aligned with it, and never appears while the status is
+                still loading or instead of "Add card", which is this same action wearing
+                the name that fits when there is nothing there yet.
+
+                The frame draws no such control: once a card is confirmed it simply shows
+                the card. Added because without it a payer who picks the wrong card on
+                this step cannot correct it until onboarding is over and they find the
+                payer portal. */}
+            <button type="button" className="sub-pay-change" onClick={onOpenBilling}>
+              Change
+            </button>
           </span>
         ) : (
           /* A button, not a link: it opens a dialog rather than going anywhere, and a
